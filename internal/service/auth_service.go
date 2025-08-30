@@ -52,8 +52,8 @@ func NewAuthService(
 	return &AuthService{AccountRepository: accountRepository, UserRepository: userRepository, SessionRepository: sessionRepository, Encrypt: encrypt}
 }
 
-func (s *AuthService) Login(c *fiber.Ctx, email string, password string) (*TokenResponse, error) {
-	user, err := s.UserRepository.FindByEmail(c.Context(), email)
+func (s *AuthService) Login(c *fiber.Ctx, body *LoginPayload) (*TokenResponse, error) {
+	user, err := s.UserRepository.FindByEmail(c.Context(), body.Email)
 	if err != nil {
 		return nil, _err.ErrAuthentication
 	}
@@ -67,7 +67,7 @@ func (s *AuthService) Login(c *fiber.Ctx, email string, password string) (*Token
 		return nil, _err.ErrAuthentication
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(*account.Password), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(*account.Password), []byte(body.Password))
 
 	if err != nil {
 		return nil, _err.ErrAuthentication
@@ -116,4 +116,45 @@ func (s *AuthService) encryptedSession(session *session_resource.SessionResource
 	}
 
 	return &accessToken, nil
+}
+
+func (s *AuthService) Register(c *fiber.Ctx, body *RegisterPayload) (bool, error) {
+
+	exists, err := s.UserRepository.ExistsByEmail(c.Context(), body.Email)
+	if err != nil {
+		return false, _err.ErrRegister
+	}
+
+	if exists {
+		return false, _err.ErrUserExists
+	}
+
+	user, err := s.UserRepository.Create(c.Context(), repository.UserCreatePayload{
+		Name:  body.Name,
+		Email: body.Email,
+	})
+
+	if err != nil {
+		return false, _err.ErrRegister
+	}
+
+	password, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return false, _err.ErrRegister
+	}
+
+	provider := "email"
+	_password := string(password)
+
+	_, err = s.AccountRepository.Create(c.Context(), repository.AccountCreatePayload{
+		UserID:   user.ID,
+		Provider: &provider,
+		Password: &_password,
+	})
+
+	if err != nil {
+		return false, _err.ErrRegister
+	}
+
+	return true, nil
 }

@@ -31,6 +31,7 @@ type UserUpdatePayload struct {
 type UserRespositoryInterface interface {
 	repository.BaseRepositoryInterface[UserCreatePayload, UserUpdatePayload, *user_resource.UserResource]
 	FindByEmail(ctx context.Context, email string) (*user_resource.UserResource, error)
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 
 func NewUserRepository(ent *ent.Client) UserRespositoryInterface {
@@ -45,11 +46,18 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]*user_resource.UserReso
 	return r.resource.Collection(users), nil
 }
 
+func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return r.Ent.User.Query().Where(user.Email(email)).Exist(ctx)
+}
+
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*user_resource.UserResource, error) {
-	user, err := r.Ent.User.Query().Where(user.Email(email)).First(ctx)
-	if err != nil {
+	exists, err := r.ExistsByEmail(ctx, email)
+	if err != nil || !exists {
 		return nil, err
 	}
+
+	user, _ := r.Ent.User.Query().Where(user.Email(email)).First(ctx)
+
 	return r.resource.Resource(user), nil
 }
 

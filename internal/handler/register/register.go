@@ -1,4 +1,4 @@
-package login
+package register
 
 import (
 	"errors"
@@ -14,13 +14,13 @@ import (
 
 func Get(options *handler.Options) handler.HandlerFunc {
 	return func(c *fiber.Ctx) error {
-		return handler.View(c, "Giriş Yap", web.LoginForm)
+		return handler.View(c, "Kayıt Ol", web.RegisterForm)
 	}
 }
 
 func Post(options *handler.Options) handler.HandlerFunc {
 	return func(c *fiber.Ctx) error {
-		var request service.LoginPayload
+		var request service.RegisterPayload
 
 		// Parse form data
 		if err := c.BodyParser(&request); err != nil {
@@ -43,6 +43,8 @@ func Post(options *handler.Options) handler.HandlerFunc {
 			for field, messageMap := range _errors {
 				actualMessage := messageMap["message"]
 				switch field {
+				case "name":
+					errorHTML += `<p>Adınız: ` + actualMessage + `</p>`
 				case "email":
 					errorHTML += `<p>E-posta: ` + actualMessage + `</p>`
 				case "password":
@@ -61,7 +63,7 @@ func Post(options *handler.Options) handler.HandlerFunc {
 
 		fmt.Println(c.Context())
 
-		token, err := options.Service.AuthService.Login(
+		success, err := options.Service.AuthService.Register(
 			c,
 			&request,
 		)
@@ -76,19 +78,30 @@ func Post(options *handler.Options) handler.HandlerFunc {
 			`)
 		}
 
-		// Set cookie with expire time
-		c.Cookie(&fiber.Cookie{
-			Name:     "access_token",
-			Value:    token.AccessToken,
-			Expires:  token.ExpiresAt,
-			HTTPOnly: true,
-			Secure:   options.Prod,
-			SameSite: "Lax",
-			Path:     "/",
-		})
+		if !success {
+			c.Set("HX-Retarget", "#message")
+			c.Set("HX-Reswap", "innerHTML")
+			if errors.Is(err, _err.ErrUserExists) {
+				return c.Status(fiber.StatusUnprocessableEntity).SendString(`
+					<div class="error">
+						<p>E-posta zaten kullanılıyor</p>
+					</div>
+				`)
+			}
+
+			return c.Status(fiber.StatusUnprocessableEntity).SendString(`
+				<div class="error">
+					<p>Bir hata oluştu</p>
+				</div>
+			`)
+		}
 
 		// Success - redirect to dashboard
-		c.Set("HX-Redirect", "/dashboard")
-		return c.SendStatus(fiber.StatusOK)
+		c.Set("HX-Redirect", "/giris")
+		return c.Status(fiber.StatusOK).SendString(`
+			<div class="success">
+				<p>Kayıt başarılı</p>
+			</div>
+		`)
 	}
 }

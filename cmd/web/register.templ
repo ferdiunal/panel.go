@@ -1,6 +1,6 @@
 package web
 
-templ LoginForm(csrfToken string, title string, locale string) {
+templ RegisterForm(csrfToken string, title string, locale string) {
 	@Base(csrfToken, title, locale) {
 		<div class="flex justify-center items-center h-dvh">
 			<div class="w-96 -mb-4">
@@ -10,13 +10,24 @@ templ LoginForm(csrfToken string, title string, locale string) {
 				</div>
 			<div class="card card-border bg-base-100">
 				<form 
-					id="login-form"
-					class="card-body"
-					hx-post="/giris"
-					hx-loading-path="/giris"
+					id="register-form"
+					class="card-body" 
+					hx-post="/kayit" 
+					hx-loading-path="/kayit"
 					method="post"
 					data-loading-states
 				>
+						<label class="label" for="name">Adınız</label>
+						<input 
+							type="text" 
+							class="input w-full" 
+							placeholder="Adınız" 
+							id="name" 
+							name="name"
+							required
+							title="Adınızı giriniz"
+						/>
+
 						<label class="label" for="email">E-posta</label>
 						<input 
 							type="email" 

@@ -127,6 +127,10 @@ func New() *FiberServer {
 		KeyGenerator:      func() string { return uuid.NewUUID().String() },
 		SingleUseToken:    true,
 		Extractor:         csrf.CsrfFromCookie(cookieName),
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			c.Set("HX-Refresh", "true")
+			return c.Status(419).SendString("Page Expired")
+		},
 	}))
 
 	return server
