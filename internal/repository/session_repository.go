@@ -16,7 +16,7 @@ import (
 
 type SessionRepository struct {
 	repository.BaseRepository
-	resource resource.ResourceInterface[ent.Session, resource.Response]
+	resource resource.ResourceInterface[ent.Session, *session_resource.SessionResource]
 }
 
 type SessionCreatePayload struct {
@@ -32,17 +32,17 @@ type SessionUpdatePayload struct {
 }
 
 type SessionRespositoryInterface interface {
-	repository.BaseRepositoryInterface[SessionCreatePayload, SessionUpdatePayload, resource.Response]
-	FindByToken(ctx context.Context, token string) (resource.Response, error)
-	FindByUserID(ctx context.Context, userID uuid.UUID) (resource.Response, error)
-	Touch(ctx context.Context, id uuid.UUID) (resource.Response, error)
+	repository.BaseRepositoryInterface[SessionCreatePayload, SessionUpdatePayload, *session_resource.SessionResource]
+	FindByToken(ctx context.Context, token string) (*session_resource.SessionResource, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID) (*session_resource.SessionResource, error)
+	Touch(ctx context.Context, id uuid.UUID) (*session_resource.SessionResource, error)
 }
 
 func NewSessionRepository(ent *ent.Client) SessionRespositoryInterface {
 	return &SessionRepository{BaseRepository: repository.BaseRepository{Ent: ent}, resource: session_resource.NewResource()}
 }
 
-func (r *SessionRepository) FindAll(ctx context.Context) ([]resource.Response, error) {
+func (r *SessionRepository) FindAll(ctx context.Context) ([]*session_resource.SessionResource, error) {
 	sessions, err := r.Ent.Session.Query().All(ctx)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (r *SessionRepository) FindAll(ctx context.Context) ([]resource.Response, e
 	return r.resource.Collection(sessions), nil
 }
 
-func (r *SessionRepository) FindByToken(ctx context.Context, token string) (resource.Response, error) {
+func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*session_resource.SessionResource, error) {
 	session, err := r.Ent.Session.Query().Where(session.Token(token)).First(ctx)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (r *SessionRepository) FindByToken(ctx context.Context, token string) (reso
 	return r.resource.Resource(session), nil
 }
 
-func (r *SessionRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (resource.Response, error) {
+func (r *SessionRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*session_resource.SessionResource, error) {
 	session, err := r.Ent.Session.Query().Where(session.UserID(userID)).First(ctx)
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (r *SessionRepository) FindByUserID(ctx context.Context, userID uuid.UUID) 
 	return r.resource.Resource(session), nil
 }
 
-func (r *SessionRepository) FindOne(ctx context.Context, id uuid.UUID) (resource.Response, error) {
+func (r *SessionRepository) FindOne(ctx context.Context, id uuid.UUID) (*session_resource.SessionResource, error) {
 
 	exists, err := r.Exists(ctx, id)
 	if err != nil || !exists {
@@ -79,7 +79,7 @@ func (r *SessionRepository) FindOne(ctx context.Context, id uuid.UUID) (resource
 	return r.resource.Resource(session), nil
 }
 
-func (r *SessionRepository) Create(ctx context.Context, payload SessionCreatePayload) (resource.Response, error) {
+func (r *SessionRepository) Create(ctx context.Context, payload SessionCreatePayload) (*session_resource.SessionResource, error) {
 	tx, err := r.Ent.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func (r *SessionRepository) Create(ctx context.Context, payload SessionCreatePay
 	return r.resource.Resource(session), nil
 }
 
-func (r *SessionRepository) Touch(ctx context.Context, id uuid.UUID) (resource.Response, error) {
+func (r *SessionRepository) Touch(ctx context.Context, id uuid.UUID) (*session_resource.SessionResource, error) {
 	exists, err := r.Exists(ctx, id)
 	if err != nil || !exists {
 		return nil, err
@@ -148,7 +148,7 @@ func (r *SessionRepository) Touch(ctx context.Context, id uuid.UUID) (resource.R
 	return r.resource.Resource(session), nil
 }
 
-func (r *SessionRepository) Update(ctx context.Context, payload SessionUpdatePayload) (resource.Response, error) {
+func (r *SessionRepository) Update(ctx context.Context, payload SessionUpdatePayload) (*session_resource.SessionResource, error) {
 	exists, err := r.Exists(ctx, payload.ID)
 	if err != nil || !exists {
 		return nil, err

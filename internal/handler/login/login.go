@@ -1,16 +1,14 @@
 package login
 
 import (
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"panel.go/cmd/web"
 	"panel.go/internal/interfaces/handler"
+	"panel.go/internal/service"
 	"panel.go/shared/validate"
 )
-
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8,max=32"`
-}
 
 func Get(options *handler.Options) handler.HandlerFunc {
 	return func(c *fiber.Ctx) error {
@@ -20,7 +18,7 @@ func Get(options *handler.Options) handler.HandlerFunc {
 
 func Post(options *handler.Options) handler.HandlerFunc {
 	return func(c *fiber.Ctx) error {
-		var request LoginRequest
+		var request service.LoginPayload
 
 		// Parse form data
 		if err := c.BodyParser(&request); err != nil {
@@ -59,16 +57,34 @@ func Post(options *handler.Options) handler.HandlerFunc {
 			`)
 		}
 
-		// Simulate authentication (replace with real auth logic)
-		if request.Email != "test@test.com" || request.Password != "password" {
+		fmt.Println(c.Context())
+
+		token, err := options.Service.AuthService.Login(
+			c,
+			request.Email,
+			request.Password,
+		)
+
+		if err != nil {
 			c.Set("HX-Retarget", "#message")
 			c.Set("HX-Reswap", "innerHTML")
-			return c.Status(fiber.StatusUnauthorized).SendString(`
-				<div class="error">
-					<p>E-posta veya parola hatalı</p>
+			return c.Status(fiber.StatusUnprocessableEntity).SendString(`
+				<div class="text-error text-sm mt-2">
+					<p>` + err.Error() + `</p>
 				</div>
 			`)
 		}
+
+		// Set cookie with expire time
+		c.Cookie(&fiber.Cookie{
+			Name:     "access_token",
+			Value:    token.AccessToken,
+			Expires:  token.ExpiresAt,
+			HTTPOnly: true,
+			Secure:   options.Prod,
+			SameSite: "Lax",
+			Path:     "/",
+		})
 
 		// Success - redirect to dashboard
 		c.Set("HX-Redirect", "/dashboard")

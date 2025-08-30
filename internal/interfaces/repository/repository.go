@@ -13,7 +13,7 @@ type BaseRepository struct {
 
 type BasePayload interface{}
 
-type BaseResponse interface{}
+type BaseResponse any
 
 type BaseRepositoryInterface[C BasePayload, U BasePayload, R BaseResponse] interface {
 	FindOne(ctx context.Context, id uuid.UUID) (R, error)

@@ -14,6 +14,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"panel.go/internal/ent"
 	"panel.go/internal/ent/migrate"
+	"panel.go/internal/interfaces/handler"
+	"panel.go/internal/repository"
+	"panel.go/internal/service"
 	"panel.go/shared/encrypt"
 	"panel.go/shared/uuid"
 
@@ -29,6 +32,8 @@ type FiberServer struct {
 	Ent     *ent.Client
 	Store   *session.Store
 	Encrypt encrypt.Crypt
+	Service *handler.Services
+	Prod    bool
 }
 
 func New() *FiberServer {
@@ -71,13 +76,15 @@ func New() *FiberServer {
 
 		Ent: client,
 
+		Prod: os.Getenv("APP_ENV") == "production",
+
 		Encrypt: encrypt,
 	}
 
 	appKey := os.Getenv("APP_KEY")
 	headerName := "X-Csrf-Token"
 	cookieName := "__Host-csrf_"
-
+	server.RegisterServices()
 	server.App.Use(logger.New())
 	server.App.Use(helmet.New())
 
@@ -106,4 +113,15 @@ func New() *FiberServer {
 	}))
 
 	return server
+}
+
+func (s *FiberServer) RegisterServices() {
+	s.Service = &handler.Services{
+		AuthService: service.NewAuthService(
+			repository.NewAccountRepository(s.Ent),
+			repository.NewUserRepository(s.Ent),
+			repository.NewSessionRepository(s.Ent),
+			s.Encrypt,
+		),
+	}
 }

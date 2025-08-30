@@ -6,12 +6,17 @@ import (
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
-	"panel.go/internal/ent"
+	"panel.go/internal/service"
 )
 
+type Services struct {
+	AuthService *service.AuthService
+}
+
 type Options struct {
-	Ent   *ent.Client
-	Store *session.Store
+	Store   *session.Store
+	Service *Services
+	Prod    bool
 }
 
 type HandlerFunc func(c *fiber.Ctx) error

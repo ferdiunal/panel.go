@@ -1,7 +1,7 @@
 package resource
 
 type Entity any
-type Response map[string]any
+type Response any
 
 type ResourceInterface[P Entity, R Response] interface {
 	Resource(entity *P) R

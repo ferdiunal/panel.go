@@ -14,7 +14,7 @@ import (
 
 type UserRepository struct {
 	repository.BaseRepository
-	resource resource.ResourceInterface[ent.User, resource.Response]
+	resource resource.ResourceInterface[ent.User, *user_resource.UserResource]
 }
 
 type UserCreatePayload struct {
@@ -28,11 +28,16 @@ type UserUpdatePayload struct {
 	Name  *string   `json:"name,omitempty"`
 }
 
-func NewUserRepository(ent *ent.Client) repository.BaseRepositoryInterface[UserCreatePayload, UserUpdatePayload, resource.Response] {
+type UserRespositoryInterface interface {
+	repository.BaseRepositoryInterface[UserCreatePayload, UserUpdatePayload, *user_resource.UserResource]
+	FindByEmail(ctx context.Context, email string) (*user_resource.UserResource, error)
+}
+
+func NewUserRepository(ent *ent.Client) UserRespositoryInterface {
 	return &UserRepository{BaseRepository: repository.BaseRepository{Ent: ent}, resource: user_resource.NewResource()}
 }
 
-func (r *UserRepository) FindAll(ctx context.Context) ([]resource.Response, error) {
+func (r *UserRepository) FindAll(ctx context.Context) ([]*user_resource.UserResource, error) {
 	users, err := r.Ent.User.Query().All(ctx)
 	if err != nil {
 		return nil, err
@@ -40,7 +45,15 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]resource.Response, erro
 	return r.resource.Collection(users), nil
 }
 
-func (r *UserRepository) FindOne(ctx context.Context, id uuid.UUID) (resource.Response, error) {
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*user_resource.UserResource, error) {
+	user, err := r.Ent.User.Query().Where(user.Email(email)).First(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.resource.Resource(user), nil
+}
+
+func (r *UserRepository) FindOne(ctx context.Context, id uuid.UUID) (*user_resource.UserResource, error) {
 	exists, err := r.Exists(ctx, id)
 	if err != nil || !exists {
 		return nil, err
@@ -51,7 +64,7 @@ func (r *UserRepository) FindOne(ctx context.Context, id uuid.UUID) (resource.Re
 	return r.resource.Resource(user), nil
 }
 
-func (r *UserRepository) Create(ctx context.Context, payload UserCreatePayload) (resource.Response, error) {
+func (r *UserRepository) Create(ctx context.Context, payload UserCreatePayload) (*user_resource.UserResource, error) {
 	tx, err := r.Ent.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -83,7 +96,7 @@ func (r *UserRepository) Create(ctx context.Context, payload UserCreatePayload) 
 	return r.resource.Resource(user), nil
 }
 
-func (r *UserRepository) Update(ctx context.Context, payload UserUpdatePayload) (resource.Response, error) {
+func (r *UserRepository) Update(ctx context.Context, payload UserUpdatePayload) (*user_resource.UserResource, error) {
 	exists, err := r.Exists(ctx, payload.ID)
 	if err != nil || !exists {
 		return nil, err
@@ -121,11 +134,6 @@ func (r *UserRepository) Update(ctx context.Context, payload UserUpdatePayload) 
 }
 
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	exists, err := r.Exists(ctx, id)
-	if err != nil || !exists {
-		return err
-	}
-
 	tx, err := r.Ent.Tx(ctx)
 	if err != nil {
 		return err
