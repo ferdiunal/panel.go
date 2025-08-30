@@ -1,10 +1,12 @@
 package login
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"panel.go/cmd/web"
+	_err "panel.go/internal/errors"
 	"panel.go/internal/interfaces/handler"
 	"panel.go/internal/service"
 	"panel.go/shared/validate"
@@ -32,13 +34,13 @@ func Post(options *handler.Options) handler.HandlerFunc {
 		}
 
 		// Validate struct
-		errors := validate.ValidateStruct(request)
-		if len(errors) > 0 {
+		_errors := validate.ValidateStruct(request)
+		if len(_errors) > 0 {
 			c.Set("HX-Retarget", "#message")
 			c.Set("HX-Reswap", "innerHTML")
 
 			var errorHTML string
-			for field, messageMap := range errors {
+			for field, messageMap := range _errors {
 				actualMessage := messageMap["message"]
 				switch field {
 				case "email":
@@ -65,12 +67,12 @@ func Post(options *handler.Options) handler.HandlerFunc {
 			request.Password,
 		)
 
-		if err != nil {
+		if errors.Is(err, _err.ErrAuthentication) {
 			c.Set("HX-Retarget", "#message")
 			c.Set("HX-Reswap", "innerHTML")
 			return c.Status(fiber.StatusUnprocessableEntity).SendString(`
-				<div class="text-error text-sm mt-2">
-					<p>` + err.Error() + `</p>
+				<div class="error">
+					<p>E-posta veya parola hatalı</p>
 				</div>
 			`)
 		}

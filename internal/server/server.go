@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"panel.go/internal/ent"
@@ -87,6 +88,22 @@ func New() *FiberServer {
 	server.RegisterServices()
 	server.App.Use(logger.New())
 	server.App.Use(helmet.New())
+
+	server.App.Use(limiter.New(limiter.Config{
+		Next: func(c *fiber.Ctx) bool {
+			return c.IP() == "127.0.0.1"
+		},
+		Max:               20,
+		Expiration:        30 * time.Second,
+		LimiterMiddleware: limiter.SlidingWindow{},
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.Get("x-forwarded-for")
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).SendString("Too many requests")
+		},
+		Storage: server.Store.Storage,
+	}))
 
 	server.App.Use(encryptcookie.New(encryptcookie.Config{
 		Key: appKey,

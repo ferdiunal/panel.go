@@ -2,11 +2,11 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+	_err "panel.go/internal/errors"
 	"panel.go/internal/repository"
 	"panel.go/internal/resource/session_resource"
 	"panel.go/shared/encrypt"
@@ -55,22 +55,22 @@ func NewAuthService(
 func (s *AuthService) Login(c *fiber.Ctx, email string, password string) (*TokenResponse, error) {
 	user, err := s.UserRepository.FindByEmail(c.Context(), email)
 	if err != nil {
-		return nil, err
+		return nil, _err.ErrAuthentication
 	}
 
 	account, err := s.AccountRepository.FindByUserIDWithPassword(c.Context(), user.ID)
 	if err != nil {
-		return nil, err
+		return nil, _err.ErrAuthentication
 	}
 
 	if account.Password == nil {
-		return nil, errors.New("password not found")
+		return nil, _err.ErrAuthentication
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(*account.Password), []byte(password))
 
 	if err != nil {
-		return nil, errors.New("invalid password")
+		return nil, _err.ErrAuthentication
 	}
 
 	session, err := s.SessionRepository.Create(c.Context(), repository.SessionCreatePayload{
@@ -80,12 +80,12 @@ func (s *AuthService) Login(c *fiber.Ctx, email string, password string) (*Token
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, _err.ErrAuthentication
 	}
 
 	accessToken, err := s.encryptedSession(session)
 	if err != nil {
-		return nil, err
+		return nil, _err.ErrAuthentication
 	}
 
 	return &TokenResponse{
