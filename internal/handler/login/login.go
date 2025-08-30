@@ -2,7 +2,6 @@ package login
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"panel.go/cmd/web"
@@ -58,8 +57,6 @@ func Post(options *handler.Options) handler.HandlerFunc {
 				</div>
 			`)
 		}
-
-		fmt.Println(c.Context())
 
 		token, err := options.Service.AuthService.Login(
 			c,

@@ -11,11 +11,11 @@ import (
 type AccountResource struct {
 	ID                    uuid.UUID  `json:"id"`
 	Password              *string    `json:"password,omitempty"`
-	Provider              *string    `json:"provider,omitempty"`
-	ProviderID            *string    `json:"provider_id,omitempty"`
-	AccessToken           *string    `json:"access_token,omitempty"`
-	RefreshToken          *string    `json:"refresh_token,omitempty"`
-	IdToken               *string    `json:"id_token,omitempty"`
+	Provider              string     `json:"provider,omitempty"`
+	ProviderID            string     `json:"provider_id,omitempty"`
+	AccessToken           string     `json:"access_token,omitempty"`
+	RefreshToken          string     `json:"refresh_token,omitempty"`
+	IdToken               string     `json:"id_token,omitempty"`
 	AccessTokenExpiresAt  *time.Time `json:"access_token_expires_at,omitempty"`
 	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires_at,omitempty"`
 }
@@ -29,7 +29,15 @@ func NewResource() resource.ResourceInterface[ent.Account, *AccountResource] {
 
 func (initResource) Resource(account *ent.Account) *AccountResource {
 	return &AccountResource{
-		ID: account.ID,
+		ID:                    account.ID,
+		Password:              &account.Password,
+		Provider:              account.Provider,
+		ProviderID:            account.ProviderID,
+		AccessToken:           account.AccessToken,
+		RefreshToken:          account.RefreshToken,
+		IdToken:               account.IDToken,
+		AccessTokenExpiresAt:  &account.AccessTokenExpiresAt,
+		RefreshTokenExpiresAt: &account.RefreshTokenExpiresAt,
 	}
 }
 

@@ -71,7 +71,7 @@ func (r *AccountRepository) FindByUserID(ctx context.Context, userID uuid.UUID) 
 }
 
 func (r *AccountRepository) FindByUserIDWithPassword(ctx context.Context, userID uuid.UUID) (*account_resource.AccountResource, error) {
-	account, err := r.Ent.Account.Query().Where(account.UserID(userID), account.PasswordNotNil()).First(ctx)
+	account, err := r.Ent.Account.Query().Where(account.UserID(userID), account.PasswordNotNil(), account.Provider("email")).First(ctx)
 	if err != nil {
 		return nil, err
 	}
