@@ -3,7 +3,7 @@ package web
 import "panel.go/internal/resource/user_resource"
 
 templ Dashboard(csrfToken string, title string, locale string, user *user_resource.UserResource) {
-	@AppLayout(csrfToken, title, locale, user) {
+	@AppLayout(csrfToken, title, locale, user, "/dashboard") {
 		
 	}
 }

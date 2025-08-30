@@ -46,6 +46,14 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/kayit", register.Get(handleOptions))
 	s.App.Post("/kayit", register.Post(handleOptions))
 
+	s.App.Delete("/logout", middleware.Authenticate(s.Service.AuthService), func(c *fiber.Ctx) error {
+		err := s.Service.AuthService.Logout(c)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+		}
+		c.Set("HX-Redirect", "/giris")
+		return c.SendStatus(fiber.StatusNoContent)
+	})
 	s.App.Get("/dashboard", middleware.Authenticate(s.Service.AuthService), dashboard.Get(handleOptions))
 }
 

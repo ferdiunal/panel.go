@@ -89,6 +89,27 @@ func (s *AuthService) VerifyToken(c *fiber.Ctx, token string) error {
 	return nil
 }
 
+func (s *AuthService) Logout(c *fiber.Ctx) error {
+	cookie := c.Cookies("access_token")
+	if cookie == "" {
+		return _err.ErrTokenExpired
+	}
+
+	decryptedCookie, err := s.Encrypt.Decrypt(cookie)
+	if err != nil {
+		return _err.ErrTokenExpired
+	}
+
+	var tokenBundle TokenBundle
+	if err := json.Unmarshal([]byte(decryptedCookie), &tokenBundle); err != nil {
+		return _err.ErrTokenExpired
+	}
+
+	_ = s.SessionRepository.Delete(c.Context(), uuid.MustParse(tokenBundle.SessionID))
+
+	return nil
+}
+
 func (s *AuthService) Login(c *fiber.Ctx, body *LoginPayload) (*TokenResponse, error) {
 	user, err := s.UserRepository.FindByEmail(c.Context(), body.Email)
 	if err != nil {
