@@ -68,7 +68,6 @@ func (r *UserRepository) FindOne(ctx context.Context, id uuid.UUID) (*user_resou
 	}
 
 	user, _ := r.Ent.User.Get(ctx, id)
-
 	return r.resource.Resource(user), nil
 }
 

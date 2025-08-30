@@ -97,7 +97,7 @@ func New() *FiberServer {
 			return c.Get("x-forwarded-for")
 		},
 		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).SendString("Too many requests")
+			return c.SendStatus(fiber.StatusTooManyRequests)
 		},
 		Storage: server.Store.Storage,
 	}))
@@ -126,7 +126,7 @@ func New() *FiberServer {
 		Extractor:         csrf.CsrfFromCookie(cookieName),
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			c.Set("HX-Refresh", "true")
-			return c.Status(419).SendString("Page Expired")
+			return c.SendStatus(419)
 		},
 	}))
 

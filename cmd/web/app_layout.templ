@@ -1,11 +1,12 @@
 package web
 
 import "panel.go/cmd/web/deps"
+import "panel.go/internal/resource/user_resource"
 
-templ AppLayout(csrfToken string, title string, locale string) {
+templ AppLayout(csrfToken string, title string, locale string, user *user_resource.UserResource) {
     @Base(csrfToken, title, locale) {
         @deps.Dialog()
-        @deps.Sidebar()
+        @deps.Sidebar(user)
         @deps.Header()
         <main class="py-10 lg:pl-72">
             <div class="px-4 sm:px-6 lg:px-8">

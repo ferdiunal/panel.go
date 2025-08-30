@@ -8,6 +8,6 @@ import (
 
 func Get(options *handler.Options) handler.HandlerFunc {
 	return func(c *fiber.Ctx) error {
-		return handler.View(c, "Dashboard", web.Dashboard)
+		return handler.WithAuthView(c, "Dashboard", web.Dashboard)
 	}
 }

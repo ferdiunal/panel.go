@@ -1,7 +1,9 @@
 package web
 
-templ Dashboard(csrfToken string, title string, locale string) {
-	@AppLayout(csrfToken, title, locale) {
-		  
+import "panel.go/internal/resource/user_resource"
+
+templ Dashboard(csrfToken string, title string, locale string, user *user_resource.UserResource) {
+	@AppLayout(csrfToken, title, locale, user) {
+		
 	}
 }

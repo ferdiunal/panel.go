@@ -10,6 +10,7 @@ import (
 
 type SessionResource struct {
 	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
 	IPAddress string    `json:"ip_address"`
@@ -26,6 +27,7 @@ func NewResource() resource.ResourceInterface[ent.Session, *SessionResource] {
 func (initResource) Resource(session *ent.Session) *SessionResource {
 	return &SessionResource{
 		ID:        session.ID,
+		UserID:    session.UserID,
 		Token:     session.Token,
 		ExpiresAt: session.ExpiresAt,
 		IPAddress: session.IPAddress,

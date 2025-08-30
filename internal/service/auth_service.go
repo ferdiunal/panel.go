@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	_err "panel.go/internal/errors"
 	"panel.go/internal/repository"
@@ -50,6 +51,42 @@ func NewAuthService(
 	encrypt encrypt.Crypt,
 ) *AuthService {
 	return &AuthService{AccountRepository: accountRepository, UserRepository: userRepository, SessionRepository: sessionRepository, Encrypt: encrypt}
+}
+
+func (s *AuthService) VerifyToken(c *fiber.Ctx, token string) error {
+	cookie := c.Cookies("access_token")
+	if cookie == "" {
+		return _err.ErrTokenExpired
+	}
+
+	decryptedCookie, err := s.Encrypt.Decrypt(cookie)
+	if err != nil {
+		return _err.ErrTokenExpired
+	}
+
+	var tokenBundle TokenBundle
+	if err := json.Unmarshal([]byte(decryptedCookie), &tokenBundle); err != nil {
+		return _err.ErrTokenExpired
+	}
+
+	session, err := s.SessionRepository.FindOne(c.Context(), uuid.MustParse(tokenBundle.SessionID))
+	if err != nil {
+		return _err.ErrTokenExpired
+	}
+
+	if session.ExpiresAt.Before(time.Now()) {
+		_ = s.SessionRepository.Delete(c.Context(), session.ID)
+		return _err.ErrTokenExpired
+	}
+
+	user, err := s.UserRepository.FindOne(c.Context(), session.UserID)
+	if err != nil {
+		return _err.ErrTokenExpired
+	}
+
+	c.Locals("user", user)
+
+	return nil
 }
 
 func (s *AuthService) Login(c *fiber.Ctx, body *LoginPayload) (*TokenResponse, error) {
