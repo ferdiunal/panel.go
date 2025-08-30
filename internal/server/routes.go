@@ -14,7 +14,7 @@ import (
 func (s *FiberServer) RegisterFiberRoutes() {
 	// Apply CORS middleware
 	s.App.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",
+		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:8080",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
 		AllowHeaders:     "Accept,Authorization,Content-Type,X-Csrf-Token",
 		AllowCredentials: false, // credentials require explicit origins
@@ -36,8 +36,8 @@ func (s *FiberServer) RegisterFiberRoutes() {
 		Browse:     false,
 	}))
 
-	s.App.Get("/login", login.Get(handleOptions))
-	s.App.Post("/login", login.Post(handleOptions))
+	s.App.Get("/giris", login.Get(handleOptions))
+	s.App.Post("/giris", login.Post(handleOptions))
 }
 
 func (s *FiberServer) HelloWorldHandler(c *fiber.Ctx) error {

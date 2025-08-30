@@ -7,9 +7,10 @@ templ Base(csrfToken string, title string, locale string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width,initial-scale=1"/>
 			<title>{title}</title>
+			<meta name="htmx-config" content='{"timeout": "5000"}'>
 			<link href="assets/css/output.css" rel="stylesheet"/>
 		</head>
-		<body hx-headers={ "{\"X-Csrf-Token\": \"" + csrfToken + "\"}" }>
+		<body hx-headers={ "{\"X-Csrf-Token\": \"" + csrfToken + "\"}" } hx-ext="loading-states">
 			{ children... }
 			<script src="assets/js/htmx.min.js"></script>
 			<script src="assets/js/loading-states.js"></script>

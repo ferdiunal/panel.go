@@ -12,16 +12,15 @@ templ LoginForm(csrfToken string, title string, locale string) {
 				<form 
 					id="login-form"
 					class="card-body" 
-					hx-post="/login" 
-					method="post" 
-					hx-on:htmx:before-request="this.querySelector('button[type=submit]').disabled = true; document.getElementById('login-error').innerHTML = ''"
-					hx-on:htmx:after-request="this.querySelector('button[type=submit]').disabled = false"
-					hx-on:htmx:response-error="this.querySelector('button[type=submit]').disabled = false"
+					hx-post="/giris" 
+					hx-loading-path="/giris"
+					method="post"
+					data-loading-states
 				>
 						<label class="label" for="email">E-posta</label>
 						<input 
 							type="email" 
-							class="input" 
+							class="input w-full" 
 							placeholder="E-posta" 
 							id="email" 
 							name="email"
@@ -32,7 +31,7 @@ templ LoginForm(csrfToken string, title string, locale string) {
 						<label class="label" for="password">Parola</label>
 						<input 
 							type="password" 
-							class="input" 
+							class="input w-full" 
 							placeholder="Parola" 
 							id="password" 
 							name="password"
@@ -42,8 +41,9 @@ templ LoginForm(csrfToken string, title string, locale string) {
 							pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
 							title="Parola en az 8 karakter olmalıdır ve en az bir sayı, bir küçük harf ve bir büyük harf içermelidir"
 						/>
-						<button type="submit" class="btn btn-neutral mt-4">
-							<span>Gönder</span>
+						<button type="submit" class="btn btn-neutral mt-4 w-full" data-loading-disable>
+							<span data-loading-class-remove="opacity-100" data-loading-class="opacity-50">Gönder</span>
+							<span data-loading class="loading loading-spinner loading-sm ml-2 opacity-0" data-loading-class-remove="opacity-0" data-loading-class="opacity-100"></span>
 						</button>
 					</form>
 				</div>
