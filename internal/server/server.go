@@ -1,26 +1,109 @@
 package server
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"context"
+	"log"
+	"os"
+	"time"
 
-	"panel.go/internal/database"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/csrf"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/session"
+	"panel.go/internal/ent"
+	"panel.go/internal/ent/migrate"
+	"panel.go/shared/encrypt"
+	"panel.go/shared/uuid"
+
+	entsql "entgo.io/ent/dialect/sql"
+	db "github.com/ferdiunal/go.utils/database"
+	goutils "github.com/ferdiunal/go.utils/database/interfaces"
 )
 
 type FiberServer struct {
 	*fiber.App
 
-	db database.Service
+	Db      goutils.DatabaseService
+	Ent     *ent.Client
+	Store   *session.Store
+	Encrypt encrypt.Crypt
 }
 
 func New() *FiberServer {
+	db, err := db.New()
+	if err != nil {
+		log.Fatal("Failed to initialize database")
+	}
+
+	if db == nil {
+		log.Fatal("Failed to initialize database")
+	}
+
+	drv := entsql.OpenDB("postgres", db.Db())
+	client := ent.NewClient(ent.Driver(drv))
+
+	if err := client.Schema.Create(
+		context.Background(),
+		migrate.WithDropIndex(true),
+		migrate.WithForeignKeys(true),
+		migrate.WithDropColumn(true),
+	); err != nil {
+		log.Fatalf("failed creating schema resources: %v", err)
+	}
+
+	store := session.New()
+
+	encryptionKey := os.Getenv("ENCRYPTION_KEY")
+
+	encrypt := encrypt.NewCrypt(encryptionKey)
+
 	server := &FiberServer{
 		App: fiber.New(fiber.Config{
 			ServerHeader: "panel.go",
 			AppName:      "panel.go",
 		}),
 
-		db: database.New(),
+		Db: db,
+
+		Store: store,
+
+		Ent: client,
+
+		Encrypt: encrypt,
 	}
+
+	appKey := os.Getenv("APP_KEY")
+	headerName := "X-Csrf-Token"
+	cookieName := "__Host-csrf_"
+
+	server.App.Use(logger.New())
+	server.App.Use(helmet.New())
+
+	server.App.Use(encryptcookie.New(encryptcookie.Config{
+		Key: appKey,
+		Encryptor: func(decryptedString, key string) (string, error) {
+			return server.Encrypt.Encrypt(decryptedString)
+		},
+		Decryptor: func(encryptedString, key string) (string, error) {
+			return server.Encrypt.Decrypt(encryptedString)
+		},
+	}))
+
+	server.App.Use(csrf.New(csrf.Config{
+		KeyLookup:         "header:" + headerName,
+		CookieName:        cookieName,
+		CookieSameSite:    "Lax",
+		CookieSecure:      true,
+		CookieSessionOnly: true,
+		CookieHTTPOnly:    true,
+		Expiration:        1 * time.Hour,
+		ContextKey:        "csrf",
+		KeyGenerator:      func() string { return uuid.NewUUID().String() },
+		SingleUseToken:    true,
+		Extractor:         csrf.CsrfFromCookie(cookieName),
+	}))
 
 	return server
 }

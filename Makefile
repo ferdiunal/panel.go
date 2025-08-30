@@ -17,7 +17,12 @@ templ-install:
 		fi; \
 	fi
 
-build: templ-install
+web-install:
+	@echo "Installing web dependencies..."
+	@cd cmd/web && npm install
+	@cd cmd/web && npm run build:css
+
+build: templ-install web-install
 	@echo "Building..."
 	@templ generate
 	

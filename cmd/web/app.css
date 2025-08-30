@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@source "./*.{templ,html,js,go}";
+@plugin "daisyui";
+
+#message {
+	@apply w-full;
+	> .error {
+		@apply border-error border-2 p-2 rounded-md text-error;
+	}
+	> .success {
+		@apply border-success border-2 p-2 rounded-md text-success;
+	}
+}

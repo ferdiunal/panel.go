@@ -6,10 +6,11 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"panel.go/internal/server"
 	"strconv"
 	"syscall"
 	"time"
+
+	"panel.go/internal/server"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -31,6 +32,10 @@ func gracefulShutdown(fiberServer *server.FiberServer, done chan bool) {
 	defer cancel()
 	if err := fiberServer.ShutdownWithContext(ctx); err != nil {
 		log.Printf("Server forced to shutdown with error: %v", err)
+	}
+
+	if err := fiberServer.Db.CleanupAll(); err != nil {
+		log.Printf("Error cleaning up database: %v", err)
 	}
 
 	log.Println("Server exiting")

@@ -7,7 +7,7 @@ tmp_dir = "tmp"
   bin = "./main"
   cmd = "make build"
   delay = 1000
-  exclude_dir = ["assets", "tmp", "vendor", "testdata", "node_modules"]
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "cmd/web/node_modules", "node_modules", "internal/ent"]
   exclude_file = []
   exclude_regex = ["_test.go", ".*_templ.go"]
   exclude_unchanged = false
@@ -21,7 +21,7 @@ tmp_dir = "tmp"
   poll = false
   poll_interval = 0
   post_cmd = []
-  pre_cmd = []
+  pre_cmd = ["cd cmd/web && npm run build:css", "go run cmd/entgo/entgo.go"]
   rerun = false
   rerun_delay = 500
   send_interrupt = false
@@ -42,5 +42,5 @@ tmp_dir = "tmp"
   clean_on_exit = false
 
 [screen]
-  clear_on_rebuild = false
+  clear_on_rebuild = true
   keep_scroll = true

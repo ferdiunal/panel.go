@@ -1,19 +1,27 @@
 package web
 
-templ Base() {
+templ Base(csrfToken string, title string, locale string) {
 	<!DOCTYPE html>
-	<html lang="en" >
+	<html lang={locale}>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width,initial-scale=1"/>
-			<title>Go Blueprint Hello</title>
+			<title>{title}</title>
 			<link href="assets/css/output.css" rel="stylesheet"/>
-			<script src="assets/js/htmx.min.js"></script>
 		</head>
-		<body >
-			<main >
-				{ children... }
-			</main>
+		<body hx-headers={ "{\"X-Csrf-Token\": \"" + csrfToken + "\"}" }>
+			{ children... }
+			<script src="assets/js/htmx.min.js"></script>
+			<script src="assets/js/loading-states.js"></script>
+			<script>
+				// Handle 422 responses for form validation
+				document.body.addEventListener('htmx:beforeSwap', function(evt) {
+					if([401, 422].includes(evt.detail.xhr.status)) {
+						evt.detail.shouldSwap = true;
+						evt.detail.isError = false;
+					}
+				});
+			</script>
 		</body>
 	</html>
 }
