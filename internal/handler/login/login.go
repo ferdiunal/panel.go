@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"panel.go/cmd/web"
+	"panel.go/internal/constants"
 	_err "panel.go/internal/errors"
 	"panel.go/internal/interfaces/handler"
 	"panel.go/internal/service"
@@ -79,7 +80,7 @@ func Post(options *handler.Options) handler.HandlerFunc {
 			Value:    token.AccessToken,
 			Expires:  token.ExpiresAt,
 			HTTPOnly: true,
-			Secure:   options.Prod,
+			Secure:   constants.APP_ENV == "production",
 			SameSite: "Lax",
 			Path:     "/",
 		})

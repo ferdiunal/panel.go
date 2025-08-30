@@ -7,6 +7,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"panel.go/cmd/web"
+	"panel.go/internal/handler/avatar"
+	"panel.go/internal/handler/dashboard"
 	"panel.go/internal/handler/login"
 	"panel.go/internal/handler/register"
 	"panel.go/internal/interfaces/handler"
@@ -25,7 +27,6 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	handleOptions := &handler.Options{
 		Store:   s.Store,
 		Service: s.Service,
-		Prod:    s.Prod,
 	}
 
 	s.App.Get("/health", s.healthHandler)
@@ -39,8 +40,12 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/giris", login.Get(handleOptions))
 	s.App.Post("/giris", login.Post(handleOptions))
 
+	s.App.Get("/avatar/:avatar", avatar.Get(handleOptions))
+
 	s.App.Get("/kayit", register.Get(handleOptions))
 	s.App.Post("/kayit", register.Post(handleOptions))
+
+	s.App.Get("/dashboard", dashboard.Get(handleOptions))
 }
 
 func (s *FiberServer) healthHandler(c *fiber.Ctx) error {

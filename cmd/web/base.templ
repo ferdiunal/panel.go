@@ -1,19 +1,25 @@
 package web
 
+import "panel.go/cmd/web/deps"
+
 templ Base(csrfToken string, title string, locale string) {
 	<!DOCTYPE html>
-	<html lang={locale}>
+	<html lang={locale} class="h-dvh bg-white dark:bg-black">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width,initial-scale=1"/>
 			<title>{title}</title>
+			<link rel="preload" href="/assets/css/output.css" as="style"/>
+			<link rel="preload" href="/assets/js/tailwindplus.js" as="script"/>
+			<link rel="preload" href="/assets/js/htmx.min.js" as="script"/>
+			<link rel="preload" href="/assets/js/loading-states.js" as="script"/>
+			<link rel="preload" href="/assets/js/loading-states.js" as="script"/>
+			
 			<meta name="htmx-config" content='{"timeout": "5000"}'>
-			<link href="assets/css/output.css" rel="stylesheet"/>
+			@deps.Scripts()
 		</head>
-		<body hx-headers={ "{\"X-Csrf-Token\": \"" + csrfToken + "\"}" } hx-ext="loading-states">
+		<body hx-headers={ "{\"X-Csrf-Token\": \"" + csrfToken + "\"}" } hx-ext="loading-states" class="h-dvh">
 			{ children... }
-			<script src="assets/js/htmx.min.js"></script>
-			<script src="assets/js/loading-states.js"></script>
 			<script>
 				// Handle 422 responses for form validation
 				document.body.addEventListener('htmx:beforeSwap', function(evt) {

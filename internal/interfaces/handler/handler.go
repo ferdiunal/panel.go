@@ -16,7 +16,6 @@ type Services struct {
 type Options struct {
 	Store   *session.Store
 	Service *Services
-	Prod    bool
 }
 
 type HandlerFunc func(c *fiber.Ctx) error

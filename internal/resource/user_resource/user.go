@@ -1,9 +1,11 @@
 package user_resource
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"panel.go/internal/constants"
 	"panel.go/internal/ent"
 	"panel.go/internal/interfaces/resource"
 )
@@ -15,6 +17,7 @@ type UserResource struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
+	Avatar    string    `json:"avatar"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -28,6 +31,7 @@ func (initResource) Resource(user *ent.User) *UserResource {
 		ID:        user.ID,
 		Email:     user.Email,
 		Name:      user.Name,
+		Avatar:    fmt.Sprintf("%s/avatar/%s?vibe=ocean", constants.APP_URL, user.ID),
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}

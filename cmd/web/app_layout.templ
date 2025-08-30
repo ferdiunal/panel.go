@@ -1,0 +1,16 @@
+package web
+
+import "panel.go/cmd/web/deps"
+
+templ AppLayout(csrfToken string, title string, locale string) {
+    @Base(csrfToken, title, locale) {
+        @deps.Dialog()
+        @deps.Sidebar()
+        @deps.Header()
+        <main class="py-10 lg:pl-72">
+            <div class="px-4 sm:px-6 lg:px-8">
+                { children... }
+            </div>
+        </main>
+    }
+}

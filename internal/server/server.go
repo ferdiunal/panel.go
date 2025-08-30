@@ -34,7 +34,6 @@ type FiberServer struct {
 	Store   *session.Store
 	Encrypt encrypt.Crypt
 	Service *handler.Services
-	Prod    bool
 }
 
 func New() *FiberServer {
@@ -76,8 +75,6 @@ func New() *FiberServer {
 		Store: store,
 
 		Ent: client,
-
-		Prod: os.Getenv("APP_ENV") == "production",
 
 		Encrypt: encrypt,
 	}
