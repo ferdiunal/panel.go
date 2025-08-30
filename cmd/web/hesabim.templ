@@ -1,0 +1,9 @@
+package web
+
+import "panel.go/internal/resource/user_resource"
+
+templ Hesabim(csrfToken string, title string, locale string, user *user_resource.UserResource) {
+	@AppLayout(csrfToken, title, locale, user, "/hesabim") {
+		
+	}
+}
