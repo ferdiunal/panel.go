@@ -39,7 +39,7 @@ type resendTemplateRequest struct {
 	BCC          []string               `json:"bcc,omitempty"`
 	Subject      string                 `json:"subject"`
 	TemplateID   string                 `json:"template_id"`
-	TemplateData map[string]interface{} `json:"template_data,omitempty"`
+	TemplateData map[string]any `json:"template_data,omitempty"`
 	ReplyTo      string                 `json:"reply_to,omitempty"`
 }
 
@@ -129,7 +129,7 @@ func (r *ResendProvider) SendTemplate(ctx context.Context, req *TemplateRequest)
 	return r.sendRequest(ctx, "/emails", payload)
 }
 
-func (r *ResendProvider) sendRequest(ctx context.Context, endpoint string, payload interface{}) error {
+func (r *ResendProvider) sendRequest(ctx context.Context, endpoint string, payload any) error {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)

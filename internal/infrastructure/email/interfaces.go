@@ -25,7 +25,7 @@ type TemplateRequest struct {
 	BCC          []string
 	Subject      string
 	TemplateID   string
-	TemplateData map[string]interface{}
+	TemplateData map[string]any
 	From         string
 	ReplyTo      string
 }
