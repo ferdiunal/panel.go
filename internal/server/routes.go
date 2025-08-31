@@ -9,6 +9,7 @@ import (
 	"panel.go/cmd/web"
 	"panel.go/internal/handler/avatar"
 	"panel.go/internal/handler/dashboard"
+	"panel.go/internal/handler/guvenlik"
 	"panel.go/internal/handler/hesabim"
 	"panel.go/internal/handler/login"
 	"panel.go/internal/handler/register"
@@ -58,6 +59,8 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/dashboard", middleware.Authenticate(s.Service.AuthService), dashboard.Get(handleOptions))
 	s.App.Get("/hesabim", middleware.Authenticate(s.Service.AuthService), hesabim.Get(handleOptions))
 	s.App.Put("/hesabim", middleware.Authenticate(s.Service.AuthService), hesabim.Update(handleOptions))
+	s.App.Get("/guvenlik", middleware.Authenticate(s.Service.AuthService), guvenlik.Get(handleOptions))
+	s.App.Put("/guvenlik", middleware.Authenticate(s.Service.AuthService), guvenlik.Update(handleOptions))
 }
 
 func (s *FiberServer) healthHandler(c *fiber.Ctx) error {

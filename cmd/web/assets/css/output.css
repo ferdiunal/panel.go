@@ -19,6 +19,8 @@
     --container-xs: 20rem;
     --container-xl: 36rem;
     --text-sm: 0.875rem;
+    --text-sm--line-height: calc(1.25 / 0.875);
+    --text-base: 1rem;
     --text-2xl: 1.5rem;
     --text-2xl--line-height: calc(2 / 1.5);
     --font-weight-medium: 500;
@@ -1466,6 +1468,9 @@
       border-width: var(--border, 1px) 0 var(--border, 1px) var(--border, 1px);
     }
   }
+  .mt-1 {
+    margin-top: calc(var(--spacing) * 1);
+  }
   .mt-2 {
     margin-top: calc(var(--spacing) * 2);
   }
@@ -1846,6 +1851,14 @@
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
+  .text-base\/7 {
+    font-size: var(--text-base);
+    line-height: calc(var(--spacing) * 7);
+  }
+  .text-sm {
+    font-size: var(--text-sm);
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+  }
   .text-sm\/6 {
     font-size: var(--text-sm);
     line-height: calc(var(--spacing) * 6);
@@ -1868,12 +1881,6 @@
   }
   .text-base-content {
     color: var(--color-base-content);
-  }
-  .text-base-content\/50 {
-    color: var(--color-base-content);
-    @supports (color: color-mix(in lab, red, red)) {
-      color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
-    }
   }
   .text-base-content\/70 {
     color: var(--color-base-content);

@@ -1,0 +1,87 @@
+package web
+
+import "panel.go/internal/resource/user_resource"
+import "panel.go/cmd/web/deps"
+
+templ Guvenlik(csrfToken string, title string, locale string, user *user_resource.UserResource) {
+	@AppLayout(csrfToken, title, locale, user, "/guvenlik") {
+		<div class="lg:flex lg:gap-x-16">
+			<h1 class="sr-only">Security Settings</h1>
+			<aside class="flex overflow-x-auto border-b border-base-300 lg:sticky lg:top-0 lg:block lg:h-dvh lg:w-64 lg:flex-none lg:border-0">
+				@deps.AccountAside("/guvenlik")
+			</aside>
+			<div class="divide-y divide-base-300 flex flex-col gap-y-10 flex-1">
+				<form
+					class="pb-10"
+					hx-put="/guvenlik"
+					hx-loading-path="/guvenlik"
+					data-loading-states
+					enctype="application/x-www-form-urlencoded"
+				>
+						<div id="message" class="sm:max-w-xl mb-4"></div>
+					<div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:max-w-xl sm:grid-cols-6">
+						<div class="col-span-full">
+							<h2 class="text-base/7 font-semibold text-base-content">Parola Değiştir</h2>
+							<p class="mt-1 text-sm/6 text-base-content/70">Hesabınızın güvenliği için güçlü bir parola kullanın.</p>
+						</div>
+						<div class="col-span-full">
+							<label for="currentPassword" class="block text-sm/6 font-medium text-base-content">Mevcut Parola</label>
+							<div class="mt-2">
+								<input
+									id="currentPassword"
+									type="password"
+									name="currentPassword"
+									autocomplete="current-password"
+									class="input input-bordered w-full"
+									required
+									minlength="8"
+									maxlength="32"
+								/>
+							</div>
+						</div>
+						<div class="col-span-full">
+							<label for="newPassword" class="block text-sm/6 font-medium text-base-content">Yeni Parola</label>
+							<div class="mt-2">
+								<input
+									id="newPassword"
+									type="password"
+									name="newPassword"
+									autocomplete="new-password"
+									class="input input-bordered w-full"
+									required
+									minlength="8"
+									maxlength="32"
+									pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+									title="Parola en az 8 karakter olmalıdır ve en az bir sayı, bir küçük harf ve bir büyük harf içermelidir"
+								/>
+							</div>
+							<p class="mt-2 text-sm text-base-content/70">En az 8 karakter, bir büyük harf, bir küçük harf ve bir sayı içermelidir.</p>
+						</div>
+						<div class="col-span-full">
+							<label for="confirmPassword" class="block text-sm/6 font-medium text-base-content">Yeni Parola (Tekrar)</label>
+							<div class="mt-2">
+								<input
+									id="confirmPassword"
+									type="password"
+									name="confirmPassword"
+									autocomplete="new-password"
+									class="input input-bordered w-full"
+									required
+									minlength="8"
+									maxlength="32"
+								/>
+							</div>
+						</div>
+					</div>
+					<div class="mt-8 flex items-center gap-4">
+						<button type="submit" class="btn btn-primary" data-loading-disable>
+							<span data-loading-class-remove="inline" data-loading-class="hidden">Parolayı Değiştir</span>
+							<span class="hidden" data-loading-class-remove="hidden" data-loading-class="inline">Değiştiriliyor</span>
+						</button>
+						<div id="save-status"></div>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

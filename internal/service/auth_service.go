@@ -243,3 +243,43 @@ func (s *AuthService) UpdateAccount(c *fiber.Ctx, body *repository.UserCreatePay
 	}
 	return true, nil
 }
+
+func (s *AuthService) ChangePassword(c *fiber.Ctx, currentPassword, newPassword string) (bool, error) {
+	user := c.Locals("user").(*user_resource.UserResource)
+	
+	account, err := s.AccountRepository.FindByUserIDWithPassword(c.Context(), user.ID)
+	if err != nil {
+		return false, _err.ErrAuthentication
+	}
+
+	if account.Password == nil {
+		return false, _err.ErrAuthentication
+	}
+
+	// Verify current password
+	err = bcrypt.CompareHashAndPassword([]byte(*account.Password), []byte(currentPassword))
+	if err != nil {
+		return false, _err.ErrAuthentication
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return false, _err.ErrUpdateAccount
+	}
+
+	// Update password in repository
+	newPasswordStr := string(hashedPassword)
+	_, err = s.AccountRepository.Update(c.Context(), repository.AccountUpdatePayload{
+		ID: account.ID,
+		AccountCreatePayload: repository.AccountCreatePayload{
+			Password: &newPasswordStr,
+		},
+	})
+
+	if err != nil {
+		return false, _err.ErrUpdateAccount
+	}
+
+	return true, nil
+}

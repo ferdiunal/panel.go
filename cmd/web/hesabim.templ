@@ -11,24 +11,24 @@ templ Hesabim(csrfToken string, title string, locale string, user *user_resource
 				@deps.AccountAside("/hesabim")
 			</aside>
 			<div class="divide-y divide-base-300 flex flex-col gap-y-10 flex-1">
-				<div id="message" class="sm:max-w-xl"></div>
-				<form 
+				<form
 					class="pb-10"
 					hx-put="/hesabim"
 					hx-loading-path="/hesabim"
 					data-loading-states
 				>
+						<div id="message" class="sm:max-w-xl mb-4"></div>
 					<div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:max-w-xl sm:grid-cols-6">
 						<div class="col-span-full">
 							<label for="name" class="block text-sm/6 font-medium text-base-content">Adınız</label>
 							<div class="mt-2">
-								<input id="name" type="text" name="name" value={user.Name} autocomplete="given-name" class="input input-bordered w-full" required/>
+								<input id="name" type="text" name="name" value={ user.Name } autocomplete="given-name" class="input input-bordered w-full" required/>
 							</div>
 						</div>
 						<div class="col-span-full">
 							<label for="email" class="block text-sm/6 font-medium text-base-content">E-posta</label>
 							<div class="mt-2">
-								<input id="email" type="email" name="email" value={user.Email} autocomplete="email" class="input input-bordered w-full" required/>
+								<input id="email" type="email" name="email" value={ user.Email } autocomplete="email" class="input input-bordered w-full" required/>
 							</div>
 						</div>
 						// <div class="col-span-full">
