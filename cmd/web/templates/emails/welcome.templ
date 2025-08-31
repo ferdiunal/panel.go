@@ -1,0 +1,167 @@
+package emails
+
+import "panel.go/internal/infrastructure/notification"
+
+templ Welcome(data notification.TemplateData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Welcome to Our Platform</title>
+			<style>
+				body {
+					font-family: Arial, sans-serif;
+					line-height: 1.6;
+					color: #333;
+					max-width: 600px;
+					margin: 0 auto;
+					padding: 20px;
+					background-color: #f4f4f4;
+				}
+				.container {
+					background: white;
+					padding: 30px;
+					border-radius: 10px;
+					box-shadow: 0 0 10px rgba(0,0,0,0.1);
+				}
+				.header {
+					text-align: center;
+					border-bottom: 2px solid #007bff;
+					padding-bottom: 20px;
+					margin-bottom: 30px;
+				}
+				.logo {
+					font-size: 28px;
+					font-weight: bold;
+					color: #007bff;
+					margin-bottom: 10px;
+				}
+				.welcome-title {
+					color: #007bff;
+					font-size: 24px;
+					margin-bottom: 20px;
+				}
+				.content {
+					font-size: 16px;
+					line-height: 1.8;
+				}
+				.highlight {
+					background-color: #e7f3ff;
+					padding: 15px;
+					border-left: 4px solid #007bff;
+					margin: 20px 0;
+				}
+				.button {
+					display: inline-block;
+					background-color: #007bff;
+					color: white;
+					padding: 12px 30px;
+					text-decoration: none;
+					border-radius: 5px;
+					margin: 20px 0;
+					font-weight: bold;
+				}
+				.footer {
+					margin-top: 40px;
+					text-align: center;
+					color: #666;
+					font-size: 14px;
+					border-top: 1px solid #eee;
+					padding-top: 20px;
+				}
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<div class="header">
+					<div class="logo">Panel.GO</div>
+					<div>Your Modern Go Web Platform</div>
+				</div>
+				
+				<h1 class="welcome-title">
+					Welcome
+					if userName, ok := data["userName"].(string); ok && userName != "" {
+						, { userName }!
+					} else {
+						!
+					}
+				</h1>
+				
+				<div class="content">
+					<p>
+						We're excited to have you join our platform! Your account has been successfully created and you're now ready to explore all the amazing features we have to offer.
+					</p>
+					
+					<div class="highlight">
+						<strong>What's next?</strong>
+						<ul>
+							<li>Complete your profile setup</li>
+							<li>Explore the dashboard</li>
+							<li>Connect with other users</li>
+							<li>Start using our powerful tools</li>
+						</ul>
+					</div>
+					
+					<p>
+						If you have any questions or need assistance, our support team is always here to help. Just reply to this email or visit our help center.
+					</p>
+					
+					<div style="text-align: center;">
+						<a href="#" class="button">Get Started</a>
+					</div>
+				</div>
+				
+				<div class="footer">
+					<p>
+						This email was sent to 
+						if email, ok := data["email"].(string); ok && email != "" {
+							{ email }
+						} else {
+							you
+						}
+					</p>
+					<p>
+						If you didn't create an account with us, please ignore this email.
+					</p>
+					<p>&copy; 2024 Panel.GO. All rights reserved.</p>
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+templ WelcomeText(data notification.TemplateData) {
+	Welcome to Panel.GO!
+
+	Hi
+	if userName, ok := data["userName"].(string); ok && userName != "" {
+		 { userName }
+	}
+	,
+
+	We're excited to have you join our platform! Your account has been successfully created and you're now ready to explore all the amazing features we have to offer.
+
+	What's next?
+	- Complete your profile setup
+	- Explore the dashboard  
+	- Connect with other users
+	- Start using our powerful tools
+
+	If you have any questions or need assistance, our support team is always here to help. Just reply to this email or visit our help center.
+
+	Best regards,
+	The Panel.GO Team
+
+	---
+	This email was sent to
+	if email, ok := data["email"].(string); ok && email != "" {
+		 { email }
+	} else {
+		 you
+	}
+
+	If you didn't create an account with us, please ignore this email.
+
+	© 2024 Panel.GO. All rights reserved.
+}
