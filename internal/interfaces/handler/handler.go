@@ -46,7 +46,6 @@ func WithAuthView(c *fiber.Ctx, title string, componentFunc func(csrfToken strin
 
 	c.Set("Content-Type", "text/html")
 	user := c.Locals("user").(*user_resource.UserResource)
-	fmt.Println(user)
 	component := componentFunc(csrfToken, title, locale, user)
 	return component.Render(c.Context(), c.Response().BodyWriter())
 }

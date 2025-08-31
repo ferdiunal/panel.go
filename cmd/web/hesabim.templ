@@ -1,9 +1,45 @@
 package web
 
 import "panel.go/internal/resource/user_resource"
+import "panel.go/cmd/web/deps"
 
 templ Hesabim(csrfToken string, title string, locale string, user *user_resource.UserResource) {
 	@AppLayout(csrfToken, title, locale, user, "/hesabim") {
-		
+		<div class="lg:flex lg:gap-x-16">
+			<h1 class="sr-only">General Settings</h1>
+			<aside class="flex overflow-x-auto border-b border-base-300 lg:sticky lg:top-0 lg:block lg:h-dvh lg:w-64 lg:flex-none lg:border-0">
+				@deps.AccountAside("/hesabim")
+			</aside>
+			<div class="divide-y divide-base-300 flex flex-col gap-y-10 flex-1">
+				<form class="pb-10">
+					<div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:max-w-xl sm:grid-cols-6">
+						<div class="col-span-full">
+							<label for="name" class="block text-sm/6 font-medium text-base-content">Adınız</label>
+							<div class="mt-2">
+								<input id="name" type="text" name="name" value={user.Name} autocomplete="given-name" class="input input-bordered w-full"/>
+							</div>
+						</div>
+						<div class="col-span-full">
+							<label for="email" class="block text-sm/6 font-medium text-base-content">E-posta</label>
+							<div class="mt-2">
+								<input id="email" type="email" name="email" value={user.Email} autocomplete="email" class="input input-bordered w-full"/>
+							</div>
+						</div>
+						// <div class="col-span-full">
+						// 	<label for="username" class="block text-sm/6 font-medium text-base-content">Kullanıcı Adı</label>
+						// 	<div class="mt-2">
+						// 		<div class="join w-full">
+						// 			<div class="join-item bg-base-200 px-3 py-2 text-base-content/70 border border-base-300 border-r-0 leading-none flex items-center">example.com/</div>
+						// 			<input id="username" type="text" name="username" placeholder="janesmith" class="join-item input input-bordered flex-1"/>
+						// 		</div>
+						// 	</div>
+						// </div>
+					</div>
+					<div class="mt-8 flex">
+						<button type="submit" class="btn btn-primary">Save</button>
+					</div>
+				</form>
+			</div>
+		</div>
 	}
 }
