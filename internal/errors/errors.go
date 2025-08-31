@@ -7,4 +7,6 @@ var (
 	ErrRegister       = errors.New("register error")
 	ErrUserExists     = errors.New("user already exists")
 	ErrTokenExpired   = errors.New("token expired")
+	ErrUpdateAccount  = errors.New("update account error")
+	ErrUniqueEmail    = errors.New("unique email error")
 )

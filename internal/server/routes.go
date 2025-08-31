@@ -57,6 +57,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	})
 	s.App.Get("/dashboard", middleware.Authenticate(s.Service.AuthService), dashboard.Get(handleOptions))
 	s.App.Get("/hesabim", middleware.Authenticate(s.Service.AuthService), hesabim.Get(handleOptions))
+	s.App.Put("/hesabim", middleware.Authenticate(s.Service.AuthService), hesabim.Update(handleOptions))
 }
 
 func (s *FiberServer) healthHandler(c *fiber.Ctx) error {

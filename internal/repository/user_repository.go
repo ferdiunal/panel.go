@@ -18,20 +18,21 @@ type UserRepository struct {
 }
 
 type UserCreatePayload struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	Email string `json:"email" validate:"required,email,max=150,omitempty"`
+	Name  string `json:"name" validate:"required,min=3,max=150,omitempty"`
 }
 
 type UserUpdatePayload struct {
-	ID    uuid.UUID `json:"id"`
-	Email *string   `json:"email,omitempty"`
-	Name  *string   `json:"name,omitempty"`
+	ID    uuid.UUID `json:"id" validate:"required,uuid"`
+	Email *string   `json:"email,omitempty" validate:"omitempty,email,max=150"`
+	Name  *string   `json:"name,omitempty" validate:"omitempty,min=3,max=150"`
 }
 
 type UserRespositoryInterface interface {
 	repository.BaseRepositoryInterface[UserCreatePayload, UserUpdatePayload, *user_resource.UserResource]
 	FindByEmail(ctx context.Context, email string) (*user_resource.UserResource, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	UniqueEmailWithID(ctx context.Context, email string, id uuid.UUID) (bool, error)
 }
 
 func NewUserRepository(ent *ent.Client) UserRespositoryInterface {
@@ -44,6 +45,10 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]*user_resource.UserReso
 		return nil, err
 	}
 	return r.resource.Collection(users), nil
+}
+
+func (r *UserRepository) UniqueEmailWithID(ctx context.Context, email string, id uuid.UUID) (bool, error) {
+	return r.Ent.User.Query().Where(user.Email(email), user.IDNEQ(id)).Exist(ctx)
 }
 
 func (r *UserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {

@@ -11,3 +11,8 @@
 		@apply border-success border-2 p-2 rounded-md text-success;
 	}
 }
+#save-status {
+	.success {
+		@apply badge badge-success gap-2 animate-pulse;
+	}
+}

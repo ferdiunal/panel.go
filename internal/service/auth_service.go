@@ -10,6 +10,7 @@ import (
 	_err "panel.go/internal/errors"
 	"panel.go/internal/repository"
 	"panel.go/internal/resource/session_resource"
+	"panel.go/internal/resource/user_resource"
 	"panel.go/shared/encrypt"
 )
 
@@ -214,5 +215,31 @@ func (s *AuthService) Register(c *fiber.Ctx, body *RegisterPayload) (bool, error
 		return false, _err.ErrRegister
 	}
 
+	return true, nil
+}
+
+func (s *AuthService) UpdateAccount(c *fiber.Ctx, body *repository.UserCreatePayload) (bool, error) {
+	user := c.Locals("user").(*user_resource.UserResource)
+	exists, err := s.UserRepository.Exists(c.Context(), user.ID)
+
+	if err != nil || !exists {
+		return false, _err.ErrUpdateAccount
+	}
+
+	existsEmail, err := s.UserRepository.UniqueEmailWithID(c.Context(), body.Email, user.ID)
+
+	if err != nil || existsEmail {
+		return false, _err.ErrUniqueEmail
+	}
+
+	_, err = s.UserRepository.Update(c.Context(), repository.UserUpdatePayload{
+		ID:    user.ID,
+		Name:  &body.Name,
+		Email: &body.Email,
+	})
+
+	if err != nil {
+		return false, _err.ErrUpdateAccount
+	}
 	return true, nil
 }
