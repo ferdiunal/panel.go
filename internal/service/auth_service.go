@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -282,4 +283,49 @@ func (s *AuthService) ChangePassword(c *fiber.Ctx, currentPassword, newPassword 
 	}
 
 	return true, nil
+}
+
+// RegisterCLI creates a new user from CLI without fiber context
+func (s *AuthService) RegisterCLI(ctx context.Context, name, email, password string) error {
+	// Check if user already exists
+	exists, err := s.UserRepository.ExistsByEmail(ctx, email)
+	if err != nil {
+		return _err.ErrRegister
+	}
+
+	if exists {
+		return _err.ErrUserExists
+	}
+
+	// Create user
+	user, err := s.UserRepository.Create(ctx, repository.UserCreatePayload{
+		Name:  name,
+		Email: email,
+	})
+
+	if err != nil {
+		return _err.ErrRegister
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return _err.ErrRegister
+	}
+
+	provider := "email"
+	passwordStr := string(hashedPassword)
+
+	// Create account
+	_, err = s.AccountRepository.Create(ctx, repository.AccountCreatePayload{
+		UserID:   user.ID,
+		Provider: &provider,
+		Password: &passwordStr,
+	})
+
+	if err != nil {
+		return _err.ErrRegister
+	}
+
+	return nil
 }
