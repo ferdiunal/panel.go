@@ -2,6 +2,10 @@
 
 Alanlar, Panel kaynaklarınızın yapı taşlarıdır. Hangi verilerin gösterileceğini ve nasıl giriş yapılacağını tanımlarlar. SDK, basit metin girişlerinden karmaşık ilişkilere kadar zengin bir alan tipi seti sunar.
 
+```go
+import "github.com/ferdiunal/panel.go/pkg/fields"
+```
+
 ## Standart Alanlar
 
 Bu alanlar standart veri tiplerini işler.
@@ -12,10 +16,12 @@ Bu alanlar standart veri tiplerini işler.
 -   **`fields.Number("Etiket")`**: Sayısal giriş.
 -   **`fields.Email("Etiket")`**: Doğrulama ipuçları içeren e-posta girişi.
 -   **`fields.Tel("Etiket")`**: Telefon numarası girişi.
--   **`fields.Audio("Etiket")`** & **`fields.Video("Etiket")`**: Medya dosyası işleme.
+-   **`fields.Switch("Etiket", "key")`**: On/Off (Boolean) anahtarı.
+-   **`fields.Audio("Etiket")`** & **`fields.Video("Etiket")`**: Medya dosyası işleme (URL veya Path).
 -   **`fields.Date("Doğum Tarihi")`**: Tarih seçici.
 -   **`fields.DateTime("Oluşturulma Tarihi")`**: Tarih ve saat seçici.
--   **`fields.File("Avatar")`**: Dosya yükleme işleyicisi.
+-   **`fields.File("Avatar")`**: Dosya yükleme işleyicisi (Local veya S3 desteği için yapılandırılabilir).
+-   **`fields.Image("Görsel")`**: Görsel önizlemeli dosya yükleyicisi.
 -   **`fields.KeyValue("Metadata")`**: Anahtar-Değer çifti düzenleyicisi (JSON alanları).
 
 ## İlişkiler (Relationships)

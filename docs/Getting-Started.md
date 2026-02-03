@@ -5,7 +5,7 @@ Panel SDK ile dakikalar içinde modern bir admin paneli oluşturabilirsiniz.
 ## Kurulum
 
 ```bash
-go get panel.go
+go get github.com/ferdiunal/panel.go
 ```
 
 ## Hızlı Başlangıç
@@ -27,17 +27,26 @@ type User struct {
 Model ile UI arasındaki köprüyü kurun:
 
 ```go
-type UserResource struct{}
+import (
+    "github.com/ferdiunal/panel.go/pkg/fields"
+    "github.com/ferdiunal/panel.go/pkg/resource"
+)
 
-func (u *UserResource) Model() interface{} {
-    return &User{}
+type UserResource struct{
+    resource.Base
 }
 
-func (u *UserResource) Fields() []fields.Element {
-    return []fields.Element{
-        fields.ID(),
-        fields.Text("İsim", "full_name"),
-        fields.Email("E-Posta", "email"),
+func GetUserResource() resource.Resource {
+    return &UserResource{
+        Base: resource.Base{
+            DataModel: &User{},
+            Label:     "Kullanıcılar",
+            FieldsVal: []fields.Element{
+                fields.ID(),
+                fields.Text("İsim", "full_name"),
+                fields.Email("E-Posta", "email"),
+            },
+        },
     }
 }
 ```
@@ -45,15 +54,27 @@ func (u *UserResource) Fields() []fields.Element {
 ### 3. Uygulamayı Başlatma
 
 ```go
+package main
+
+import (
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
+    "github.com/ferdiunal/panel.go/pkg/panel"
+)
+
 func main() {
     db, _ := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
     db.AutoMigrate(&User{})
 
-    app := panel.New(panel.Config{
+    cfg := panel.Config{
         Database: panel.DatabaseConfig{Instance: db},
-    })
+        Server:   panel.ServerConfig{Port: "8080", Host: "localhost"},
+        Environment: "production",
+    }
+
+    app := panel.New(cfg)
     
-    app.Register("users", &UserResource{}) 
+    app.RegisterResource(GetUserResource()) 
     
     app.Start()
 }
