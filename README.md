@@ -1,287 +1,204 @@
-# Panel.go
+# Panel.go 🚀
 
-**Panel.go**, modern Go teknolojileri ile geliştirilmiş, tam yığınlı (full-stack) web uygulamasıdır. Fiber web framework'ü, PostgreSQL veritabanı ve HTMX tabanlı interaktif kullanıcı arayüzü ile yüksek performanslı ve güvenli bir yönetim paneli sunar.
+**Panel.go**, Go (Golang) projelerinizde hızlı, tip güvenli ve yönetilebilir admin panelleri oluşturmanız için tasarlanmış modern bir SDK'dır. 
 
-## 🚀 Özellikler
+Go'nun performansına ve tip güvenliğine uygun olarak tasarlanan bu yapı, veritabanı modellerinizi dakikalar içinde tam fonksiyonel bir REST API'ye ve yönetim arayüzüne dönüştürür.
 
-- **🔐 Güvenli Kimlik Doğrulama**: JWT tabanlı oturum yönetimi ve çok faktörlü kimlik doğrulama
-- **👤 Kullanıcı Yönetimi**: Kayıt, giriş, profil yönetimi ve avatar yükleme
-- **📧 Bildirim Sistemi**: E-posta ve SMS entegrasyonları ile gelişmiş bildirim altyapısı
-- **🎨 Modern UI/UX**: Tailwind CSS v4 ve HTMX ile responsive, interaktif arayüz
-- **🏗️ Clean Architecture**: Katmanlı mimari ile sürdürülebilir ve test edilebilir kod yapısı
-- **⚡ Yüksek Performans**: Fiber v2 ile optimize edilmiş HTTP sunucusu
-- **🗄️ PostgreSQL Entegrasyonu**: Ent ORM ile tip güvenli veritabanı işlemleri
-- **🔄 Hot Reload**: Geliştirme sırasında anında yeniden yükleme desteği
-- **📱 Mobil Uyumlu**: Responsive tasarım ile tüm cihazlarda mükemmel görünüm
+## ✨ Özellikler
 
-## 🏗️ Teknoloji Altyapısı
+- **Resource Abstraction**: Model ve UI mantığını tek bir yapıda toplayın.
+- **Fluent Field API**: Zincirleme metodlarla (`Text("Ad").Sortable().Required()`) kolayca alan tanımlayın.
+- **Otomatik CRUD**: Oluşturduğunuz her resource için Create, Read, Update, Delete ve Show endpointleri hazır gelir.
+- **Smart Data Provider**: GORM entegrasyonu ile sayfalama, sıralama ve filtreleme otomatik halledilir.
+- **Central App Config**: Tek bir `Panel` instance'ı ile tüm servisi yönetin.
+- **Genişletilebilir Mimari**: Kendi özel servislerinizi ve rotalarınızı kolayca entegre edin.
+- **Custom Data Providers**: Veri erişim katmanını tamamen özelleştirebilme (Custom Repository) yeteneği.
 
-### Backend
-- **Go 1.25.0**: Ana programlama dili
-- **Fiber v2**: Yüksek performanslı web framework
-- **Ent ORM**: Tip güvenli veritabanı işlemleri
-- **PostgreSQL**: Güçlü ve ölçeklenebilir veritabanı
+## 📦 Kurulum
 
-### Frontend
-- **Templ**: Go tabanlı tip güvenli şablon motoru
-- **HTMX v2**: Minimal JavaScript ile interaktif arayüzler
-- **Tailwind CSS v4**: Utility-first CSS framework
-
-### Geliştirme Araçları
-- **Air**: Hot reload ve canlı geliştirme
-- **Docker Compose**: Konteynerleştirilmiş veritabanı
-- **Go Modules**: Bağımlılık yönetimi
-
-## 📋 Gereksinimler
-
-- **Go**: 1.25.0 veya üzeri
-- **PostgreSQL**: 12+ sürüm
-- **Node.js**: 16+ sürüm (web assets için)
-- **Docker**: Veritabanı konteyneri için
-- **Make**: Build komutları için
+```bash
+go get panel.go
+```
 
 ## ⚡ Hızlı Başlangıç
 
-### 1. Projeyi Klonlayın
-```bash
-git clone <repository-url>
-cd panel.go
+Sadece 4 adımda çalışır hale getirin.
+
+### 1. Veritabanı Modeli (GORM)
+
+```go
+type User struct {
+    ID        uint   `json:"id" gorm:"primaryKey"`
+    FullName  string `json:"full_name"`
+    Email     string `json:"email"`
+    Role      string `json:"role"`
+    CreatedAt time.Time `json:"created_at"`
+}
 ```
 
-### 2. Ortam Değişkenlerini Ayarlayın
-`.env` dosyası oluşturun ve aşağıdaki değişkenleri tanımlayın:
-```env
-# Veritabanı Konfigürasyonu
-BLUEPRINT_DB_HOST=localhost
-BLUEPRINT_DB_PORT=5432
-BLUEPRINT_DB_DATABASE=panel_db
-BLUEPRINT_DB_USERNAME=panel_user
-BLUEPRINT_DB_PASSWORD=your_secure_password
+### 2. Resource Tanımı
 
-# Uygulama Konfigürasyonu
-PORT=8080
+Modelinizi ve UI alanlarını (Fields) bağlayan yapıyı kurun.
 
-# E-posta/SMS API Anahtarları (opsiyonel)
-SMTP_HOST=your_smtp_host
-SMTP_PORT=587
-SMTP_USER=your_email
-SMTP_PASS=your_password
+```go
+import (
+    "panel.go/internal/fields"
+    "panel.go/internal/resource"
+)
 
-# SMS Gateway (opsiyonel)
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
+type UserResource struct{}
+
+// Hangi model ile çalışacağını belirtin
+func (u *UserResource) Model() interface{} {
+    return &User{}
+}
+
+// Hangi alanların görüneceğini belirtin
+func (u *UserResource) Fields() []fields.Element {
+    return []fields.Element{
+        fields.ID().Sortable(),
+
+        fields.Text("Ad Soyad", "full_name").
+            Sortable().
+            Placeholder("Tam ad...").
+            Required(),
+
+        fields.Email("E-Posta", "email").
+            Sortable().
+            Required(),
+
+        fields.Select("Rol", "role").
+            Options(map[string]string{
+                "admin": "Yönetici",
+                "user":  "Kullanıcı",
+            }),
+            
+        fields.DateTime("Kayıt Tarihi", "created_at").
+            OnList().
+            ReadOnly(),
+    }
+}
 ```
 
-### 3. Veritabanını Başlatın
-```bash
-# Docker Compose ile PostgreSQL konteynerini başlatın
-make docker-run
+### 3. Uygulamayı Başlatma
+
+`main.go` dosyanızda paneli yapılandırın ve resource'ları kaydedin.
+
+```go
+package main
+
+import (
+    "gorm.io/driver/sqlite"
+    "gorm.io/gorm"
+    "panel.go/internal/panel"
+)
+
+func main() {
+    // 1. Veritabanı Bağlantısı
+    db, _ := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+    db.AutoMigrate(&User{})
+
+    // 2. Panel Ayarları
+    cfg := panel.Config{
+        Server: panel.ServerConfig{
+            Host: "localhost",
+            Port: "8080",
+        },
+        Database: panel.DatabaseConfig{
+            Instance: db,
+        },
+    }
+
+    // 3. Panel Oluştur ve Resource Kaydet
+    app := panel.New(cfg)
+    
+    // "/api/resource/users" rotasını otomatik oluşturur
+    app.Register("users", &UserResource{}) 
+
+    // 4. Sunucuyu Başlat
+    app.Start()
+}
 ```
 
-### 4. Uygulamayı Derleyin ve Çalıştırın
-```bash
-# Tüm bağımlılıkları yükleyin ve uygulamayı derleyin
-make build
+## 🔌 API Endpoints
 
-# Uygulamayı çalıştırın
-make run
+Resource kaydedildikten sonra (örneğin `"users"` slug'ı ile), aşağıdaki endpointler otomatik olarak aktif olur:
+
+| Metot | Endpoint | Açıklama |
+|-------|----------|----------|
+| `GET` | `/api/resource/users` | Listeleme (Sayfalama, Sıralama, Arama destekli) |
+| `POST` | `/api/resource/users` | Yeni kayıt oluşturma |
+| `GET` | `/api/resource/users/:id` | Tekil kayıt detayını görüntüleme |
+| `PUT` | `/api/resource/users/:id` | Kayıt güncelleme |
+| `DELETE` | `/api/resource/users/:id` | Kayıt silme |
+
+## 🛠 Gelişmiş Kullanım
+
+
+### Mevcut Uygulamayı Genişletme (Custom Services)
+
+Panel.go, sadece admin paneli için değil, uygulamanızın tamamı için bir çatı görevi görebilir. `app.Fiber` nesnesine erişerek kendi özel route'larınızı ve servislerinizi ekleyebilirsiniz.
+
+```go
+func main() {
+    // ... app kurulumu ...
+    app := panel.New(cfg)
+
+    // 1. Resource Kaydı
+    app.Register("users", &UserResource{})
+
+    // 2. Özel Servis/Route Ekleme
+    // Fiber app instance'ına direkt erişiminiz vardır.
+    
+    // Basit bir endpoint
+    app.Fiber.Get("/health", func(c *fiber.Ctx) error {
+        return c.JSON(fiber.Map{"status": "ok"})
+    })
+
+    // Group kullanımı
+    v1 := app.Fiber.Group("/api/v1")
+    v1.Post("/login", authHandler.Login)
+    v1.Post("/register", authHandler.Register)
+
+    // 3. Sunucuyu Başlat
+    app.Start()
+}
 ```
 
-### 5. Tarayıcıda Açın
-Uygulama `http://localhost:8080` adresinde çalışacaktır.
+### Custom Repository Kullanımı
 
-## 🛠️ Geliştirme Komutları
+Varsayılan olarak her resource `GormDataProvider` kullanır. Ancak karmaşık sorgulara, farklı veri kaynaklarına veya özel iş mantığına ihtiyacınız varsa kendi repository'nizi kullanabilirsiniz.
 
-### Temel Komutlar
-```bash
-# Tüm işlemleri gerçekleştir (derleme + test)
-make all
+1. `data.DataProvider` interface'ini implemente eden bir struct oluşturun.
+2. Resource struct'ınızda `Repository` metodunu override ederek bu provider'ı dönün.
 
-# Uygulamayı derle
-make build
+```go
+// 1. Custom Repository Oluşturma
+type MyCustomRepo struct {
+    // ... gerekli alanlar
+}
 
-# Uygulamayı çalıştır
-make run
+// data.DataProvider interface metodlarını implemente edin
+func (r *MyCustomRepo) Index(ctx context.Context, req data.QueryRequest) (*data.QueryResponse, error) {
+    // Özel listeleme mantığı
+    return &data.QueryResponse{Items: []interface{}{}, Total: 0}, nil
+}
+func (r *MyCustomRepo) Show(ctx context.Context, id string) (interface{}, error) { return nil, nil }
+func (r *MyCustomRepo) Create(ctx context.Context, data map[string]interface{}) (interface{}, error) { return nil, nil }
+func (r *MyCustomRepo) Update(ctx context.Context, id string, data map[string]interface{}) (interface{}, error) { return nil, nil }
+func (r *MyCustomRepo) Delete(ctx context.Context, id string) error { return nil }
+func (r *MyCustomRepo) SetSearchColumns(cols []string) {}
+func (r *MyCustomRepo) SetWith(rels []string) {}
 
-# Temizlik
-make clean
+// 2. Resource İçinde Tanımlama
+func (u *UserResource) Repository(db *gorm.DB) data.DataProvider {
+    return &MyCustomRepo{}
+    // Veya varsayılan GORM provider'ı özelleştirerek dönebilirsiniz:
+    // provider := data.NewGormDataProvider(db, u.Model())
+    // return provider
+}
 ```
-
-### Veritabanı İşlemleri
-```bash
-# PostgreSQL konteynerini başlat
-make docker-run
-
-# PostgreSQL konteynerini durdur
-make docker-down
-```
-
-### Test İşlemleri
-```bash
-# Tüm testleri çalıştır
-make test
-
-# Sadece entegrasyon testlerini çalıştır
-make itest
-```
-
-### Geliştirme Modu
-```bash
-# Hot reload ile geliştirme (Air)
-make watch
-
-# Templ CLI'yi yükle
-make templ-install
-
-# Web bağımlılıklarını yükle
-make web-install
-```
-
-## 📁 Proje Yapısı
-
-```
-panel.go/
-├── cmd/
-│   ├── api/                 # Ana uygulama giriş noktası
-│   │   └── main.go
-│   ├── cli/                 # CLI araçları
-│   ├── entgo/               # Ent kod üreteci
-│   └── web/                 # Web bileşenleri ve şablonlar
-│       ├── assets/          # Statik dosyalar (JS, CSS)
-│       ├── deps/            # Şablon bileşenleri
-│       ├── templates/       # E-posta şablonları
-│       └── *.templ          # Templ şablonları
-├── internal/
-│   ├── constants/           # Uygulama sabitleri
-│   ├── entities/            # Domain modelleri
-│   ├── errors/              # Hata tanımları
-│   ├── handler/             # HTTP işleyicileri
-│   ├── infrastructure/      # Harici servis entegrasyonları
-│   │   ├── email/           # E-posta servisi
-│   │   ├── notification/    # Bildirim sistemi
-│   │   └── sms/             # SMS servisi
-│   ├── interfaces/          # Arayüz tanımları
-│   ├── middleware/          # HTTP middleware'ler
-│   ├── repository/          # Veri erişim katmanı
-│   ├── resource/            # Veri dönüştürücüleri
-│   ├── server/              # Sunucu konfigürasyonu
-│   └── service/             # İş mantığı servisleri
-├── shared/                  # Paylaşılan yardımcılar
-│   ├── encrypt/             # Şifreleme yardımcıları
-│   ├── uuid/                # UUID işlemleri
-│   └── validate/            # Doğrulama yardımcıları
-├── docker-compose.yml       # Docker konfigürasyonu
-├── Makefile                 # Build komutları
-├── go.mod                   # Go modülleri
-└── README.md
-```
-
-## 🏛️ Mimari Tasarım
-
-### Clean Architecture Yaklaşımı
-
-Panel.go, **Clean Architecture** prensiplerine göre tasarlanmıştır:
-
-#### 1. **Sunum Katmanı** (`cmd/web/`)
-- HTTP istek/cevap yönetimi
-- Templ şablonları ile sunucu taraflı render
-- HTMX ile progressive enhancement
-
-#### 2. **Uygulama Katmanı** (`internal/server/`)
-- İstek yönlendirme ve middleware orkestrasyonu
-- HTTP bağlam yönetimi
-- Zincir sorumluluğu (Chain of Responsibility) pattern
-
-#### 3. **İş Mantığı Katmanı** (`internal/service/`)
-- Temel iş kuralları ve kullanım senaryoları
-- İşlem yönetimi ve validasyon
-- Servis katmanı pattern
-
-#### 4. **Veri Erişim Katmanı** (`internal/repository/`)
-- Veritabanı işlemleri ve sorgu oluşturma
-- Repository pattern implementasyonu
-- Veri eşleme işlemleri
-
-#### 5. **Domain Katmanı** (`internal/entities/`)
-- Domain varlıkları ve değer nesneleri
-- İş kuralları ve kısıtlamalar
-- Domain event'leri
-
-## 🔒 Güvenlik Özellikleri
-
-- **Giriş Doğrulama**: Güvenli kimlik doğrulama akışları
-- **Şifre Yönetimi**: Argon2 tabanlı şifre hash'leme
-- **Oturum Güvenliği**: JWT token yönetimi
-- **CSRF Koruması**: Cross-site request forgery önleme
-- **XSS Koruması**: Template auto-escaping
-- **Rate Limiting**: İstek sınırlaması
-- **Güvenlik Başlıkları**: HSTS, CSP, X-Frame-Options
-
-## 📊 Performans Optimizasyonları
-
-- **Connection Pooling**: Veritabanı bağlantı havuzu
-- **Template Caching**: Şablon ön derleme
-- **Static Asset Optimization**: CSS/JS sıkıştırma
-- **Gzip Compression**: Yanıt sıkıştırma
-- **Prepared Statements**: SQL performans optimizasyonu
-
-## 🧪 Test Stratejisi
-
-- **Unit Testler**: İşlevsellik testi
-- **Integration Testler**: Sistem entegrasyonu testi
-- **End-to-End Testler**: Kullanıcı akışı testi
-- **Performance Testler**: Yük ve performans testi
-
-## 🚀 Dağıtım
-
-### Production Ortamı
-```bash
-# Production build
-make build
-
-# Docker ile dağıtım (opsiyonel)
-docker build -t panel.go .
-docker run -p 8080:8080 panel.go
-```
-
-### Environment Variables (Production)
-```env
-PORT=8080
-DB_HOST=your_production_db_host
-DB_PORT=5432
-DB_DATABASE=panel_prod
-DB_USERNAME=prod_user
-DB_PASSWORD=secure_prod_password
-```
-
-## 🤝 Katkıda Bulunma
-
-1. Fork edin
-2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
-3. Commit edin (`git commit -m 'Add amazing feature'`)
-4. Push edin (`git push origin feature/amazing-feature`)
-5. Pull Request açın
 
 ## 📝 Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakınız.
-
-## 👥 Destek
-
-Sorularınız ve geri bildirimleriniz için:
-
-- **Issues**: GitHub Issues sayfasını kullanın
-- **Discussions**: Genel tartışmalar için
-- **Documentation**: Detaylı dokümantasyon için `docs/` klasörüne bakın
-
-## 🔄 Güncellemeler
-
-### v1.0.0
-- İlk kararlı sürüm
-- Temel kullanıcı yönetimi
-- Güvenlik özellikleri
-- E-posta/SMS entegrasyonları
-
----
-
-**Panel.go** ile modern, güvenli ve ölçeklenebilir web uygulamaları geliştirin! 🚀
+MIT License.
