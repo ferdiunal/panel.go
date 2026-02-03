@@ -102,6 +102,11 @@ type Element interface {
 	Modify(fn func(value interface{}) interface{}) Element
 	// ModifyCallback, modifikasyon fonksiyonunu döner.
 	GetModifyCallback() func(value interface{}) interface{}
+
+	// Options, Combobox veya Select gibi alanlar için seçenekleri belirler.
+	Options(options interface{}) Element
+	// Default, alanın varsayılan değerini belirler.
+	Default(value interface{}) Element
 }
 
 // VisibilityFunc, görünürlük kontrol fonksiyonu tipidir.

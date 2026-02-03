@@ -25,6 +25,7 @@ const (
 	TYPE_POLY_COLLECTION ElementType = "poly_collection"
 	TYPE_POLY_CONNECT    ElementType = "poly_connect"
 	TYPE_BOOLEAN         ElementType = "boolean"
+	TYPE_SELECT          ElementType = "select" // Enum or Combobox
 )
 
 const (

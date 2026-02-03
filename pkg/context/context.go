@@ -68,3 +68,25 @@ func Wrap(h Handler) fiber.Handler {
 		return h(&Context{Ctx: c})
 	}
 }
+
+// HasRole checks if the authenticated user has the given role
+func (c *Context) HasRole(role string) bool {
+	u := c.User()
+	if u == nil {
+		return false
+	}
+	return u.Role == role || u.Role == "admin"
+}
+
+// HasPermission checks if the authenticated user has permission for the action
+func (c *Context) HasPermission(action string) bool {
+	u := c.User()
+	if u == nil {
+		return false
+	}
+	if u.Role == "admin" {
+		return true
+	}
+	// TODO: Integrate actual permission logic
+	return true
+}

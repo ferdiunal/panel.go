@@ -212,3 +212,19 @@ func Switch(name string, attribute ...string) *Schema {
 	f.Type = TYPE_BOOLEAN
 	return f
 }
+
+// Combobox, çoktan seçmeli veya arama yapılabilir seçim alanı oluşturur.
+func Combobox(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "combobox-field"
+	f.Type = TYPE_SELECT // veya TYPE_COMBOBOX eğer yeni tip gerekiyorsa, şimdilik Select mantığında.
+	return f
+}
+
+// Select, standart seçim listesi oluşturur.
+func Select(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "select-field"
+	f.Type = TYPE_SELECT
+	return f
+}

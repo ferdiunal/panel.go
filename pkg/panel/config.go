@@ -39,6 +39,7 @@ type Config struct {
 	Features       FeatureConfig
 	OAuth          OAuthConfig
 	Storage        StorageConfig
+	Permissions    PermissionConfig
 	SettingsValues SettingsConfig
 	SettingsPage   *page.Settings
 	DashboardPage  *page.Dashboard
@@ -59,6 +60,12 @@ type StorageConfig struct {
 	Path string
 	// URL, dosyalara erişim için kullanılacak temel URL yolu.
 	URL string
+}
+
+// PermissionConfig, izin yönetimi yapılandırmasını tutar.
+type PermissionConfig struct {
+	// Path, permissions.toml dosyasının yolu.
+	Path string
 }
 
 // ServerConfig, HTTP sunucu ayarlarını tutar.
