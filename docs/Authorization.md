@@ -12,43 +12,56 @@ Herhangi bir yetkilendirme mantığı `auth.Policy` arayüzünü uygulamalıdır
 
 ```go
 type Policy interface {
-    ViewAny(ctx context.Context) bool             // Liste sayfasına erişim
-    View(ctx context.Context, model interface{}) bool // Detay sayfasına erişim
-    Create(ctx context.Context) bool              // Yeni oluşturma izni
-    Update(ctx context.Context, model interface{}) bool // Güncelleme izni
-    Delete(ctx context.Context, model interface{}) bool // Silme izni
+    ViewAny(ctx *appContext.Context) bool             // Liste sayfasına erişim
+    View(ctx *appContext.Context, model interface{}) bool // Detay sayfasına erişim
+    Create(ctx *appContext.Context) bool              // Yeni oluşturma izni
+    Update(ctx *appContext.Context, model interface{}) bool // Güncelleme izni
+    Delete(ctx *appContext.Context, model interface{}) bool // Silme izni
 }
 ```
 
-### Policy Oluşturma
+### Rol Tabanlı Erişim (RBAC) ve İzin Dosyası
 
-Örneğin, sadece adminlerin blog yazılarını silebileceği bir senaryo:
+Panel, izinleri yönetmek için `permissions.toml` dosyasını kullanabilir. Bu dosya proje kök dizininde bulunur ve roller ile kaynaklar arasındaki ilişkiyi tanımlar.
+
+Örnek `permissions.toml`:
+```toml
+system_roles = ["admin", "editor", "user"]
+
+[resources]
+  [resources.posts]
+  label = "Blog Yazıları"
+  actions = ["view_any", "view", "create", "update", "delete"]
+```
+
+### Policy ile Entegrasyon
+
+Policy metodlarınızda `ctx.HasPermission("resource.action")` metodunu kullanarak yetki kontrolü yapabilirsiniz. `HasPermission` metodu, `admin` rolü için otomatik olarak `true` döner.
 
 ```go
-type BlogPolicy struct {}
+type PostPolicy struct {}
 
-func (p *BlogPolicy) ViewAny(ctx context.Context) bool {
-    return true // Herkes görebilir
+func (p *PostPolicy) ViewAny(ctx *appContext.Context) bool {
+    // "posts.view_any" izni var mı?
+    return ctx.HasPermission("posts.view_any")
 }
 
-func (p *BlogPolicy) View(ctx context.Context, model interface{}) bool {
-    return true
+func (p *PostPolicy) View(ctx *appContext.Context, model interface{}) bool {
+    return ctx.HasPermission("posts.view")
 }
 
-func (p *BlogPolicy) Create(ctx context.Context) bool {
-    user := ctx.Value("user").(*User)
-    return user.IsAdmin
+func (p *PostPolicy) Create(ctx *appContext.Context) bool {
+    return ctx.HasPermission("posts.create")
 }
 
-func (p *BlogPolicy) Update(ctx context.Context, model interface{}) bool {
-    user := ctx.Value("user").(*User)
-    blog := model.(*Blog)
-    return user.IsAdmin || blog.UserID == user.ID
+func (p *PostPolicy) Update(ctx *appContext.Context, model interface{}) bool {
+    // Karmaşık mantık: İzin VARSA VE (Admin VEYA Yazının Sahibi ise)
+    post := model.(*Post)
+    return ctx.HasPermission("posts.update") && (ctx.User().Role == "admin" || post.UserID == ctx.User().ID)
 }
 
-func (p *BlogPolicy) Delete(ctx context.Context, model interface{}) bool {
-    user := ctx.Value("user").(*User)
-    return user.IsAdmin
+func (p *PostPolicy) Delete(ctx *appContext.Context, model interface{}) bool {
+    return ctx.HasPermission("posts.delete")
 }
 ```
 
