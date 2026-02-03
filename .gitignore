@@ -44,3 +44,4 @@ main
 # Node modules
 cmd/web/node_modules
 internal/ent
+test.db

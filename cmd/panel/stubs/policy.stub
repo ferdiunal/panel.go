@@ -1,0 +1,28 @@
+package {{.PackageName}}
+
+import (
+	appContext "github.com/ferdiunal/panel.go/pkg/context"
+)
+
+// {{.ResourceName}}Policy defines authorization rules for the resource
+type {{.ResourceName}}Policy struct{}
+
+func (p {{.ResourceName}}Policy) ViewAny(ctx *appContext.Context) bool {
+	return true
+}
+
+func (p {{.ResourceName}}Policy) View(ctx *appContext.Context, model interface{}) bool {
+	return true
+}
+
+func (p {{.ResourceName}}Policy) Create(ctx *appContext.Context) bool {
+	return true
+}
+
+func (p {{.ResourceName}}Policy) Update(ctx *appContext.Context, model interface{}) bool {
+	return true
+}
+
+func (p {{.ResourceName}}Policy) Delete(ctx *appContext.Context, model interface{}) bool {
+	return true
+}
