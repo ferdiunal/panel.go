@@ -24,6 +24,36 @@ Bu alanlar standart veri tiplerini işler.
 -   **`fields.Image("Görsel")`**: Görsel önizlemeli dosya yükleyicisi.
 -   **`fields.KeyValue("Metadata")`**: Anahtar-Değer çifti düzenleyicisi (JSON alanları).
 
+## Seçim Alanları (Selection Fields)
+
+Kullanıcının belirli seçeneklerden birini veya birkaçını seçmesini sağlayan alanlar.
+
+### Select
+Basit bir açılır liste (dropdown) oluşturur.
+
+```go
+fields.Select("Durum", "status").
+    Options(map[string]string{
+        "draft":     "Taslak",
+        "published": "Yayında",
+        "archived":  "Arşiv",
+    }).
+    Default("draft") // Varsayılan değer
+```
+
+### Combobox
+Arama yapılabilen gelişmiş seçim kutusu. Çok sayıda seçenek olduğunda kullanışlıdır.
+
+```go
+fields.Combobox("Kategori", "category_id").
+    Options(map[string]string{
+        "1": "Teknoloji",
+        "2": "Sağlık",
+        "3": "Spor",
+        // ...
+    })
+```
+
 ## İlişkiler (Relationships)
 
 İlişkileri daha anlamsal ve UI odaklı hale getirmek için **Yaratıcı İsimlendirme** kullanıyoruz.

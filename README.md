@@ -115,6 +115,9 @@ func main() {
             Path: "./storage/public", // Disk üzerindeki yol
             URL:  "/storage",         // URL öneki
         },
+        Permissions: panel.PermissionConfig{
+            Path: "permissions.toml", // İzin dosyası yolu
+        },
     }
 
     // 3. Panel Oluştur
@@ -160,6 +163,59 @@ type MyCustomRepo struct {
 // 2. Resource İçinde Tanımlama
 func (r *UserResource) Repository(db *gorm.DB) data.DataProvider {
     return &MyCustomRepo{}
+}
+```
+
+## 🛡 İzin Sistemi (RBAC)
+
+Panel.go, rol tabanlı erişim kontrolü (RBAC) için yerleşik bir yapı sunar. İzinler bir `TOML` dosyasında tanımlanır ve her kullanıcı rolüne göre yönetilir.
+
+### 1. İzin Dosyası (permissions.toml)
+
+Proje kök dizininde (veya config'de belirttiğiniz yolda) bir TOML dosyası oluşturun:
+
+```toml
+# Sistemde kullanılacak roller
+system_roles = ["admin", "editor", "user"]
+
+[resources]
+  # 'users' kaynağı için izinler
+  [resources.users]
+  label = "Kullanıcı Yönetimi"
+  # Bu kaynağa ait aksiyonlar (backend policy'de kontrol edilir)
+  actions = ["view_any", "view", "create", "update", "delete", "block"]
+
+  [resources.posts]
+  label = "İçerik Yönetimi"
+  actions = ["view_any", "create", "update"]
+```
+
+### 2. Policy Entegrasyonu
+
+Otomatik oluşturulan policy dosyalarınızda (`pkg/policy/`) `HasPermission` metodunu kullanarak yetki kontrolü yapabilirsiniz:
+
+```go
+func (p UserPolicy) View(ctx *appContext.Context, model interface{}) bool {
+    // Kullanıcının "users" kaynağında "view" yetkisi var mı?
+    // Format: {resource_identifier}.{action}
+    return ctx.HasPermission("users.view")
+}
+
+func (p UserPolicy) Create(ctx *appContext.Context) bool {
+    return ctx.HasPermission("users.create")
+}
+```
+
+> **Not:** `admin` rolüne sahip kullanıcılar varsayılan olarak tüm yetkilere sahiptir (`HasPermission` her zaman `true` döner).
+
+### 3. Kullanıcıya Rol Atama
+
+Kullanıcı modelinizde `Role` alanı, `system_roles` içinde tanımlanan değerlerden biri olmalıdır.
+
+```go
+user := User{
+    FullName: "Ahmet Yılmaz",
+    Role:     "editor",
 }
 ```
 
