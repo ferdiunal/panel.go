@@ -11,6 +11,7 @@ type User struct {
 	Email         string    `json:"email" gorm:"uniqueIndex"`
 	EmailVerified bool      `json:"emailVerified"`
 	Image         string    `json:"image"`
+	Role          string    `json:"role" gorm:"index"`
 	CreatedAt     time.Time `json:"createdAt" gorm:"index"`
 	UpdatedAt     time.Time `json:"updatedAt" gorm:"index"`
 }

@@ -3,6 +3,7 @@ package panel
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 
@@ -13,9 +14,11 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/domain/setting"
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/domain/verification"
+	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/handler"
 	authHandler "github.com/ferdiunal/panel.go/pkg/handler/auth"
 	"github.com/ferdiunal/panel.go/pkg/page"
+	"github.com/ferdiunal/panel.go/pkg/permission"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceUser "github.com/ferdiunal/panel.go/pkg/resource/user"
 	"github.com/ferdiunal/panel.go/pkg/service/auth"
@@ -111,6 +114,21 @@ func New(config Config) *Panel {
 		})
 	}
 
+	// İzinleri yükle
+	if config.Permissions.Path != "" {
+		if _, err := permission.Load(config.Permissions.Path); err != nil {
+			// İzin dosyası yüklenemezse panic oluşturabilir veya loglayabiliriz.
+			// Şimdilik panic yapalım ki geliştirici fark etsin.
+			panic(fmt.Errorf("izin dosyası yüklenemedi: %w", err))
+		}
+	} else {
+		// Varsayılan bir yol deneyebiliriz veya boş bırakabiliriz.
+		// Örneğin "permissions.toml" var mı diye bakabiliriz.
+		if _, err := os.Stat("permissions.toml"); err == nil {
+			_, _ = permission.Load("permissions.toml")
+		}
+	}
+
 	p := &Panel{
 		Config:    config,
 		Db:        db,
@@ -138,6 +156,15 @@ func New(config Config) *Panel {
 	}
 	if p.Config.SettingsPage != nil {
 		p.RegisterPage(p.Config.SettingsPage)
+	} else {
+		// Default Settings Page
+		p.RegisterPage(&page.Settings{
+			Elements: []fields.Element{
+				fields.Text("Site Name").Default("Panel.go"),
+				fields.Switch("Register").Default(true),
+				fields.Switch("Forgot Password").Default(false),
+			},
+		})
 	}
 
 	// Register Dynamic Routes

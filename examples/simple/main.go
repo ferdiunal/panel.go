@@ -31,6 +31,9 @@ func main() {
 		// 	Path: "./storage/public",
 		// 	URL:  "/storage",
 		// },
+		Permissions: panel.PermissionConfig{
+			Path: "examples/simple/permissions.toml",
+		},
 	}
 
 	app := panel.New(cfg)

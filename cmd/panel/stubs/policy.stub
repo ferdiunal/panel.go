@@ -8,21 +8,21 @@ import (
 type {{.ResourceName}}Policy struct{}
 
 func (p {{.ResourceName}}Policy) ViewAny(ctx *appContext.Context) bool {
-	return true
+	return ctx.HasPermission("{{.Identifier}}.view_any")
 }
 
 func (p {{.ResourceName}}Policy) View(ctx *appContext.Context, model interface{}) bool {
-	return true
+	return ctx.HasPermission("{{.Identifier}}.view")
 }
 
 func (p {{.ResourceName}}Policy) Create(ctx *appContext.Context) bool {
-	return true
+	return ctx.HasPermission("{{.Identifier}}.create")
 }
 
 func (p {{.ResourceName}}Policy) Update(ctx *appContext.Context, model interface{}) bool {
-	return true
+	return ctx.HasPermission("{{.Identifier}}.update")
 }
 
 func (p {{.ResourceName}}Policy) Delete(ctx *appContext.Context, model interface{}) bool {
-	return true
+	return ctx.HasPermission("{{.Identifier}}.delete")
 }

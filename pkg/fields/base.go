@@ -293,3 +293,13 @@ func (s *Schema) Modify(fn func(value interface{}) interface{}) Element {
 func (s *Schema) GetModifyCallback() func(value interface{}) interface{} {
 	return s.ModifyCallback
 }
+
+func (s *Schema) Options(options interface{}) Element {
+	s.Props["options"] = options
+	return s
+}
+
+func (s *Schema) Default(value interface{}) Element {
+	s.Data = value
+	return s
+}

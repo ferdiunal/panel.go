@@ -12,9 +12,12 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data/orm"
 	domainUser "github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/permission"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gorm.io/gorm"
 )
 
@@ -24,22 +27,22 @@ type UserPolicy struct{}
 
 // ViewAny, kullanıcının listeyi görüntüleyip görüntüleyemeyeceğini belirler.
 func (p UserPolicy) ViewAny(ctx *appContext.Context) bool {
-	return true
+	return ctx.HasPermission("users.view_any")
 }
 
 // View, kullanıcının belirli bir kaydı görüntüleyip görüntüleyemeyeceğini belirler.
 func (p UserPolicy) View(ctx *appContext.Context, model interface{}) bool {
-	return true
+	return ctx.HasPermission("users.view")
 }
 
 // Create, yeni bir kullanıcı oluşturma yetkisini kontrol eder.
 func (p UserPolicy) Create(ctx *appContext.Context) bool {
-	return true
+	return ctx.HasPermission("users.create")
 }
 
 // Update, mevcut bir kullanıcıyı güncelleme yetkisini kontrol eder.
 func (p UserPolicy) Update(ctx *appContext.Context, model interface{}) bool {
-	return true
+	return ctx.HasPermission("users.update")
 }
 
 // Delete, bir kullanıcıyı silme yetkisini kontrol eder.
@@ -117,6 +120,29 @@ func GetUserResource() resource.Resource {
 					}),
 				fields.Text("Name").Placeholder("Enter your name"),
 				fields.Email("Email").Placeholder("Enter your email"),
+				fields.Select("Role").
+					Placeholder("Select a role").
+					Resolve(func(value interface{}) interface{} {
+						if value == "" {
+							return nil
+						}
+						return value
+					}).
+					Options(func() map[string]string {
+						mgr := permission.GetInstance()
+						if mgr == nil {
+							// Fallback or panic depending on requirement.
+							// Since permissions MUST be loaded, empty map or default is safe.
+							return map[string]string{}
+						}
+						roles := mgr.GetRoles()
+						options := make(map[string]string)
+						for _, role := range roles {
+							// Assuming role name is also the label for now, or title case it
+							options[role] = cases.Title(language.English).String(role) // You might want to use strcase.ToTitle(role)
+						}
+						return options
+					}()),
 				fields.Password("Password").
 					Nullable().
 					OnlyOnForm().

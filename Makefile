@@ -28,6 +28,16 @@ build: templ-install web-install
 	
 	@go build -o main cmd/api/main.go
 
+# Build frontend and copy assets
+build-ui:
+	@echo "Building Frontend (Web)..."
+	@cd web && bun run build
+	@echo "Copying assets to pkg/panel/ui..."
+	@rm -rf pkg/panel/ui/*
+	@mkdir -p pkg/panel/ui
+	@cp -R web/dist/* pkg/panel/ui/
+	@echo "Frontend build completed!"
+
 # Run the application
 run:
 	@go run cmd/api/main.go

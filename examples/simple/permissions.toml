@@ -1,0 +1,17 @@
+# Permission Definitions
+# This file defines the available resources and actions for the application.
+
+system_roles = ["admin", "editor", "user"]
+
+[resources]
+  [resources.users]
+  label = "User Management"
+  actions = ["view_any", "view", "create", "update", "delete", "block"]
+
+  [resources.roles]
+  label = "Role Management"
+  actions = ["view_any", "view", "create", "update", "delete"]
+
+  [resources.settings]
+  label = "System Settings"
+  actions = ["view", "update"]
