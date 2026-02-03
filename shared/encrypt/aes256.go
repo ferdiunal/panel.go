@@ -28,7 +28,7 @@ func encrypt(plaintext string, key []byte) (string, error) {
 	mode := cipher.NewCBCEncrypter(block, iv)
 	mode.CryptBlocks(ciphertext, padded)
 
-	// Laravel prepends IV to the encrypted string
+	// Prepend IV to the encrypted string
 	final := append(iv, ciphertext...)
 	return base64.StdEncoding.EncodeToString(final), nil
 }

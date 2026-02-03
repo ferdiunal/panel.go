@@ -1,207 +1,168 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
+	"strings"
+	"text/template"
 
-	entsql "entgo.io/ent/dialect/sql"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/ferdiunal/go.utils/database"
-	goutils "github.com/ferdiunal/go.utils/database/interfaces"
-	"panel.go/internal/ent"
-	"panel.go/internal/repository"
-	"panel.go/internal/service"
-	"panel.go/shared/encrypt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
-
-type step int
-
-const (
-	inputName step = iota
-	inputEmail
-	inputPassword
-	creating
-	done
-)
-
-type model struct {
-	step        step
-	name        string
-	email       string
-	password    string
-	err         error
-	created     bool
-	authService *service.AuthService
-	db          goutils.DatabaseService
-}
-
-func initialModel() *model {
-	dbService, err := database.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	drv := entsql.OpenDB("postgres", dbService.Db())
-	ent := ent.NewClient(ent.Driver(drv))
-
-	// Initialize repositories
-	userRepo := repository.NewUserRepository(ent)
-	accountRepo := repository.NewAccountRepository(ent)
-	sessionRepo := repository.NewSessionRepository(ent)
-
-	// Initialize encrypt service
-	encryptionKey := os.Getenv("ENCRYPTION_KEY")
-	fmt.Println(encryptionKey)
-	encryptService := encrypt.NewCrypt(encryptionKey)
-
-	// Initialize auth service
-	authService := service.NewAuthService(accountRepo, userRepo, sessionRepo, encryptService)
-
-	return &model{
-		step:        inputName,
-		authService: authService,
-		db:          dbService,
-	}
-}
-
-func (m *model) Init() tea.Cmd {
-	return tea.SetWindowTitle("User Creator")
-}
-
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "enter":
-			switch m.step {
-			case inputName:
-				if m.name != "" {
-					m.step = inputEmail
-				}
-			case inputEmail:
-				if m.email != "" {
-					m.step = inputPassword
-				}
-			case inputPassword:
-				if m.password != "" {
-					m.step = creating
-					return m, m.createUser()
-				}
-			case done:
-				return m, tea.Quit
-			}
-		case "backspace":
-			if m.step == inputName && len(m.name) > 0 {
-				m.name = m.name[:len(m.name)-1]
-			} else if m.step == inputEmail && len(m.email) > 0 {
-				m.email = m.email[:len(m.email)-1]
-			} else if m.step == inputPassword && len(m.password) > 0 {
-				m.password = m.password[:len(m.password)-1]
-			}
-		default:
-			// Sadece yazdırılabilir karakterleri kabul et
-			if len(msg.String()) == 1 && msg.String()[0] >= 32 && msg.String()[0] <= 126 {
-				switch m.step {
-				case inputName:
-					m.name += msg.String()
-				case inputEmail:
-					m.email += msg.String()
-				case inputPassword:
-					m.password += msg.String()
-				}
-			}
-		}
-	case createUserMsg:
-		m.step = done
-		m.created = true
-		m.err = msg.err
-	}
-
-	return m, nil
-}
-
-func (m *model) View() string {
-	switch m.step {
-	case inputName:
-		cursor := ""
-		if len(m.name) == 0 {
-			cursor = "_"
-		}
-		return "=== User Creator ===\n\n" +
-			"Name: " + m.name + cursor + "\n\n" +
-			"Press Enter to continue..."
-
-	case inputEmail:
-		cursor := ""
-		if len(m.email) == 0 {
-			cursor = "_"
-		}
-		return "=== User Creator ===\n\n" +
-			"Name: " + m.name + "\n" +
-			"Email: " + m.email + cursor + "\n\n" +
-			"Press Enter to continue..."
-
-	case inputPassword:
-		cursor := ""
-		if len(m.password) == 0 {
-			cursor = "_"
-		}
-		// Şifreyi * ile gizle
-		maskedPassword := ""
-		for i := 0; i < len(m.password); i++ {
-			maskedPassword += "*"
-		}
-		return "=== User Creator ===\n\n" +
-			"Name: " + m.name + "\n" +
-			"Email: " + m.email + "\n" +
-			"Password: " + maskedPassword + cursor + "\n\n" +
-			"Press Enter to create user..."
-
-	case creating:
-		return "=== User Creator ===\n\n" +
-			"Creating user...\n" +
-			"Name: " + m.name + "\n" +
-			"Email: " + m.email + "\n\n" +
-			"Please wait..."
-
-	case done:
-		if m.err != nil {
-			return "=== User Creator ===\n\n" +
-				"ERROR: " + m.err.Error() + "\n\n" +
-				"Press Enter to exit..."
-		}
-		return "=== User Creator ===\n\n" +
-			"SUCCESS: User created!\n" +
-			"Name: " + m.name + "\n" +
-			"Email: " + m.email + "\n\n" +
-			"Press Enter to exit..."
-	}
-
-	return ""
-}
-
-type createUserMsg struct {
-	err error
-}
-
-func (m *model) createUser() tea.Cmd {
-	return func() tea.Msg {
-		ctx := context.Background()
-		err := m.authService.RegisterCLI(ctx, m.name, m.email, m.password)
-		return createUserMsg{err: err}
-	}
-}
 
 func main() {
-	m := initialModel()
-	p := tea.NewProgram(m)
-
-	if _, err := p.Run(); err != nil {
-		fmt.Printf("Error running program: %v", err)
-		os.Exit(1)
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: go run cmd/cli/main.go make:resource <name>")
+		return
 	}
+
+	command := os.Args[1]
+	name := os.Args[2]
+
+	if command == "make:resource" {
+		makeResource(name)
+	} else if command == "make:page" {
+		makePage(name)
+	} else if command == "make:model" {
+		makeModel(name)
+	} else {
+		fmt.Println("Unknown command")
+	}
+}
+
+func makeResource(name string) {
+	// Normalize name
+	// e.g. "blog" -> "Blog"
+	caser := cases.Title(language.English)
+	resourceName := caser.String(name)        // Blog
+	packageName := strings.ToLower(name)      // blog
+	identifier := strings.ToLower(name) + "s" // blogs
+	label := resourceName + "s"               // Blogs
+	modelName := resourceName                 // Blog (Assumes model exists or will be created)
+
+	// Directort: internal/resource/<name>
+	dir := filepath.Join("internal", "resource", packageName)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		return
+	}
+
+	// Data for templates
+	data := map[string]string{
+		"PackageName":  packageName,
+		"ResourceName": resourceName,
+		"ModelName":    modelName,
+		"Slug":         identifier,
+		"Title":        label,
+		"Label":        label,
+		"Identifier":   identifier,
+		"Group":        "Content", // Default group
+		"Icon":         "circle",  // Default icon
+	}
+
+	// Stubs to process
+	stubs := map[string]string{
+		"resource.stub":   filepath.Join(dir, fmt.Sprintf("%s_resource.go", packageName)),
+		"policy.stub":     filepath.Join(dir, fmt.Sprintf("%s_policy.go", packageName)),
+		"repository.stub": filepath.Join(dir, fmt.Sprintf("%s_repository.go", packageName)),
+	}
+
+	for stub, target := range stubs {
+		createFileFromStub(stub, target, data)
+	}
+
+	fmt.Printf("Resource %s generated successfully in %s\n", resourceName, dir)
+}
+
+func makePage(name string) {
+	// Normalize name
+	// e.g. "dashboard" -> "Dashboard"
+	caser := cases.Title(language.English)
+	pageName := caser.String(name)       // Dashboard
+	packageName := strings.ToLower(name) // dashboard
+	slug := strings.ToLower(name)        // dashboard
+	title := pageName                    // Dashboard
+
+	// Directory: internal/page/<name>
+	// Actually, pages are usually just in internal/page/ or internal/page/<name> if complex.
+	// Looking at settings.go, it's directly in internal/page.
+	// But let's create a separate file for the page in internal/page/
+
+	dir := filepath.Join("internal", "page")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		return
+	}
+
+	targetPath := filepath.Join(dir, fmt.Sprintf("%s.go", packageName))
+
+	// Data for templates
+	data := map[string]string{
+		"PackageName": "page", // Using 'page' package to match existing structure
+		"PageName":    pageName,
+		"Slug":        slug,
+		"Title":       title,
+		"Group":       "System",
+		"Icon":        "circle",
+	}
+
+	createFileFromStub("page.stub", targetPath, data)
+	fmt.Printf("Page %s generated successfully at %s\n", pageName, targetPath)
+}
+
+func makeModel(name string) {
+	// Normalize name
+	// e.g. "blog" -> "Blog"
+	caser := cases.Title(language.English)
+	modelName := caser.String(name)      // Blog
+	packageName := strings.ToLower(name) // blog
+
+	// Directory: internal/domain/<name>
+	dir := filepath.Join("internal", "domain", packageName)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		return
+	}
+
+	targetPath := filepath.Join(dir, "entity.go")
+
+	// Data for templates
+	data := map[string]string{
+		"PackageName": packageName,
+		"ModelName":   modelName,
+	}
+
+	createFileFromStub("model.stub", targetPath, data)
+	fmt.Printf("Model %s generated successfully at %s\n", modelName, targetPath)
+}
+
+func createFileFromStub(stubName, targetPath string, data map[string]string) {
+	// Read stub
+	stubPath := filepath.Join("stubs", stubName)
+	content, err := os.ReadFile(stubPath)
+	if err != nil {
+		fmt.Printf("Error reading stub %s: %v\n", stubName, err)
+		return
+	}
+
+	// Process template
+	tmpl, err := template.New(stubName).Parse(string(content))
+	if err != nil {
+		fmt.Printf("Error parsing template %s: %v\n", stubName, err)
+		return
+	}
+
+	// Create file
+	f, err := os.Create(targetPath)
+	if err != nil {
+		fmt.Printf("Error creating file %s: %v\n", targetPath, err)
+		return
+	}
+	defer f.Close()
+
+	if err := tmpl.Execute(f, data); err != nil {
+		fmt.Printf("Error executing template %s: %v\n", stubName, err)
+	}
+	fmt.Printf("Created: %s\n", targetPath)
 }
