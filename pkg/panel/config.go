@@ -44,6 +44,7 @@ type Config struct {
 	SettingsPage   *page.Settings
 	DashboardPage  *page.Dashboard
 	UserResource   resource.Resource
+	Resources      []resource.Resource // Ek resource'lar
 }
 
 // SettingsConfig, veritabanından gelen dinamik ayarları tutar.

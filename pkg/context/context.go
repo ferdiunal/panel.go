@@ -1,41 +1,22 @@
 package context
 
 import (
-	"context"
+	stdcontext "context"
 
+	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/domain/session"
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
-	"github.com/ferdiunal/panel.go/pkg/fields"
+
 	"github.com/gofiber/fiber/v2"
 )
 
-type ResourceContext struct {
-	Resource interface{}
-	Elements []fields.Element
-	Request  *fiber.Ctx
-}
-
-// Key for storing ResourceContext in fiber.local or context.Context
-const ResourceContextKey = "resource_context"
-
-func NewResourceContext(c *fiber.Ctx, resource interface{}, elements []fields.Element) *ResourceContext {
-	return &ResourceContext{
-		Resource: resource,
-		Elements: elements,
-		Request:  c,
-	}
-}
-
-func FromFiber(c *fiber.Ctx) *ResourceContext {
-	val := c.Locals(ResourceContextKey)
+// FromFiber retrieves the ResourceContext from fiber.Locals
+func FromFiber(c *fiber.Ctx) *core.ResourceContext {
+	val := c.Locals(core.ResourceContextKey)
 	if val == nil {
 		return nil
 	}
-	return val.(*ResourceContext)
-}
-
-func (rc *ResourceContext) WithContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ResourceContextKey, rc)
+	return val.(*core.ResourceContext)
 }
 
 // Context wraps fiber.Ctx to provide type-safe access to Locals
@@ -60,6 +41,11 @@ func (c *Context) Session() *session.Session {
 		return s
 	}
 	return nil
+}
+
+// Resource retrieves the ResourceContext from Locals
+func (c *Context) Resource() *core.ResourceContext {
+	return FromFiber(c.Ctx)
 }
 
 // Wrap converts our custom Handler to a standard fiber.Handler
@@ -89,4 +75,9 @@ func (c *Context) HasPermission(action string) bool {
 	}
 	// TODO: Integrate actual permission logic
 	return true
+}
+
+// Context returns the underlying context.Context from fiber.Ctx
+func (c *Context) Context() stdcontext.Context {
+	return c.Ctx.Context()
 }

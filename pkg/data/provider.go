@@ -1,7 +1,7 @@
 package data
 
 import (
-	"context"
+	"github.com/ferdiunal/panel.go/pkg/context"
 )
 
 type Sort struct {
@@ -25,11 +25,11 @@ type QueryResponse struct {
 }
 
 type DataProvider interface {
-	Index(ctx context.Context, req QueryRequest) (*QueryResponse, error)
-	Show(ctx context.Context, id string) (interface{}, error)
-	Create(ctx context.Context, data map[string]interface{}) (interface{}, error)
-	Update(ctx context.Context, id string, data map[string]interface{}) (interface{}, error)
-	Delete(ctx context.Context, id string) error
+	Index(ctx *context.Context, req QueryRequest) (*QueryResponse, error)
+	Show(ctx *context.Context, id string) (interface{}, error)
+	Create(ctx *context.Context, data map[string]interface{}) (interface{}, error)
+	Update(ctx *context.Context, id string, data map[string]interface{}) (interface{}, error)
+	Delete(ctx *context.Context, id string) error
 	SetSearchColumns(cols []string)
 	SetWith(rels []string)
 }

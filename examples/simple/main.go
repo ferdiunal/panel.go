@@ -4,6 +4,11 @@ import (
 	"log"
 
 	"github.com/ferdiunal/panel.go/pkg/panel"
+	"github.com/ferdiunal/panel.go/pkg/resource"
+	resourceAccount "github.com/ferdiunal/panel.go/pkg/resource/account"
+	resourceSession "github.com/ferdiunal/panel.go/pkg/resource/session"
+	resourceSetting "github.com/ferdiunal/panel.go/pkg/resource/setting"
+	resourceVerification "github.com/ferdiunal/panel.go/pkg/resource/verification"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -33,6 +38,12 @@ func main() {
 		// },
 		Permissions: panel.PermissionConfig{
 			Path: "examples/simple/permissions.toml",
+		},
+		Resources: []resource.Resource{
+			resourceAccount.NewAccountResource(),
+			resourceSession.NewSessionResource(),
+			resourceVerification.NewVerificationResource(),
+			resourceSetting.NewSettingResource(),
 		},
 	}
 

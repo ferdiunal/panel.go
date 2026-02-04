@@ -18,7 +18,7 @@ type Page interface {
 	// Fields, sayfada gösterilecek form alanlarını döner.
 	Fields() []fields.Element
 	// Save, sayfa formundan gelen verileri işler.
-	Save(c *context.Context, db *gorm.DB, data map[string]interface{}) error
+	Save(c *context.Context, db *gorm.DB, data map[string]any) error
 	// Icon, menüde görünecek ikon adı.
 	Icon() string
 	// Group, menüde hangi grup altında görüneceği.
@@ -66,6 +66,6 @@ func (b Base) Fields() []fields.Element {
 	return []fields.Element{}
 }
 
-func (b Base) Save(c *context.Context, db *gorm.DB, data map[string]interface{}) error {
+func (b Base) Save(c *context.Context, db *gorm.DB, data map[string]any) error {
 	return nil
 }
