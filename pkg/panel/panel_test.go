@@ -90,6 +90,34 @@ func (u *UserResource) StoreHandler(c *appContext.Context, file *multipart.FileH
 	return "", nil
 }
 
+func (u *UserResource) GetFields(ctx *appContext.Context) []fields.Element {
+	return u.Fields()
+}
+
+func (u *UserResource) GetCards(ctx *appContext.Context) []widget.Card {
+	return u.Cards()
+}
+
+func (u *UserResource) GetLenses() []resource.Lens {
+	return u.Lenses()
+}
+
+func (u *UserResource) GetPolicy() auth.Policy {
+	return u.Policy()
+}
+
+func (u *UserResource) ResolveField(fieldName string, item interface{}) (interface{}, error) {
+	return nil, nil
+}
+
+func (u *UserResource) GetActions() []resource.Action {
+	return []resource.Action{}
+}
+
+func (u *UserResource) GetFilters() []resource.Filter {
+	return []resource.Filter{}
+}
+
 func TestPanel_DynamicRouting(t *testing.T) {
 	// Setup DB
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})

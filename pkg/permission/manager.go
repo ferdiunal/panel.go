@@ -7,19 +7,18 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// ResourcePermissions, her bir kaynak (users, roles, settings vb.) için izin tanımlarını tutar.
-type ResourcePermissions struct {
-	Label   string   `toml:"label"`
-	Actions []string `toml:"actions"`
+// Role defines the structure for a role in permissions.toml
+type Role struct {
+	Label       string   `toml:"label"`
+	Permissions []string `toml:"permissions"`
 }
 
-// Config, permissions.toml dosyasının yapısını temsil eder.
-type Config struct {
-	SystemRoles []string                       `toml:"system_roles"`
-	Resources   map[string]ResourcePermissions `toml:"resources"`
-}
+// Config represents the structure of the permissions.toml file.
+// Since the file uses top-level keys for roles (e.g. [admin], [user]),
+// we parse it as a map.
+type Config map[string]Role
 
-// Manager, izinleri yöneten yapı.
+// Manager handles permission configurations.
 type Manager struct {
 	config Config
 }
@@ -27,16 +26,16 @@ type Manager struct {
 // Global instance
 var currentManager *Manager
 
-// Load, belirtilen yoldaki toml dosyasını okuyup parse eder.
+// Load reads and parses the toml file at the given path.
 func Load(path string) (*Manager, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("permissions dosyası okunamadı: %w", err)
+		return nil, fmt.Errorf("permissions file could not be read: %w", err)
 	}
 
 	var config Config
 	if err := toml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("permissions dosyası parse edilemedi: %w", err)
+		return nil, fmt.Errorf("permissions file could not be parsed: %w", err)
 	}
 
 	mgr := &Manager{
@@ -48,16 +47,19 @@ func Load(path string) (*Manager, error) {
 
 // GetConfig returns the loaded configuration.
 func (m *Manager) GetConfig() Config {
-	// If resources map is nil, initialize it to avoid nil pointer issues if used elsewhere
-	if m.config.Resources == nil {
-		m.config.Resources = make(map[string]ResourcePermissions)
+	if m.config == nil {
+		return make(Config)
 	}
 	return m.config
 }
 
-// GetRoles returns the list of system roles defined in the configuration.
+// GetRoles returns the list of role keys defined in the configuration.
 func (m *Manager) GetRoles() []string {
-	return m.config.SystemRoles
+	roles := make([]string, 0, len(m.config))
+	for r := range m.config {
+		roles = append(roles, r)
+	}
+	return roles
 }
 
 // GetInstance returns the current manager instance.
@@ -65,19 +67,24 @@ func GetInstance() *Manager {
 	return currentManager
 }
 
-// GetAllResources returns all resource keys.
-func (m *Manager) GetAllResources() []string {
-	keys := make([]string, 0, len(m.config.Resources))
-	for k := range m.config.Resources {
-		keys = append(keys, k)
-	}
-	return keys
+// GetRole returns the Role definition for a specific role key.
+func (m *Manager) GetRole(roleKey string) (Role, bool) {
+	role, ok := m.config[roleKey]
+	return role, ok
 }
 
-// GetPermissionsForResource returns permissions for a specific resource.
-func (m *Manager) GetPermissionsForResource(resource string) ([]string, bool) {
-	if res, ok := m.config.Resources[resource]; ok {
-		return res.Actions, true
+// HasPermission checks if a role has a specific permission.
+func (m *Manager) HasPermission(roleName string, permission string) bool {
+	role, ok := m.config[roleName]
+	if !ok {
+		return false
 	}
-	return nil, false
+
+	for _, p := range role.Permissions {
+		if p == "*" || p == permission {
+			return true
+		}
+	}
+
+	return false
 }

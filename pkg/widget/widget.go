@@ -5,14 +5,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// CardType represents the type of card being displayed
+type CardType string
+
+const (
+	CardTypeValue CardType = "value"
+	CardTypeTrend CardType = "trend"
+	CardTypeTable CardType = "table"
+)
+
 // Card matches Laravel Nova's Card concept.
 // Metrics (Value, Trend) are just specific types of Cards.
 type Card interface {
 	Name() string
 	Component() string // Frontend component name (e.g. "value-metric", "custom-card")
 	Width() string     // "1/3", "1/2", "full", etc.
+	GetType() CardType // Returns the type of card
 	Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error)
+	HandleError(err error) map[string]interface{} // Handles errors and returns error response
+	GetMetadata() map[string]interface{}          // Returns card metadata
 	JsonSerialize() map[string]interface{}
+}
+
+// CardResolver defines the interface for resolving card data
+type CardResolver interface {
+	Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error)
 }
 
 // BaseCard provides common fields for all cards
@@ -20,6 +37,7 @@ type BaseCard struct {
 	TitleStr     string
 	ComponentStr string
 	WidthStr     string
+	CardTypeVal  CardType
 }
 
 func (c *BaseCard) Name() string {
@@ -38,6 +56,29 @@ func (c *BaseCard) Width() string {
 		return "1/3"
 	}
 	return c.WidthStr
+}
+
+func (c *BaseCard) GetType() CardType {
+	if c.CardTypeVal == "" {
+		return CardTypeValue // Default type
+	}
+	return c.CardTypeVal
+}
+
+func (c *BaseCard) HandleError(err error) map[string]interface{} {
+	return map[string]interface{}{
+		"error": err.Error(),
+		"title": c.TitleStr,
+	}
+}
+
+func (c *BaseCard) GetMetadata() map[string]interface{} {
+	return map[string]interface{}{
+		"name":      c.TitleStr,
+		"component": c.Component(),
+		"width":     c.Width(),
+		"type":      c.GetType(),
+	}
 }
 
 // CustomCard allows creating arbitrary cards from outside
@@ -59,6 +100,7 @@ func (c *CustomCard) JsonSerialize() map[string]interface{} {
 		"component": c.Component(),
 		"title":     c.Name(),
 		"width":     c.Width(),
+		"type":      c.GetType(),
 		"content":   c.Content,
 	}
 }
@@ -70,6 +112,7 @@ func NewCard(title, component string) *CustomCard {
 			TitleStr:     title,
 			ComponentStr: component,
 			WidthStr:     "1/3",
+			CardTypeVal:  CardTypeValue,
 		},
 	}
 }

@@ -45,3 +45,7 @@ main
 cmd/web/node_modules
 internal/ent
 test.db
+
+# Web build output (we use pkg/panel/ui instead)
+web/dist
+web/node_modules

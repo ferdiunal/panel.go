@@ -1,13 +1,14 @@
 package data
 
 import (
-	"context"
+	stdcontext "context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/ferdiunal/panel.go/pkg/context"
 	"gorm.io/gorm"
 )
 
@@ -25,6 +26,19 @@ func NewGormDataProvider(db *gorm.DB, model interface{}) *GormDataProvider {
 	}
 }
 
+// getContext safely extracts the standard context from our custom Context
+// Returns context.Background() if ctx is nil or has no underlying context
+func (p *GormDataProvider) getContext(ctx *context.Context) stdcontext.Context {
+	if ctx == nil {
+		return stdcontext.Background()
+	}
+	stdCtx := ctx.Context()
+	if stdCtx == nil {
+		return stdcontext.Background()
+	}
+	return stdCtx
+}
+
 func (p *GormDataProvider) SetSearchColumns(cols []string) {
 	p.SearchColumns = cols
 }
@@ -33,7 +47,7 @@ func (p *GormDataProvider) SetWith(rels []string) {
 	p.WithRelationships = rels
 }
 
-func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryResponse, error) {
+func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*QueryResponse, error) {
 	var total int64
 	// We need a slice of the model type to hold results.
 	// Since Model is interface{}, we might need reflection to create a slice of that type,
@@ -58,7 +72,8 @@ func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryR
 	// Log the incoming sorts to Provider
 	fmt.Printf("DEBUG: Provider Index Req Sorts: %+v\n", req.Sorts)
 
-	db := p.DB.WithContext(ctx).Debug().Model(p.Model)
+	stdCtx := p.getContext(ctx)
+	db := p.DB.WithContext(stdCtx).Debug().Model(p.Model)
 
 	// Apply Eager Loading
 	for _, rel := range p.WithRelationships {
@@ -72,7 +87,7 @@ func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryR
 
 	// Apply Search
 	if req.Search != "" && len(p.SearchColumns) > 0 {
-		searchQuery := p.DB.WithContext(ctx).Session(&gorm.Session{NewDB: true})
+		searchQuery := p.DB.WithContext(stdCtx).Session(&gorm.Session{NewDB: true})
 		for _, col := range p.SearchColumns {
 			searchQuery = searchQuery.Or(fmt.Sprintf("%s LIKE ?", col), "%"+req.Search+"%")
 		}
@@ -131,7 +146,7 @@ func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryR
 	}, nil
 }
 
-func (p *GormDataProvider) Show(ctx context.Context, id string) (interface{}, error) {
+func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, error) {
 	// Create a new instance of the model to hold the result
 	// We use p.Model's type
 	// But simpler: just use map[string]interface{} for dynamic nature or try to use the model type via reflection if needed.
@@ -146,7 +161,8 @@ func (p *GormDataProvider) Show(ctx context.Context, id string) (interface{}, er
 	}
 	result := reflect.New(modelType).Interface()
 
-	db := p.DB.WithContext(ctx).Model(p.Model)
+	stdCtx := p.getContext(ctx)
+	db := p.DB.WithContext(stdCtx).Model(p.Model)
 	for _, rel := range p.WithRelationships {
 		db = db.Preload(rel)
 	}
@@ -157,7 +173,7 @@ func (p *GormDataProvider) Show(ctx context.Context, id string) (interface{}, er
 	return result, nil
 }
 
-func (p *GormDataProvider) Create(ctx context.Context, data map[string]interface{}) (interface{}, error) {
+func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interface{}) (interface{}, error) {
 	// 1. Create a new instance of the model
 	modelType := reflect.TypeOf(p.Model)
 	if modelType.Kind() == reflect.Ptr {
@@ -175,16 +191,18 @@ func (p *GormDataProvider) Create(ctx context.Context, data map[string]interface
 	}
 
 	// 3. Create in DB
-	if err := p.DB.WithContext(ctx).Model(p.Model).Create(newItem).Error; err != nil {
+	stdCtx := p.getContext(ctx)
+	if err := p.DB.WithContext(stdCtx).Model(p.Model).Create(newItem).Error; err != nil {
 		return nil, err
 	}
 
 	return newItem, nil
 }
 
-func (p *GormDataProvider) Update(ctx context.Context, id string, data map[string]interface{}) (interface{}, error) {
+func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[string]interface{}) (interface{}, error) {
 	data["updated_at"] = time.Now()
-	if err := p.DB.WithContext(ctx).Model(p.Model).Where("id = ?", id).Updates(data).Error; err != nil {
+	stdCtx := p.getContext(ctx)
+	if err := p.DB.WithContext(stdCtx).Model(p.Model).Where("id = ?", id).Updates(data).Error; err != nil {
 		return nil, err
 	}
 	// Return updated struct or just the data?
@@ -192,6 +210,7 @@ func (p *GormDataProvider) Update(ctx context.Context, id string, data map[strin
 	return p.Show(ctx, id)
 }
 
-func (p *GormDataProvider) Delete(ctx context.Context, id string) error {
-	return p.DB.WithContext(ctx).Model(p.Model).Where("id = ?", id).Delete(nil).Error
+func (p *GormDataProvider) Delete(ctx *context.Context, id string) error {
+	stdCtx := p.getContext(ctx)
+	return p.DB.WithContext(stdCtx).Model(p.Model).Where("id = ?", id).Delete(nil).Error
 }

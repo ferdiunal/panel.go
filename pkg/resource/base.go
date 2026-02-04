@@ -19,7 +19,7 @@ import (
 // resource.Resource arayüzünü implemente eder.
 // Resource implementasyonları için gömülü (embedding) olarak kullanılabilir.
 type Base struct {
-	DataModel     interface{}
+	DataModel     any
 	Identifier    string // Slug, URL tanımlayıcısı
 	Label         string // Title, Görünen Başlık
 	IconName      string
@@ -31,16 +31,18 @@ type Base struct {
 	DialogType    DialogType
 	UploadHandler func(c *appContext.Context, file *multipart.FileHeader) (string, error)
 	Seed          SettingsSeed
+	ActionsVal    []Action
+	FiltersVal    []Filter
 }
 
 // SettingsSeed is a helper struct for seeding or grouping settings.
 type SettingsSeed struct {
 	Key   string
-	Value map[string]interface{}
+	Value map[string]any
 }
 
 // Model, veri modelini döner.
-func (r Base) Model() interface{} {
+func (r Base) Model() any {
 	return r.DataModel
 }
 
@@ -149,4 +151,70 @@ func (r Base) NavigationOrder() int {
 
 func (r Base) Visible() bool {
 	return true
+}
+
+// GetFields, belirli bir bağlamda gösterilecek alanları döner.
+// Requirement 11.1: Resource arayüzünü, alanları almak için metodlar içerecek şekilde genişlet
+func (r Base) GetFields(ctx *appContext.Context) []fields.Element {
+	return r.FieldsVal
+}
+
+// GetCards, belirli bir bağlamda gösterilecek card'ları döner.
+// Requirement 11.1: Resource arayüzünü, card'ları almak için metodlar içerecek şekilde genişlet
+func (r Base) GetCards(ctx *appContext.Context) []widget.Card {
+	if r.WidgetsVal != nil {
+		return r.WidgetsVal
+	}
+	return []widget.Card{}
+}
+
+// GetLenses, kaynağın tüm lens'lerini döner.
+// Requirement 11.1: Resource arayüzünü, lens'leri almak için metodlar içerecek şekilde genişlet
+func (r Base) GetLenses() []Lens {
+	return r.Lenses()
+}
+
+// GetPolicy, kaynağın yetkilendirme politikasını döner.
+// Requirement 11.1: Resource arayüzünü, politikaları almak için metodlar içerecek şekilde genişlet
+func (r Base) GetPolicy() auth.Policy {
+	return r.PolicyVal
+}
+
+// ResolveField, bir alanın değerini dinamik olarak hesaplayan ve dönüştüren fonksiyon.
+// Requirement 11.2: Resource'ların kendi alan çözümleme mantığını tanımlamasına izin ver
+func (r Base) ResolveField(fieldName string, item any) (any, error) {
+	// Varsayılan implementasyon: alanı bul ve değerini döndür
+	for _, field := range r.FieldsVal {
+		if field.GetKey() == fieldName {
+			// Alan bulundu, değerini çöz
+			// Extract the value from the item
+			field.Extract(item)
+			// Return the serialized value
+			serialized := field.JsonSerialize()
+			if val, ok := serialized["value"]; ok {
+				return val, nil
+			}
+			return nil, nil
+		}
+	}
+	// Alan bulunamadı
+	return nil, fmt.Errorf("field %s not found", fieldName)
+}
+
+// GetActions, kaynağın özel işlemlerini döner.
+// Requirement 11.4: Resource arayüzünü, işlemleri almak için metodlar içerecek şekilde genişlet
+func (r Base) GetActions() []Action {
+	if r.ActionsVal != nil {
+		return r.ActionsVal
+	}
+	return []Action{}
+}
+
+// GetFilters, kaynağın filtreleme seçeneklerini döner.
+// Requirement 11.4: Resource arayüzünü, filtreleri almak için metodlar içerecek şekilde genişlet
+func (r Base) GetFilters() []Filter {
+	if r.FiltersVal != nil {
+		return r.FiltersVal
+	}
+	return []Filter{}
 }

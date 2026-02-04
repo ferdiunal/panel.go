@@ -1,9 +1,9 @@
 package data
 
 import (
-	"context"
 	"testing"
 
+	"github.com/ferdiunal/panel.go/pkg/context"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -42,7 +42,9 @@ func TestGormDataProvider_Index(t *testing.T) {
 	// Test Provider
 	provider := NewGormDataProvider(db, &TestUser{})
 
-	ctx := context.Background()
+	// For testing, we can pass nil context since GormDataProvider handles it gracefully
+	ctx := (*context.Context)(nil)
+
 	req := QueryRequest{
 		Page:    1,
 		PerPage: 2,
@@ -106,8 +108,10 @@ func TestGormDataProvider_Search(t *testing.T) {
 	// 1. Configure Search Columns
 	provider.SetSearchColumns([]string{"name", "email"})
 
+	// For testing, we can pass nil context since GormDataProvider handles it gracefully
+	ctx := (*context.Context)(nil)
+
 	// 2. Search for "Bob" (Should match Bob by name and Dave by email)
-	ctx := context.Background()
 	req := QueryRequest{
 		Page:    1,
 		PerPage: 10,
@@ -174,8 +178,10 @@ func TestGormDataProvider_With(t *testing.T) {
 	// 1. Configure Eager Loading
 	provider.SetWith([]string{"Posts"})
 
+	// For testing, we can pass nil context since GormDataProvider handles it gracefully
+	ctx := (*context.Context)(nil)
+
 	// 2. Fetch Index
-	ctx := context.Background()
 	req := QueryRequest{
 		Page:    1,
 		PerPage: 10,
@@ -191,20 +197,6 @@ func TestGormDataProvider_With(t *testing.T) {
 	}
 
 	// Verify Posts are loaded
-	// Since we return []map[string]interface{}, GORM's map output might not include nested structs automatically unless we use JSON serialization trick or GORM specific map mode.
-	// Wait, our GormDataProvider uses `db.Find(&results)` where results is `[]map[string]interface{}`.
-	// GORM DOES NOT automatically populate nested structs into map[string]interface{} when using Find(&map). It usually works better with Struct slice.
-	// However, our Provider is Generic.
-	// If `Model` is `&TestUser{}`, `db.Model(p.Model)` knows the schema.
-	// But `db.Find(&results)` into map might lose the relationship if GORM doesn't flatten it.
-	// Actually, Gorm Preload works by populating fields on the struct. If we scan into map, Preload might be ignored or not mapped.
-	// Let's verify this behavior. If it fails, we might need to change Provider to use Reflect to creating a slice of the Model type.
-	// Given the previous task status was "Success", let's assume map scanning works OR we need to accept we might need reflection.
-	// Let's check the Item.
-
-	// Actually, to support relations properly in a generic way, we probably SHOULD use reflection to create a slice of the real type.
-	// But for now let's write the test and see if it fails.
-
 	item := resp.Items[0].(*TestUser)
 	if len(item.Posts) != 2 {
 		t.Fatalf("Expected 2 posts, got %d", len(item.Posts))

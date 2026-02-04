@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 
+	pkgContext "github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/shared/uuid"
@@ -28,7 +29,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, u *user.User) error {
 }
 
 // Create overrides GormDataProvider.Create (generic/resource)
-func (r *UserRepository) Create(ctx context.Context, data map[string]interface{}) (interface{}, error) {
+func (r *UserRepository) Create(ctx *pkgContext.Context, data map[string]interface{}) (interface{}, error) {
 	// Generate UUID if not present
 	if _, ok := data["id"]; !ok || data["id"] == "" {
 		data["id"] = uuid.NewUUID().String()
@@ -54,4 +55,24 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*user.U
 
 func (r *UserRepository) UpdateUser(ctx context.Context, u *user.User) error {
 	return r.db.WithContext(ctx).Save(u).Error
+}
+
+func (r *UserRepository) Update(ctx *pkgContext.Context, id string, data map[string]interface{}) (interface{}, error) {
+	return r.GormDataProvider.Update(ctx, id, data)
+}
+
+func (r *UserRepository) Delete(ctx *pkgContext.Context, id string) error {
+	return r.GormDataProvider.Delete(ctx, id)
+}
+
+func (r *UserRepository) DeleteUser(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&user.User{}, "id = ?", id).Error
+}
+
+func (r *UserRepository) Show(ctx *pkgContext.Context, id string) (interface{}, error) {
+	return r.GormDataProvider.Show(ctx, id)
+}
+
+func (r *UserRepository) Index(ctx *pkgContext.Context, req data.QueryRequest) (*data.QueryResponse, error) {
+	return r.GormDataProvider.Index(ctx, req)
 }

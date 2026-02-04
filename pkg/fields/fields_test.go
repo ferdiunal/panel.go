@@ -105,3 +105,25 @@ func TestRelationshipFields(t *testing.T) {
 		t.Errorf("PolyLink field mismatch")
 	}
 }
+
+// TestSchemaImplementsElement verifies that Schema implements core.Element interface
+func TestSchemaImplementsElement(t *testing.T) {
+	// Compile-time check - if this compiles, Schema implements Element
+	var _ Element = (*Schema)(nil)
+
+	// Runtime check
+	schema := &Schema{
+		Key:  "test",
+		Name: "Test Field",
+	}
+
+	if schema.GetKey() != "test" {
+		t.Error("Schema does not properly implement GetKey()")
+	}
+
+	// Test fluent interface returns Element
+	var element Element = schema.SetName("New Name")
+	if element == nil {
+		t.Error("Fluent methods should return Element interface")
+	}
+}

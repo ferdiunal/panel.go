@@ -1,6 +1,7 @@
 package panel
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -101,16 +102,15 @@ func New(config Config) *Panel {
 			app.Static("/storage", "./storage/public")
 		}
 
-		// If explicit web path isn't set, try standard location or rely on external dev server (Vite)
-		// in dev mode usually we run vite separately.
-		// But if we want to serve built files in dev:
-		app.Static("/", "./web/dist")
+		// Development mode: Serve UI from pkg/panel/ui instead of web/dist
+		// This allows the project to work without needing the web directory
+		app.Static("/", "./pkg/panel/ui")
 		app.Get("*", func(c *fiber.Ctx) error {
 			// Skip API routes
 			if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
 				return c.Next()
 			}
-			return c.SendFile("./web/dist/index.html")
+			return c.SendFile("./pkg/panel/ui/index.html")
 		})
 	}
 
@@ -146,6 +146,11 @@ func New(config Config) *Panel {
 		p.RegisterResource(p.Config.UserResource)
 	} else {
 		p.RegisterResource(resourceUser.GetUserResource())
+	}
+
+	// Register Additional Resources
+	for _, res := range p.Config.Resources {
+		p.RegisterResource(res)
 	}
 
 	// Register Pages from Config
@@ -192,16 +197,18 @@ func New(config Config) *Panel {
 
 	api.Get("/resource/:resource/cards", context.Wrap(p.handleResourceCards))
 	api.Get("/resource/:resource/cards/:index", context.Wrap(p.handleResourceCard))
+	api.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))   // List available lenses
+	api.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens)) // Lens data
 	api.Get("/resource/:resource", context.Wrap(p.handleResourceIndex))
 	api.Post("/resource/:resource", context.Wrap(p.handleResourceStore))
 	api.Get("/resource/:resource/create", context.Wrap(p.handleResourceCreate)) // New Route
 	api.Get("/resource/:resource/:id", context.Wrap(p.handleResourceShow))
 	api.Get("/resource/:resource/:id/detail", context.Wrap(p.handleResourceDetail))
 	api.Get("/resource/:resource/:id/edit", context.Wrap(p.handleResourceEdit))
+	api.Post("/resource/:resource/:id/fields/:field/resolve", context.Wrap(p.handleFieldResolve)) // Field resolver endpoint
 	api.Put("/resource/:resource/:id", context.Wrap(p.handleResourceUpdate))
 	api.Delete("/resource/:resource/:id", context.Wrap(p.handleResourceDestroy))
-	api.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens)) // Lens Route
-	api.Get("/navigation", context.Wrap(p.handleNavigation))                      // Sidebar Navigation
+	api.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
 
 	// /resolve endpoint for dynamic routing check
 	api.Get("/resolve", context.Wrap(p.handleResolve))
@@ -227,7 +234,13 @@ func (p *Panel) LoadSettings() error {
 	}
 
 	for _, s := range settings {
-		val := s.Value["value"]
+		// Parse JSON value
+		var val interface{}
+		if err := json.Unmarshal([]byte(s.Value), &val); err != nil {
+			// If not JSON, treat as string
+			val = s.Value
+		}
+
 		config.Values[s.Key] = val
 
 		switch s.Key {
@@ -283,61 +296,73 @@ func (p *Panel) withResourceHandler(c *context.Context, fn func(*handler.FieldHa
 
 func (p *Panel) handleResourceIndex(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Index(c)
+		return handler.HandleResourceIndex(h, c)
 	})
 }
 
 func (p *Panel) handleResourceShow(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Show(c)
+		return handler.HandleResourceShow(h, c)
 	})
 }
 
 func (p *Panel) handleResourceDetail(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Detail(c)
+		return handler.HandleResourceDetail(h, c)
 	})
 }
 
 func (p *Panel) handleResourceStore(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Store(c)
+		return handler.HandleResourceStore(h, c)
 	})
 }
 
 func (p *Panel) handleResourceCreate(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Create(c)
+		return handler.HandleResourceCreate(h, c)
 	})
 }
 
 func (p *Panel) handleResourceUpdate(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Update(c)
+		return handler.HandleResourceUpdate(h, c)
 	})
 }
 
 func (p *Panel) handleResourceDestroy(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Destroy(c)
+		return handler.HandleResourceDestroy(h, c)
 	})
 }
 
 func (p *Panel) handleResourceEdit(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.Edit(c)
+		return handler.HandleResourceEdit(h, c)
+	})
+}
+
+func (p *Panel) handleFieldResolve(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleFieldResolve(h, c)
 	})
 }
 
 func (p *Panel) handleResourceCards(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.ListCards(c)
+		return handler.HandleCardList(h, c)
 	})
 }
 
 func (p *Panel) handleResourceCard(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
-		return h.GetCard(c)
+		return handler.HandleCardDetail(h, c)
+	})
+}
+
+func (p *Panel) handleResourceLenses(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleLensIndex(h, c)
 	})
 }
 
@@ -370,8 +395,8 @@ func (p *Panel) handleResourceLens(c *context.Context) error {
 	// Create Handler for Lens
 	h := handler.NewLensHandler(p.Db, res, targetLens)
 
-	// Lens inherently implies a List/Index view
-	return h.Index(c)
+	// Use the lens controller
+	return handler.HandleLens(h, c)
 }
 
 func (p *Panel) handleNavigation(c *context.Context) error {

@@ -1,53 +1,65 @@
 package fields
 
-type ElementType string
+import "github.com/ferdiunal/panel.go/pkg/core"
 
-type ElementContext string
+type ElementType = core.ElementType
+
+type ElementContext = core.ElementContext
+
+type VisibilityContext = core.VisibilityContext
+
+type Resolver = core.Resolver
 
 const (
-	TYPE_TEXT            ElementType = "text"
-	TYPE_PASSWORD        ElementType = "password"
-	TYPE_NUMBER          ElementType = "number"
-	TYPE_TEL             ElementType = "tel"
-	TYPE_EMAIL           ElementType = "email"
-	TYPE_AUDIO           ElementType = "audio"
-	TYPE_VIDEO           ElementType = "video"
-	TYPE_DATE            ElementType = "date"
-	TYPE_DATETIME        ElementType = "datetime"
-	TYPE_FILE            ElementType = "file"
-	TYPE_KEY_VALUE       ElementType = "key_value"
-	TYPE_LINK            ElementType = "link"
-	TYPE_COLLECTION      ElementType = "collection"
-	TYPE_DETAIL          ElementType = "detail"
-	TYPE_CONNECT         ElementType = "connect"
-	TYPE_POLY_LINK       ElementType = "poly_link"
-	TYPE_POLY_DETAIL     ElementType = "poly_detail"
-	TYPE_POLY_COLLECTION ElementType = "poly_collection"
-	TYPE_POLY_CONNECT    ElementType = "poly_connect"
-	TYPE_BOOLEAN         ElementType = "boolean"
-	TYPE_SELECT          ElementType = "select" // Enum or Combobox
+	TYPE_TEXT            ElementType = core.TYPE_TEXT
+	TYPE_PASSWORD        ElementType = core.TYPE_PASSWORD
+	TYPE_NUMBER          ElementType = core.TYPE_NUMBER
+	TYPE_TEL             ElementType = core.TYPE_TEL
+	TYPE_EMAIL           ElementType = core.TYPE_EMAIL
+	TYPE_AUDIO           ElementType = core.TYPE_AUDIO
+	TYPE_VIDEO           ElementType = core.TYPE_VIDEO
+	TYPE_DATE            ElementType = core.TYPE_DATE
+	TYPE_DATETIME        ElementType = core.TYPE_DATETIME
+	TYPE_FILE            ElementType = core.TYPE_FILE
+	TYPE_KEY_VALUE       ElementType = core.TYPE_KEY_VALUE
+	TYPE_LINK            ElementType = core.TYPE_LINK
+	TYPE_COLLECTION      ElementType = core.TYPE_COLLECTION
+	TYPE_DETAIL          ElementType = core.TYPE_DETAIL
+	TYPE_CONNECT         ElementType = core.TYPE_CONNECT
+	TYPE_POLY_LINK       ElementType = core.TYPE_POLY_LINK
+	TYPE_POLY_DETAIL     ElementType = core.TYPE_POLY_DETAIL
+	TYPE_POLY_COLLECTION ElementType = core.TYPE_POLY_COLLECTION
+	TYPE_POLY_CONNECT    ElementType = core.TYPE_POLY_CONNECT
+	TYPE_BOOLEAN         ElementType = core.TYPE_BOOLEAN
+	TYPE_SELECT          ElementType = core.TYPE_SELECT
+	TYPE_RELATIONSHIP    ElementType = core.TYPE_RELATIONSHIP
 )
 
 const (
-	CONTEXT_FORM   ElementContext = "form"
-	CONTEXT_DETAIL ElementContext = "detail"
-	CONTEXT_LIST   ElementContext = "list"
+	CONTEXT_FORM   ElementContext = core.CONTEXT_FORM
+	CONTEXT_DETAIL ElementContext = core.CONTEXT_DETAIL
+	CONTEXT_LIST   ElementContext = core.CONTEXT_LIST
 
-	// Visibility Flags (can be combined or specific logic used in Schema)
-	// For simplicity, we'll map standard "show/hide" concepts to contexts
+	SHOW_ON_FORM   ElementContext = core.SHOW_ON_FORM
+	SHOW_ON_DETAIL ElementContext = core.SHOW_ON_DETAIL
+	SHOW_ON_LIST   ElementContext = core.SHOW_ON_LIST
 
-	SHOW_ON_FORM   ElementContext = "show_on_form"
-	SHOW_ON_DETAIL ElementContext = "show_on_detail"
-	SHOW_ON_LIST   ElementContext = "show_on_list"
+	HIDE_ON_LIST   ElementContext = core.HIDE_ON_LIST
+	HIDE_ON_DETAIL ElementContext = core.HIDE_ON_DETAIL
+	HIDE_ON_CREATE ElementContext = core.HIDE_ON_CREATE
+	HIDE_ON_UPDATE ElementContext = core.HIDE_ON_UPDATE
 
-	HIDE_ON_LIST   ElementContext = "hide_on_list"
-	HIDE_ON_DETAIL ElementContext = "hide_on_detail"
-	HIDE_ON_CREATE ElementContext = "hide_on_create"
-	HIDE_ON_UPDATE ElementContext = "hide_on_update"
+	ONLY_ON_LIST   ElementContext = core.ONLY_ON_LIST
+	ONLY_ON_DETAIL ElementContext = core.ONLY_ON_DETAIL
+	ONLY_ON_CREATE ElementContext = core.ONLY_ON_CREATE
+	ONLY_ON_UPDATE ElementContext = core.ONLY_ON_UPDATE
+	ONLY_ON_FORM   ElementContext = core.ONLY_ON_FORM
+)
 
-	ONLY_ON_LIST   ElementContext = "only_on_list"
-	ONLY_ON_DETAIL ElementContext = "only_on_detail"
-	ONLY_ON_CREATE ElementContext = "only_on_create"
-	ONLY_ON_UPDATE ElementContext = "only_on_update"
-	ONLY_ON_FORM   ElementContext = "only_on_form"
+const (
+	ContextIndex   VisibilityContext = core.ContextIndex
+	ContextDetail  VisibilityContext = core.ContextDetail
+	ContextCreate  VisibilityContext = core.ContextCreate
+	ContextUpdate  VisibilityContext = core.ContextUpdate
+	ContextPreview VisibilityContext = core.ContextPreview
 )

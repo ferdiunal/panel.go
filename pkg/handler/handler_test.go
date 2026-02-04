@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/ferdiunal/panel.go/pkg/auth"
 	appContext "github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/resource"
@@ -33,7 +33,7 @@ type MockDataProvider struct {
 	Total int64
 }
 
-func (m *MockDataProvider) Index(ctx context.Context, req data.QueryRequest) (*data.QueryResponse, error) {
+func (m *MockDataProvider) Index(ctx *appContext.Context, req data.QueryRequest) (*data.QueryResponse, error) {
 	return &data.QueryResponse{
 		Items:   m.Items,
 		Total:   m.Total,
@@ -42,19 +42,19 @@ func (m *MockDataProvider) Index(ctx context.Context, req data.QueryRequest) (*d
 	}, nil
 }
 
-func (m *MockDataProvider) Show(ctx context.Context, id string) (interface{}, error) {
+func (m *MockDataProvider) Show(ctx *appContext.Context, id string) (interface{}, error) {
 	return nil, nil
 }
 
-func (m *MockDataProvider) Create(ctx context.Context, data map[string]interface{}) (interface{}, error) {
+func (m *MockDataProvider) Create(ctx *appContext.Context, data map[string]interface{}) (interface{}, error) {
 	return data, nil
 }
 
-func (m *MockDataProvider) Update(ctx context.Context, id string, data map[string]interface{}) (interface{}, error) {
+func (m *MockDataProvider) Update(ctx *appContext.Context, id string, data map[string]interface{}) (interface{}, error) {
 	return data, nil
 }
 
-func (m *MockDataProvider) Delete(ctx context.Context, id string) error {
+func (m *MockDataProvider) Delete(ctx *appContext.Context, id string) error {
 	return nil
 }
 
@@ -78,7 +78,7 @@ func TestFieldHandler_List(t *testing.T) {
 
 	h := NewFieldHandler(&MockDataProvider{})
 
-	app.Get("/fields", FieldContextMiddleware(&user, fieldDefs), appContext.Wrap(h.List))
+	app.Get("/fields", FieldContextMiddleware(&user, nil, core.ContextIndex, fieldDefs), appContext.Wrap(h.List))
 
 	req := httptest.NewRequest("GET", "/fields", nil)
 	resp, err := app.Test(req)
@@ -127,7 +127,7 @@ func TestFieldHandler_Index(t *testing.T) {
 	h := NewFieldHandler(mockProvider)
 	h.Resource = &MockResource{}
 
-	app.Get("/users", FieldContextMiddleware(nil, fieldDefs), appContext.Wrap(h.Index))
+	app.Get("/users", FieldContextMiddleware(nil, nil, core.ContextIndex, fieldDefs), appContext.Wrap(h.Index))
 
 	req := httptest.NewRequest("GET", "/users?page=1&per_page=10", nil)
 	resp, _ := app.Test(req)
@@ -169,7 +169,7 @@ func TestFieldHandler_MapSupport(t *testing.T) {
 
 	h := NewFieldHandler(&MockDataProvider{})
 
-	app.Get("/fields", FieldContextMiddleware(data, fieldDefs), appContext.Wrap(h.List))
+	app.Get("/fields", FieldContextMiddleware(data, nil, core.ContextIndex, fieldDefs), appContext.Wrap(h.List))
 
 	req := httptest.NewRequest("GET", "/fields", nil)
 	resp, _ := app.Test(req)
@@ -231,6 +231,34 @@ func (m *MockResource) NavigationOrder() int { return 1 }
 func (m *MockResource) Visible() bool        { return true }
 func (m *MockResource) StoreHandler(c *appContext.Context, file *multipart.FileHeader, storagePath string, storageURL string) (string, error) {
 	return "", nil
+}
+
+func (m *MockResource) GetFields(ctx *appContext.Context) []fields.Element {
+	return m.Fields()
+}
+
+func (m *MockResource) GetCards(ctx *appContext.Context) []widget.Card {
+	return m.Cards()
+}
+
+func (m *MockResource) GetLenses() []resource.Lens {
+	return m.Lenses()
+}
+
+func (m *MockResource) GetPolicy() auth.Policy {
+	return m.Policy()
+}
+
+func (m *MockResource) ResolveField(fieldName string, item interface{}) (interface{}, error) {
+	return nil, nil
+}
+
+func (m *MockResource) GetActions() []resource.Action {
+	return []resource.Action{}
+}
+
+func (m *MockResource) GetFilters() []resource.Filter {
+	return []resource.Filter{}
 }
 
 func TestResourceHandler(t *testing.T) {

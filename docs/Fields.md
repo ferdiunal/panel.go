@@ -1,100 +1,378 @@
-# Alanlar (Fields)
+# Alanlar (Fields) Rehberi
 
-Alanlar, Panel kaynaklarınızın yapı taşlarıdır. Hangi verilerin gösterileceğini ve nasıl giriş yapılacağını tanımlarlar. SDK, basit metin girişlerinden karmaşık ilişkilere kadar zengin bir alan tipi seti sunar.
+Alanlar, veritabanı sütunlarını yönetim panelinde nasıl göstereceğinizi ve işleneceğini tanımlar.
 
-```go
-import "github.com/ferdiunal/panel.go/pkg/fields"
-```
+## Alan Türleri
 
-## Standart Alanlar
+### Metin Alanı (Text)
 
-Bu alanlar standart veri tiplerini işler.
-
--   **`fields.ID()`**: Birincil anahtarları (Primary Key) otomatik olarak işler.
--   **`fields.Text("Etiket", "key")`**: Standart metin girişi.
--   **`fields.Password("Etiket")`**: Parola girişi (listelerde varsayılan olarak gizlidir).
--   **`fields.Number("Etiket")`**: Sayısal giriş.
--   **`fields.Email("Etiket")`**: Doğrulama ipuçları içeren e-posta girişi.
--   **`fields.Tel("Etiket")`**: Telefon numarası girişi.
--   **`fields.Switch("Etiket", "key")`**: On/Off (Boolean) anahtarı.
--   **`fields.Audio("Etiket")`** & **`fields.Video("Etiket")`**: Medya dosyası işleme (URL veya Path).
--   **`fields.Date("Doğum Tarihi")`**: Tarih seçici.
--   **`fields.DateTime("Oluşturulma Tarihi")`**: Tarih ve saat seçici.
--   **`fields.File("Avatar")`**: Dosya yükleme işleyicisi (Local veya S3 desteği için yapılandırılabilir).
--   **`fields.Image("Görsel")`**: Görsel önizlemeli dosya yükleyicisi.
--   **`fields.KeyValue("Metadata")`**: Anahtar-Değer çifti düzenleyicisi (JSON alanları).
-
-## Seçim Alanları (Selection Fields)
-
-Kullanıcının belirli seçeneklerden birini veya birkaçını seçmesini sağlayan alanlar.
-
-### Select
-Basit bir açılır liste (dropdown) oluşturur.
+Tek satırlık metin girişi için kullanılır.
 
 ```go
-fields.Select("Durum", "status").
-    Options(map[string]string{
-        "draft":     "Taslak",
-        "published": "Yayında",
-        "archived":  "Arşiv",
-    }).
-    Default("draft") // Varsayılan değer
+(&fields.Schema{
+	Key:   "email",
+	Name:  "E-posta",
+	View:  "text",
+	Props: make(map[string]interface{}),
+}).OnList().OnDetail().OnForm()
 ```
 
-### Combobox
-Arama yapılabilen gelişmiş seçim kutusu. Çok sayıda seçenek olduğunda kullanışlıdır.
+**Seçenekler:**
+- `Placeholder("Örnek@email.com")` - Yer tutucu metni
+- `Required()` - Zorunlu alan
+- `ReadOnly()` - Salt okunur
+
+### Metin Alanı (Textarea)
+
+Çok satırlık metin girişi için kullanılır.
 
 ```go
-fields.Combobox("Kategori", "category_id").
-    Options(map[string]string{
-        "1": "Teknoloji",
-        "2": "Sağlık",
-        "3": "Spor",
-        // ...
-    })
+(&fields.Schema{
+	Key:   "description",
+	Name:  "Açıklama",
+	View:  "textarea",
+	Props: make(map[string]interface{}),
+}).OnForm()
 ```
 
-## İlişkiler (Relationships)
+### Seçim Alanı (Select)
 
-İlişkileri daha anlamsal ve UI odaklı hale getirmek için **Yaratıcı İsimlendirme** kullanıyoruz.
-
-### Link (`BelongsTo`)
-Bir üst kaynağa bağlantı oluşturur. Mevcut kaynak başka bir kaynağa ait olduğunda bunu kullanın.
+Önceden tanımlanmış seçeneklerden birini seçmek için kullanılır.
 
 ```go
-fields.Link("Şirket", "company")
+(&fields.Schema{
+	Key:   "status",
+	Name:  "Durum",
+	View:  "select",
+	Props: map[string]interface{}{
+		"options": map[string]string{
+			"draft":     "Taslak",
+			"published": "Yayınlandı",
+			"archived":  "Arşivlendi",
+		},
+	},
+}).OnList().OnDetail().OnForm()
 ```
-*UI: Tıklanabilir bir link veya seçim menüsü (select dropdown) olarak render edilir.*
 
-### Collection (`HasMany`)
-İlişkili öğelerin bir koleksiyonunu görüntüler. Mevcut kaynağın birçok alt öğesi olduğunda bunu kullanın.
+### Tarih Alanı (Date)
+
+Tarih seçimi için kullanılır.
 
 ```go
-fields.Collection("Yazılar", "posts")
+(&fields.Schema{
+	Key:   "published_at",
+	Name:  "Yayınlanma Tarihi",
+	View:  "date",
+	Props: make(map[string]interface{}),
+}).OnDetail().OnForm()
 ```
-*UI: İlişkili öğelerin bir listesi veya tablosu olarak render edilir.*
 
-### Detail (`HasOne`)
-Mevcut kaynakla ilişkili tek bir detay kaydını gösterir.
+### Tarih-Saat Alanı (DateTime)
+
+Tarih ve saat seçimi için kullanılır.
 
 ```go
-fields.Detail("Profil", "profile")
+(&fields.Schema{
+	Key:   "created_at",
+	Name:  "Oluşturulma Tarihi",
+	View:  "datetime",
+	Props: make(map[string]interface{}),
+}).ReadOnly().OnList().OnDetail()
 ```
-*UI: Gömülü bir detay görünümü veya detaya giden bir link olarak render edilir.*
 
-### Connect (`BelongsToMany`)
-Çoktan çoğa (many-to-many) bir bağlantıyı yönetir.
+### Evet/Hayır Alanı (Switch)
+
+Boolean değerleri için kullanılır.
 
 ```go
-fields.Connect("Roller", "roles")
+(&fields.Schema{
+	Key:   "is_active",
+	Name:  "Aktif mi?",
+	View:  "switch",
+	Props: make(map[string]interface{}),
+}).OnList().OnDetail().OnForm()
 ```
-*UI: Çoklu seçim (multi-select) veya etiket yöneticisi olarak render edilir.*
 
-## Polimorfik İlişkiler
+### Sayı Alanı (Number)
 
-Polimorfik ilişkiler için `Poly` ön ekini kullanın:
+Sayısal değerler için kullanılır.
 
--   **`fields.PolyLink("Yorumlanabilir")`** (`MorphTo`)
--   **`fields.PolyCollection("Yorumlar")`** (`MorphMany`)
--   **`fields.PolyDetail("Görsel")`** (`MorphOne`)
--   **`fields.PolyConnect("Etiketler")`** (`MorphToMany`)
+```go
+(&fields.Schema{
+	Key:   "price",
+	Name:  "Fiyat",
+	View:  "number",
+	Props: make(map[string]interface{}),
+}).OnList().OnDetail().OnForm()
+```
+
+### E-posta Alanı (Email)
+
+E-posta doğrulaması ile metin alanı.
+
+```go
+(&fields.Schema{
+	Key:   "email",
+	Name:  "E-posta",
+	View:  "email",
+	Props: make(map[string]interface{}),
+}).OnForm().Required()
+```
+
+### URL Alanı (URL)
+
+URL doğrulaması ile metin alanı.
+
+```go
+(&fields.Schema{
+	Key:   "website",
+	Name:  "Web Sitesi",
+	View:  "url",
+	Props: make(map[string]interface{}),
+}).OnForm()
+```
+
+### Şifre Alanı (Password)
+
+Şifre girişi için maskelenmiş alan.
+
+```go
+(&fields.Schema{
+	Key:   "password",
+	Name:  "Şifre",
+	View:  "password",
+	Props: make(map[string]interface{}),
+}).OnForm().Required()
+```
+
+## Alan Seçenekleri
+
+### Görünürlük Kontrolleri
+
+```go
+// Sadece listede göster
+field.OnlyOnList()
+
+// Sadece detayda göster
+field.OnlyOnDetail()
+
+// Sadece formda göster
+field.OnlyOnForm()
+
+// Listede gizle
+field.HideOnList()
+
+// Detayda gizle
+field.HideOnDetail()
+
+// Oluşturmada gizle
+field.HideOnCreate()
+
+// Güncellemede gizle
+field.HideOnUpdate()
+
+// Tüm yerlerde göster
+field.OnList().OnDetail().OnForm()
+```
+
+### Validasyon
+
+```go
+// Zorunlu alan
+field.Required()
+
+// Boş bırakılabilir
+field.Nullable()
+
+// E-posta doğrulaması
+field.Email()
+
+// URL doğrulaması
+field.URL()
+
+// Minimum uzunluk
+field.MinLength(5)
+
+// Maksimum uzunluk
+field.MaxLength(100)
+
+// Minimum değer
+field.Min(0)
+
+// Maksimum değer
+field.Max(1000)
+
+// Regex deseni
+field.Pattern("^[A-Z].*")
+
+// Benzersiz değer
+field.Unique("users", "email")
+
+// Var olan değer
+field.Exists("categories", "id")
+```
+
+### Görünüm Seçenekleri
+
+```go
+// Salt okunur
+field.ReadOnly()
+
+// Devre dışı
+field.Disabled()
+
+// Değiştirilemez
+field.Immutable()
+
+// Varsayılan değer
+field.Default("Varsayılan")
+
+// Yer tutucu
+field.Placeholder("Buraya yazın...")
+
+// Yardım metni
+field.HelpText("Bu alan hakkında bilgi")
+
+// Etiket
+field.Label("Özel Etiket")
+```
+
+### Arama ve Sıralama
+
+```go
+// Aranabilir
+field.Searchable()
+
+// Sıralanabilir
+field.Sortable()
+
+// Filtrelenebilir
+field.Filterable()
+
+// Yığılı gösterim
+field.Stacked()
+```
+
+## Örnek: Tam Alan Tanımı
+
+```go
+type Product struct {
+	ID          string
+	Name        string
+	Description string
+	Price       float64
+	Category    string
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ProductFieldResolver struct{}
+
+func (r *ProductFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
+	return []core.Element{
+		// ID - Salt okunur, sadece detayda
+		(&fields.Schema{
+			Key:   "id",
+			Name:  "ID",
+			View:  "text",
+			Props: make(map[string]interface{}),
+		}).ReadOnly().OnlyOnDetail(),
+
+		// Ürün Adı - Zorunlu, aranabilir, sıralanabilir
+		(&fields.Schema{
+			Key:   "name",
+			Name:  "Ürün Adı",
+			View:  "text",
+			Props: make(map[string]interface{}),
+		}).OnList().OnDetail().OnForm().Required().Searchable().Sortable(),
+
+		// Açıklama - Çok satırlı, formda
+		(&fields.Schema{
+			Key:   "description",
+			Name:  "Açıklama",
+			View:  "textarea",
+			Props: make(map[string]interface{}),
+		}).OnForm().HelpText("Ürün hakkında detaylı bilgi"),
+
+		// Fiyat - Sayı, zorunlu, sıralanabilir
+		(&fields.Schema{
+			Key:   "price",
+			Name:  "Fiyat",
+			View:  "number",
+			Props: make(map[string]interface{}),
+		}).OnList().OnDetail().OnForm().Required().Min(0).Sortable(),
+
+		// Kategori - Seçim, filtrelenebilir
+		(&fields.Schema{
+			Key:   "category",
+			Name:  "Kategori",
+			View:  "select",
+			Props: map[string]interface{}{
+				"options": map[string]string{
+					"electronics": "Elektronik",
+					"clothing":    "Giyim",
+					"books":       "Kitaplar",
+				},
+			},
+		}).OnList().OnDetail().OnForm().Filterable(),
+
+		// Aktif - Evet/Hayır, listede göster
+		(&fields.Schema{
+			Key:   "is_active",
+			Name:  "Aktif mi?",
+			View:  "switch",
+			Props: make(map[string]interface{}),
+		}).OnList().OnDetail().OnForm(),
+
+		// Oluşturulma Tarihi - Salt okunur, tarih-saat
+		(&fields.Schema{
+			Key:   "created_at",
+			Name:  "Oluşturulma Tarihi",
+			View:  "datetime",
+			Props: make(map[string]interface{}),
+		}).ReadOnly().OnList().OnDetail(),
+
+		// Güncelleme Tarihi - Salt okunur, tarih-saat
+		(&fields.Schema{
+			Key:   "updated_at",
+			Name:  "Güncelleme Tarihi",
+			View:  "datetime",
+			Props: make(map[string]interface{}),
+		}).ReadOnly().OnDetail(),
+	}
+}
+```
+
+## Fluent API
+
+Alanları tanımlarken fluent API kullanarak zincirleme metod çağrıları yapabilirsiniz:
+
+```go
+(&fields.Schema{
+	Key:   "email",
+	Name:  "E-posta",
+	View:  "email",
+	Props: make(map[string]interface{}),
+}).
+	OnList().
+	OnDetail().
+	OnForm().
+	Required().
+	Searchable().
+	HelpText("Geçerli bir e-posta adresi girin")
+```
+
+## İpuçları
+
+1. **Performans**: Aranabilir alanlar için veritabanında indeks oluşturun
+2. **Validasyon**: Hem frontend hem backend'de validasyon yapın
+3. **Güvenlik**: Hassas alanları `ReadOnly()` yapın
+4. **UX**: Yardım metni ekleyerek kullanıcıları yönlendirin
+5. **Sıralama**: Sık kullanılan alanları sıralanabilir yapın
+
+## Sonraki Adımlar
+
+- [İlişkiler Rehberi](./Relationships.md) - Tablo ilişkileri
+- [Politika Rehberi](./Authorization.md) - Yetkilendirme
+- [API Referansı](./API-Reference.md) - Tüm metodlar

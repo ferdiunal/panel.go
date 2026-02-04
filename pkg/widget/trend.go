@@ -26,6 +26,10 @@ func (w *Trend) Width() string {
 	return "1/3" // Trend defaults to 1/3, could be configurable
 }
 
+func (w *Trend) GetType() CardType {
+	return CardTypeTrend
+}
+
 func (w *Trend) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error) {
 	data, err := w.QueryFunc(ctx, db)
 	if err != nil {
@@ -37,11 +41,30 @@ func (w *Trend) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error) 
 	}, nil
 }
 
+func (w *Trend) HandleError(err error) map[string]interface{} {
+	return map[string]interface{}{
+		"error": err.Error(),
+		"title": w.Title,
+		"type":  CardTypeTrend,
+	}
+}
+
+func (w *Trend) GetMetadata() map[string]interface{} {
+	return map[string]interface{}{
+		"name":      w.Title,
+		"component": "trend-metric",
+		"width":     "1/3",
+		"type":      CardTypeTrend,
+		"ranges":    w.Ranges,
+	}
+}
+
 func (w *Trend) JsonSerialize() map[string]interface{} {
 	return map[string]interface{}{
 		"component": "trend-metric",
 		"title":     w.Title,
 		"width":     "1/3",
+		"type":      CardTypeTrend,
 		"ranges":    w.Ranges,
 	}
 }

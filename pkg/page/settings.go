@@ -1,6 +1,8 @@
 package page
 
 import (
+	"encoding/json"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/domain/setting"
 	"github.com/ferdiunal/panel.go/pkg/fields"
@@ -45,13 +47,19 @@ func (p *Settings) Fields() []fields.Element {
 
 func (p *Settings) Save(c *context.Context, db *gorm.DB, data map[string]interface{}) error {
 	for key, value := range data {
-		val := map[string]interface{}{
-			"value": value,
+		// Convert value to string
+		var strValue string
+		if v, ok := value.(string); ok {
+			strValue = v
+		} else {
+			// For non-string values, convert to JSON string
+			b, _ := json.Marshal(value)
+			strValue = string(b)
 		}
 
 		s := setting.Setting{
 			Key:   key,
-			Value: val,
+			Value: strValue,
 		}
 
 		if err := db.Clauses(clause.OnConflict{
