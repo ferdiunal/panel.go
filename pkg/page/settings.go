@@ -25,6 +25,10 @@ func (p *Settings) Title() string {
 	return "Settings"
 }
 
+func (p *Settings) Description() string {
+	return "Sistem ayarlarını yönetin"
+}
+
 func (p *Settings) Group() string {
 	return "System"
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceAccount "github.com/ferdiunal/panel.go/pkg/resource/account"
 	resourceSession "github.com/ferdiunal/panel.go/pkg/resource/session"
-	resourceSetting "github.com/ferdiunal/panel.go/pkg/resource/setting"
 	resourceUser "github.com/ferdiunal/panel.go/pkg/resource/user"
 	resourceVerification "github.com/ferdiunal/panel.go/pkg/resource/verification"
 	"gorm.io/driver/sqlite"
@@ -67,24 +66,6 @@ func TestResourceHandlerVerificationResource(t *testing.T) {
 	}
 }
 
-// TestResourceHandlerSettingResource, Setting resource handler'ını test eder
-func TestResourceHandlerSettingResource(t *testing.T) {
-	res := resourceSetting.NewSettingResource()
-
-	if res == nil {
-		t.Error("Expected non-nil resource")
-	}
-
-	if res.Slug() != "settings" {
-		t.Errorf("Expected slug 'settings', got '%s'", res.Slug())
-	}
-
-	fields := res.Fields()
-	if len(fields) == 0 {
-		t.Error("Expected fields to be defined")
-	}
-}
-
 // TestResourceHandlerUserResource, User resource handler'ını test eder
 func TestResourceHandlerUserResource(t *testing.T) {
 	res := resourceUser.NewUserResource()
@@ -109,7 +90,6 @@ func TestResourceHandlerFieldCount(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 		resourceUser.NewUserResource(),
 	}
 
@@ -127,7 +107,6 @@ func TestResourceHandlerPolicy(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 		resourceUser.NewUserResource(),
 	}
 
@@ -147,7 +126,6 @@ func TestResourceHandlerRepository(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 	}
 
 	for _, res := range resources {
@@ -164,7 +142,6 @@ func TestResourceHandlerCards(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 	}
 
 	for _, res := range resources {
@@ -183,7 +160,6 @@ func TestResourceHandlerSortable(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 	}
 
 	for _, res := range resources {
@@ -200,7 +176,6 @@ func TestResourceHandlerVisible(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 		resourceUser.NewUserResource(),
 	}
 
@@ -217,7 +192,6 @@ func TestResourceHandlerModel(t *testing.T) {
 		resourceAccount.NewAccountResource(),
 		resourceSession.NewSessionResource(),
 		resourceVerification.NewVerificationResource(),
-		resourceSetting.NewSettingResource(),
 		resourceUser.NewUserResource(),
 	}
 
@@ -238,7 +212,6 @@ func TestResourceHandlerTitle(t *testing.T) {
 		{resourceAccount.NewAccountResource(), "Accounts"},
 		{resourceSession.NewSessionResource(), "Sessions"},
 		{resourceVerification.NewVerificationResource(), "Verifications"},
-		{resourceSetting.NewSettingResource(), "Settings"},
 		{resourceUser.NewUserResource(), "Users"},
 	}
 
@@ -258,7 +231,6 @@ func TestResourceHandlerIcon(t *testing.T) {
 		{resourceAccount.NewAccountResource(), "key"},
 		{resourceSession.NewSessionResource(), "clock"},
 		{resourceVerification.NewVerificationResource(), "shield-check"},
-		{resourceSetting.NewSettingResource(), "settings"},
 		{resourceUser.NewUserResource(), "users"},
 	}
 
@@ -278,7 +250,6 @@ func TestResourceHandlerGroup(t *testing.T) {
 		{resourceAccount.NewAccountResource(), "System"},
 		{resourceSession.NewSessionResource(), "System"},
 		{resourceVerification.NewVerificationResource(), "System"},
-		{resourceSetting.NewSettingResource(), "System"},
 		{resourceUser.NewUserResource(), "System"},
 	}
 

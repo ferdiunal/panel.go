@@ -20,6 +20,10 @@ func HandleResourceCreate(h *FieldHandler, c *context.Context) error {
 		}
 
 		serialized := element.JsonSerialize()
+
+		// Resolve options (AutoOptions and callbacks)
+		h.ResolveFieldOptions(element, serialized, nil)
+
 		ctxStr := element.GetContext()
 
 		if ctxStr != fields.HIDE_ON_CREATE &&

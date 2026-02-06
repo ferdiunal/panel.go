@@ -64,7 +64,11 @@ func New(config Config) *Panel {
 
 	// Middleware Registration
 	app.Use(compress.New())
-	app.Use(cors.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Content-Type,Authorization",
+	}))
 	if config.Environment == "production" {
 		app.Use(csrf.New())
 		// app.Use(circuitbreaker.New(circuitbreaker.Config{
@@ -183,6 +187,7 @@ func New(config Config) *Panel {
 	authRoutes.Post("/sign-in/email", context.Wrap(authH.LoginEmail))
 	authRoutes.Post("/sign-up/email", context.Wrap(authH.RegisterEmail))
 	authRoutes.Post("/sign-out", context.Wrap(authH.SignOut))
+	authRoutes.Post("/forgot-password", context.Wrap(authH.ForgotPassword))
 	authRoutes.Get("/session", context.Wrap(authH.GetSession))
 
 	api.Get("/init", context.Wrap(p.handleInit)) // App Initialization
@@ -461,10 +466,28 @@ func (p *Panel) handleInit(c *context.Context) error {
 		}
 	}()
 
+	// Get features from settings or use config defaults
+	registerEnabled := p.Config.Features.Register
+	forgotPasswordEnabled := p.Config.Features.ForgotPassword
+
+	// Check if settings have override values
+	if settings := p.Config.SettingsValues.Values; settings != nil {
+		if registerVal, ok := settings["register"]; ok {
+			if boolVal, ok := registerVal.(bool); ok {
+				registerEnabled = boolVal
+			}
+		}
+		if forgotVal, ok := settings["forgot_password"]; ok {
+			if boolVal, ok := forgotVal.(bool); ok {
+				forgotPasswordEnabled = boolVal
+			}
+		}
+	}
+
 	return c.JSON(fiber.Map{
 		"features": fiber.Map{
-			"register":        p.Config.Features.Register,
-			"forgot_password": p.Config.Features.ForgotPassword,
+			"register":        registerEnabled,
+			"forgot_password": forgotPasswordEnabled,
 		},
 		"oauth": fiber.Map{
 			"google": p.Config.OAuth.Google.Enabled(),

@@ -7,7 +7,7 @@ import (
 
 // Setting, uygulama ayarlarını temsil eder
 type Setting struct {
-	ID        string    `json:"id" gorm:"primaryKey"`
+	ID        uint      `json:"id" gorm:"primaryKey"`
 	Key       string    `json:"key" gorm:"uniqueIndex"`
 	Value     string    `json:"value" gorm:"type:longtext"`
 	Type      string    `json:"type"` // string, integer, boolean, json
@@ -21,9 +21,9 @@ type Setting struct {
 // Repository, Setting repository interface'i
 type Repository interface {
 	Create(ctx context.Context, setting *Setting) error
-	FindByID(ctx context.Context, id string) (*Setting, error)
+	FindByID(ctx context.Context, id uint) (*Setting, error)
 	FindByKey(ctx context.Context, key string) (*Setting, error)
 	FindByGroup(ctx context.Context, group string) ([]Setting, error)
 	Update(ctx context.Context, setting *Setting) error
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id uint) error
 }

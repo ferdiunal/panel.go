@@ -51,7 +51,13 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	session, err := h.service.LoginEmail(c.Context(), req.Email, req.Password, c.IP(), c.Get("User-Agent"))
+	// Get IP with fallback to X-Forwarded-For
+	ip := c.IP()
+	if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
+		ip = forwarded
+	}
+
+	session, err := h.service.LoginEmail(c.Context(), req.Email, req.Password, ip, c.Get("User-Agent"))
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -67,10 +73,11 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 	})
 
 	return c.JSON(fiber.Map{
-		"session": session,
-		"user":    session.User, // Preloaded in service? Wait, Service LoginEmail returns session but doesn't explicitly preload user struct inside session return, BUT it fetches it. I should ensure Service populates it or I fetch it.
-		// Actually Service just creates session object. It has UserID. I might need to load user to return it.
-		// For now let's assume session is enough or I update service to return user too.
+		"session": fiber.Map{
+			"token":   session.Token,
+			"expires": session.ExpiresAt,
+		},
+		"user": session.User,
 	})
 }
 
@@ -121,4 +128,24 @@ func (h *Handler) SessionMiddleware(c *context.Context) error {
 	c.Locals("user", session.User)
 
 	return c.Next()
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+func (h *Handler) ForgotPassword(c *context.Context) error {
+	var req ForgotPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	if err := h.service.ForgotPassword(c.Context(), req.Email); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Always return success for security (don't reveal if email exists)
+	return c.JSON(fiber.Map{
+		"message": "If an account exists with this email, a password reset link has been sent.",
+	})
 }

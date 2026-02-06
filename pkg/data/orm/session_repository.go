@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ferdiunal/panel.go/pkg/domain/session"
-	"github.com/ferdiunal/panel.go/shared/uuid"
 	"gorm.io/gorm"
 )
 
@@ -17,11 +16,10 @@ func NewSessionRepository(db *gorm.DB) *SessionRepository {
 }
 
 func (r *SessionRepository) Create(ctx context.Context, s *session.Session) error {
-	s.ID = uuid.NewUUID().String()
 	return r.db.WithContext(ctx).Create(s).Error
 }
 
-func (r *SessionRepository) FindByID(ctx context.Context, id string) (*session.Session, error) {
+func (r *SessionRepository) FindByID(ctx context.Context, id uint) (*session.Session, error) {
 	var s session.Session
 	if err := r.db.WithContext(ctx).Preload("User").First(&s, "id = ?", id).Error; err != nil {
 		return nil, err
@@ -37,7 +35,7 @@ func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*ses
 	return &s, nil
 }
 
-func (r *SessionRepository) Delete(ctx context.Context, id string) error {
+func (r *SessionRepository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&session.Session{}, "id = ?", id).Error
 }
 
@@ -45,6 +43,6 @@ func (r *SessionRepository) DeleteByToken(ctx context.Context, token string) err
 	return r.db.WithContext(ctx).Delete(&session.Session{}, "token = ?", token).Error
 }
 
-func (r *SessionRepository) DeleteByUserID(ctx context.Context, userID string) error {
+func (r *SessionRepository) DeleteByUserID(ctx context.Context, userID uint) error {
 	return r.db.WithContext(ctx).Delete(&session.Session{}, "user_id = ?", userID).Error
 }

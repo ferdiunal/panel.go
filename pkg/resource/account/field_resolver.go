@@ -2,7 +2,6 @@ package account
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
-	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 )
 
@@ -10,62 +9,28 @@ import (
 type AccountFieldResolver struct{}
 
 // ResolveFields, Account alanlarını döner
-func (r *AccountFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
-	return []core.Element{
-		(&fields.Schema{
-			Key:   "id",
-			Name:  "ID",
-			View:  "text",
-			Props: make(map[string]interface{}),
-		}).ReadOnly().OnlyOnDetail(),
+func (r *AccountFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	return []fields.Element{
+		fields.ID("ID").ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "provider_id",
-			Name:  "Provider",
-			View:  "text",
-			Props: make(map[string]interface{}),
-		}).OnList().OnDetail().OnForm(),
+		fields.Text("Provider", "providerId").ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "account_id",
-			Name:  "Account ID",
-			View:  "text",
-			Props: make(map[string]interface{}),
-		}).OnList().OnDetail().OnForm(),
+		// fields.Text("Account ID", "accountId").ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "user_id",
-			Name:  "User",
-			View:  "belongs-to",
-			Props: make(map[string]interface{}),
-		}).OnList().OnDetail().OnForm(),
+		// User relationship
+		// Using "user" key to map to Account.User struct
+		fields.Link("User", "users", "user").
+			ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "access_token",
-			Name:  "Access Token",
-			View:  "text",
-			Props: make(map[string]interface{}),
-		}).ReadOnly().OnlyOnDetail(),
+		fields.Text("Provider", "provider").
+			ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "refresh_token",
-			Name:  "Refresh Token",
-			View:  "text",
-			Props: make(map[string]interface{}),
-		}).ReadOnly().OnlyOnDetail(),
+		// fields.Text("Access Token", "accessToken").ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "created_at",
-			Name:  "Created At",
-			View:  "datetime",
-			Props: make(map[string]interface{}),
-		}).ReadOnly().OnList().OnDetail(),
+		// fields.Text("Refresh Token", "refreshToken").ReadOnly(),
 
-		(&fields.Schema{
-			Key:   "updated_at",
-			Name:  "Updated At",
-			View:  "datetime",
-			Props: make(map[string]interface{}),
-		}).ReadOnly().OnList().OnDetail(),
+		fields.DateTime("Created At", "createdAt").ReadOnly(),
+
+		fields.DateTime("Updated At", "updatedAt").ReadOnly(),
 	}
 }

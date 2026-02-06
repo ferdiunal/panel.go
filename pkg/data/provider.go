@@ -2,6 +2,7 @@ package data
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/query"
 )
 
 type Sort struct {
@@ -10,11 +11,11 @@ type Sort struct {
 }
 
 type QueryRequest struct {
-	Page    int                    `json:"page"`
-	PerPage int                    `json:"per_page"`
-	Sorts   []Sort                 `json:"sorts"`
-	Filters map[string]interface{} `json:"filters"`
-	Search  string                 `json:"search"`
+	Page    int            `json:"page"`
+	PerPage int            `json:"per_page"`
+	Sorts   []Sort         `json:"sorts"`
+	Filters []query.Filter `json:"filters"`
+	Search  string         `json:"search"`
 }
 
 type QueryResponse struct {

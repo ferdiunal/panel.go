@@ -226,6 +226,36 @@ field := NewMorphTo("Commentable", "commentable").
     })
 ```
 
+## Otomatik Seçenekler (AutoOptions)
+
+`HasOne` ve `BelongsTo` ilişkilerinde form elemanları (Combobox/Select) için seçenekleri veritabanından otomatik olarak yüklemek için `AutoOptions` metodunu kullanabilirsiniz. Bu özellik, geliştiricinin manuel olarak veritabanı sorgusu yazmasını ve `Options` callback'i tanımlamasını gereksiz kılar.
+
+### HasOne AutoOptions
+
+`HasOne` ilişkisinde, genellikle "boşta olan" (henüz bir parent'a atanmamış) kayıtların listelenmesi istenir. `AutoOptions` bunu otomatik halleder (`foreign_key IS NULL` filtresi uygular).
+
+```go
+// Author -> Profile (HasOne)
+// 'profiles' tablosundan, 'author_id'si boş olan kayıtları getirir.
+// Listede 'bio' alanını gösterir.
+fields.NewHasOne("Profile", "profile", "profiles").
+    AutoOptions("bio")
+```
+
+### BelongsTo AutoOptions
+
+`BelongsTo` ilişkisinde, genellikle tüm olası parent kayıtların listelenmesi istenir. `AutoOptions` tüm kayıtları getirir.
+
+```go
+// Post -> Author (BelongsTo)
+// 'authors' tablosundan tüm yazarları getirir.
+// Listede 'name' alanını gösterir.
+fields.NewBelongsTo("Author", "author_id", "authors").
+    AutoOptions("name")
+```
+
+**Not:** `AutoOptions` kullanıldığında `RelatedResourceSlug` parametresinin (3. parametre) veritabanı tablosu adıyla eşleşmesi veya doğru yapılandırılması gerekir. Ayrıca `HasOne` için `ForeignKeyColumn` doğru ayarlanmalıdır.
+
 ## Arama
 
 İlişkili verilerde arama yap.

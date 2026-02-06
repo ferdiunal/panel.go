@@ -46,9 +46,7 @@ func (s *Service) RegisterEmail(ctx context.Context, name, email, password strin
 	}
 
 	// Create User
-	userId, _ := uuid.NewV7()
 	u := &user.User{
-		ID:            userId.String(),
 		Name:          name,
 		Email:         email,
 		EmailVerified: false,
@@ -61,12 +59,10 @@ func (s *Service) RegisterEmail(ctx context.Context, name, email, password strin
 	}
 
 	// Create Account
-	accountId, _ := uuid.NewV7()
 	acc := &account.Account{
-		ID:         accountId.String(),
 		UserID:     u.ID,
 		ProviderID: "credential",
-		AccountID:  email, // For credential provider, accountID is usually the email or a unique identifier
+		AccountID:  nil, // Credentials provider has no external account ID
 		Password:   string(hashed),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
@@ -117,10 +113,8 @@ func (s *Service) LoginEmail(ctx context.Context, email, password string, ip, us
 	}
 
 	// Create Session
-	sessionId, _ := uuid.NewV7()
 	sessionToken, _ := uuid.NewV7()
 	sess := &session.Session{
-		ID:        sessionId.String(),
 		UserID:    u.ID,
 		Token:     sessionToken.String(),
 		ExpiresAt: time.Now().Add(24 * 7 * time.Hour), // 7 days
@@ -134,7 +128,8 @@ func (s *Service) LoginEmail(ctx context.Context, email, password string, ip, us
 		return nil, err
 	}
 
-	return sess, nil
+	// Fetch session with preloaded user
+	return s.sessionRepo.FindByToken(ctx, sess.Token)
 }
 
 func (s *Service) ValidateSession(ctx context.Context, token string) (*session.Session, error) {
@@ -153,4 +148,28 @@ func (s *Service) ValidateSession(ctx context.Context, token string) (*session.S
 
 func (s *Service) Logout(ctx context.Context, token string) error {
 	return s.sessionRepo.DeleteByToken(ctx, token)
+}
+
+func (s *Service) ForgotPassword(ctx context.Context, email string) error {
+	// Check if user exists
+	u, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		// Don't reveal if email exists or not for security
+		return nil
+	}
+
+	if u == nil {
+		// Don't reveal if email exists or not for security
+		return nil
+	}
+
+	// TODO: Generate reset token and send email
+	// For now, just return success
+	// In production, you would:
+	// 1. Generate a unique reset token
+	// 2. Store it in database with expiration
+	// 3. Send email with reset link
+	// 4. Return success
+
+	return nil
 }

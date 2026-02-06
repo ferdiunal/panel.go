@@ -59,7 +59,7 @@ func TestContextUserMethod(t *testing.T) {
 	app := fiber.New()
 
 	testUser := &user.User{
-		ID:   "123",
+		ID:   123,
 		Role: "admin",
 	}
 
@@ -77,8 +77,8 @@ func TestContextUserMethod(t *testing.T) {
 		if u == nil {
 			t.Error("User() should return non-nil user")
 		}
-		if u.ID != "123" {
-			t.Errorf("Expected user ID '123', got '%s'", u.ID)
+		if u.ID != 123 {
+			t.Errorf("Expected user ID '123', got '%d'", u.ID)
 		}
 
 		return c.SendString("OK")
@@ -90,7 +90,7 @@ func TestContextSessionMethod(t *testing.T) {
 	app := fiber.New()
 
 	testSession := &session.Session{
-		ID: "session-123",
+		ID: 1,
 	}
 
 	app.Use(func(c *fiber.Ctx) error {
@@ -107,8 +107,8 @@ func TestContextSessionMethod(t *testing.T) {
 		if s == nil {
 			t.Error("Session() should return non-nil session")
 		}
-		if s.ID != "session-123" {
-			t.Errorf("Expected session ID 'session-123', got '%s'", s.ID)
+		if s.ID != 1 {
+			t.Errorf("Expected session ID '1', got '%d'", s.ID)
 		}
 
 		return c.SendString("OK")

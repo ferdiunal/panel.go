@@ -1,8 +1,10 @@
 package user
 
 import (
+	"github.com/ferdiunal/panel.go/pkg/data"
 	domainUser "github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/resource"
+	"gorm.io/gorm"
 )
 
 // UserResource, kullanıcı kaynağını temsil eder
@@ -31,4 +33,9 @@ func NewUserResource() *UserResource {
 	r.SetCardResolver(&UserCardResolver{})
 
 	return r
+}
+
+// Repository, UserResource için özel repository'yi döner
+func (r *UserResource) Repository(db *gorm.DB) data.DataProvider {
+	return NewUserDataProvider(db)
 }
