@@ -9,15 +9,28 @@ import (
 // GET /api/pages
 func (p *Panel) handlePages(c *context.Context) error {
 	type PageItem struct {
-		Slug  string `json:"slug"`
-		Title string `json:"title"`
+		Slug        string `json:"slug"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Icon        string `json:"icon"`
+		Group       string `json:"group"`
+		Order       int    `json:"order"`
+		Visible     bool   `json:"visible"`
 	}
 
 	items := []PageItem{}
 	for slug, pg := range p.pages {
+		if !pg.Visible() || !pg.CanAccess(c) {
+			continue
+		}
 		items = append(items, PageItem{
-			Slug:  slug,
-			Title: pg.Title(),
+			Slug:        slug,
+			Title:       pg.Title(),
+			Description: pg.Description(),
+			Icon:        pg.Icon(),
+			Group:       pg.Group(),
+			Order:       pg.NavigationOrder(),
+			Visible:     pg.Visible(),
 		})
 	}
 
@@ -35,6 +48,13 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Page not found",
+		})
+	}
+
+	// Check access
+	if !pg.CanAccess(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Access denied",
 		})
 	}
 
@@ -84,8 +104,9 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"slug":  pg.Slug(),
-		"title": pg.Title(),
+		"slug":        pg.Slug(),
+		"title":       pg.Title(),
+		"description": pg.Description(),
 		"meta": fiber.Map{
 			"cards":  cards,
 			"fields": fieldsList,
@@ -101,6 +122,13 @@ func (p *Panel) handlePageSave(c *context.Context) error {
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Page not found",
+		})
+	}
+
+	// Check access
+	if !pg.CanAccess(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Access denied",
 		})
 	}
 

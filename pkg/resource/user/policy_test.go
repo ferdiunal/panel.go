@@ -31,7 +31,7 @@ func TestUserPolicyDeleteWithUser(t *testing.T) {
 	policy := UserPolicy{}
 
 	user := &domainUser.User{
-		ID: "1",
+		ID: 1,
 	}
 
 	// User model ile

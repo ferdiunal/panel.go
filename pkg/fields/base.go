@@ -13,31 +13,32 @@ import (
 // Schema, bir alanın temel yapılandırmasını ve durumunu tutan yapıdır.
 // JSON serileştirme ve veri taşıma için kullanılır.
 type Schema struct {
-	Name               string                                            `json:"name"`      // Görünen Ad
-	Key                string                                            `json:"key"`       // Veri Anahtarı
-	View               string                                            `json:"view"`      // Frontend Bileşeni
-	Data               interface{}                                       `json:"data"`      // Alan Değeri
-	Type               ElementType                                       `json:"type"`      // Veri Tipi
-	Context            ElementContext                                    `json:"context"`   // Görünüm Bağlamı (List, Detail, Form)
-	IsReadOnly         bool                                              `json:"read_only"` // Salt okunur mu?
-	IsDisabled         bool                                              `json:"disabled"`  // Devre dışı mı?
-	IsImmutable        bool                                              `json:"immutable"` // Değiştirilemez mi?
-	Props              map[string]interface{}                            `json:"props"`     // Ekstra özellikler
-	IsRequired         bool                                              `json:"required"`  // Zorunlu mu?
-	IsNullable         bool                                              `json:"nullable"`  // Boş bırakılabilir mi?
-	PlaceholderText    string                                            `json:"placeholder"`
-	LabelText          string                                            `json:"label"`
-	HelpTextContent    string                                            `json:"help_text"`
-	IsFilterable       bool                                              `json:"filterable"`
-	IsSortable         bool                                              `json:"sortable"`
-	GlobalSearch       bool                                              `json:"searchable"`
-	IsStacked          bool                                              `json:"stacked"`
-	TextAlign          string                                            `json:"text_align"`
-	Suggestions        []interface{}                                     `json:"suggestions"`
-	ExtractCallback    func(value interface{}, c *fiber.Ctx) interface{} `json:"-"`
-	VisibilityCallback VisibilityFunc                                    `json:"-"`
-	StorageCallback    StorageCallbackFunc                               `json:"-"`
-	ModifyCallback     func(value interface{}, c *fiber.Ctx) interface{} `json:"-"`
+	Name               string                                                              `json:"name"`      // Görünen Ad
+	Key                string                                                              `json:"key"`       // Veri Anahtarı
+	View               string                                                              `json:"view"`      // Frontend Bileşeni
+	Data               interface{}                                                         `json:"data"`      // Alan Değeri
+	Type               ElementType                                                         `json:"type"`      // Veri Tipi
+	Context            ElementContext                                                      `json:"context"`   // Görünüm Bağlamı (List, Detail, Form)
+	IsReadOnly         bool                                                                `json:"read_only"` // Salt okunur mu?
+	IsDisabled         bool                                                                `json:"disabled"`  // Devre dışı mı?
+	IsImmutable        bool                                                                `json:"immutable"` // Değiştirilemez mi?
+	Props              map[string]interface{}                                              `json:"props"`     // Ekstra özellikler
+	IsRequired         bool                                                                `json:"required"`  // Zorunlu mu?
+	IsNullable         bool                                                                `json:"nullable"`  // Boş bırakılabilir mi?
+	PlaceholderText    string                                                              `json:"placeholder"`
+	LabelText          string                                                              `json:"label"`
+	HelpTextContent    string                                                              `json:"help_text"`
+	IsFilterable       bool                                                                `json:"filterable"`
+	IsSortable         bool                                                                `json:"sortable"`
+	GlobalSearch       bool                                                                `json:"searchable"`
+	IsStacked          bool                                                                `json:"stacked"`
+	TextAlign          string                                                              `json:"text_align"`
+	Suggestions        []interface{}                                                       `json:"suggestions"`
+	ExtractCallback    func(value interface{}, item interface{}, c *fiber.Ctx) interface{} `json:"-"`
+	VisibilityCallback VisibilityFunc                                                      `json:"-"`
+	StorageCallback    StorageCallbackFunc                                                 `json:"-"`
+	ModifyCallback     func(value interface{}, c *fiber.Ctx) interface{}                   `json:"-"`
+	AutoOptionsConfig  core.AutoOptionsConfig                                              `json:"-"`
 
 	// Validation (Kategori 1)
 	ValidationRules  []ValidationRule `json:"validation_rules"`
@@ -117,6 +118,16 @@ func (s *Schema) Extract(resource interface{}) {
 	case reflect.Struct:
 		// Try to find the field by name or json tag
 		fieldVal := v.FieldByName(strcase.ToCamel(s.Key))
+
+		// Check for ID suffix mismatch (e.g. key "author_id" -> camel "AuthorId", but struct "AuthorID")
+		if !fieldVal.IsValid() {
+			camelKey := strcase.ToCamel(s.Key)
+			if strings.HasSuffix(camelKey, "Id") {
+				fixedName := strings.TrimSuffix(camelKey, "Id") + "ID"
+				fieldVal = v.FieldByName(fixedName)
+			}
+		}
+
 		if !fieldVal.IsValid() {
 			// Iterate over fields to check json tags if name doesn't match directly
 			for i := 0; i < v.NumField(); i++ {
@@ -326,12 +337,12 @@ func (s *Schema) GetStorageCallback() StorageCallbackFunc {
 	return s.StorageCallback
 }
 
-func (s *Schema) Resolve(fn func(value interface{}, c *fiber.Ctx) interface{}) Element {
+func (s *Schema) Resolve(fn func(value interface{}, item interface{}, c *fiber.Ctx) interface{}) Element {
 	s.ExtractCallback = fn
 	return s
 }
 
-func (s *Schema) GetResolveCallback() func(value interface{}, c *fiber.Ctx) interface{} {
+func (s *Schema) GetResolveCallback() func(value interface{}, item interface{}, c *fiber.Ctx) interface{} {
 	return s.ExtractCallback
 }
 
@@ -347,6 +358,16 @@ func (s *Schema) GetModifyCallback() func(value interface{}, c *fiber.Ctx) inter
 func (s *Schema) Options(options interface{}) Element {
 	s.Props["options"] = options
 	return s
+}
+
+func (s *Schema) AutoOptions(displayField string) Element {
+	s.AutoOptionsConfig.Enabled = true
+	s.AutoOptionsConfig.DisplayField = displayField
+	return s
+}
+
+func (s *Schema) GetAutoOptionsConfig() core.AutoOptionsConfig {
+	return s.AutoOptionsConfig
 }
 
 func (s *Schema) Default(value interface{}) Element {

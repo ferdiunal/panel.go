@@ -12,7 +12,7 @@ type HasMany struct {
 
 // NewHasMany creates a new HasMany relationship field
 func NewHasMany(name, key, relatedResource string) *HasMany {
-	return &HasMany{
+	h := &HasMany{
 		Schema: Schema{
 			Name: name,
 			Key:  key,
@@ -24,6 +24,8 @@ func NewHasMany(name, key, relatedResource string) *HasMany {
 		OwnerKeyColumn:      "id",
 		LoadingStrategy:     EAGER_LOADING,
 	}
+	h.WithProps("related_resource", relatedResource)
+	return h
 }
 
 // ForeignKey sets the foreign key column name

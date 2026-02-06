@@ -20,12 +20,13 @@ func NewBelongsToMany(name, key, relatedResource string) *BelongsToMany {
 	// Generate pivot table name using convention
 	pivotTable := generatePivotTableName(key, relatedResource)
 
-	return &BelongsToMany{
+	b := &BelongsToMany{
 		Schema: Schema{
-			Name: name,
-			Key:  key,
-			View: "belongs-to-many-field",
-			Type: TYPE_RELATIONSHIP,
+			Name:  name,
+			Key:   key,
+			View:  "belongs-to-many-field",
+			Type:  TYPE_RELATIONSHIP,
+			Props: make(map[string]interface{}),
 		},
 		RelatedResourceSlug: relatedResource,
 		PivotTableName:      pivotTable,
@@ -33,6 +34,15 @@ func NewBelongsToMany(name, key, relatedResource string) *BelongsToMany {
 		RelatedKeyColumn:    relatedResource + "_id",
 		LoadingStrategy:     EAGER_LOADING,
 	}
+	b.WithProps("related_resource", relatedResource)
+	return b
+}
+
+// AutoOptions enables automatic options generation from the related table.
+// displayField is the column name to use for the option label.
+func (b *BelongsToMany) AutoOptions(displayField string) *BelongsToMany {
+	b.Schema.AutoOptions(displayField)
+	return b
 }
 
 // generatePivotTableName generates a pivot table name using convention

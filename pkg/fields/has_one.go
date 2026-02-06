@@ -1,5 +1,9 @@
 package fields
 
+import (
+	"reflect"
+)
+
 // HasOne represents a one-to-one relationship (e.g., User -> Profile)
 type HasOne struct {
 	Schema
@@ -12,23 +16,36 @@ type HasOne struct {
 
 // NewHasOne creates a new HasOne relationship field
 func NewHasOne(name, key, relatedResource string) *HasOne {
-	return &HasOne{
+	h := &HasOne{
 		Schema: Schema{
-			Name: name,
-			Key:  key,
-			View: "has-one-field",
-			Type: TYPE_RELATIONSHIP,
+			Name:  name,
+			Key:   key,
+			View:  "has-one-field",
+			Type:  TYPE_RELATIONSHIP,
+			Props: make(map[string]interface{}),
 		},
 		RelatedResourceSlug: relatedResource,
 		ForeignKeyColumn:    relatedResource + "_id",
 		OwnerKeyColumn:      "id",
 		LoadingStrategy:     EAGER_LOADING,
 	}
+	// Store relationship details in props for generic access (when Schema interface is used)
+	h.WithProps("related_resource", relatedResource)
+	h.WithProps("foreign_key", h.ForeignKeyColumn)
+	return h
+}
+
+// AutoOptions enables automatic options generation from the related table.
+// displayField is the column name to use for the option label.
+func (h *HasOne) AutoOptions(displayField string) *HasOne {
+	h.Schema.AutoOptions(displayField)
+	return h
 }
 
 // ForeignKey sets the foreign key column name
 func (h *HasOne) ForeignKey(key string) *HasOne {
 	h.ForeignKeyColumn = key
+	h.WithProps("foreign_key", key)
 	return h
 }
 
@@ -54,6 +71,35 @@ func (h *HasOne) WithEagerLoad() *HasOne {
 func (h *HasOne) WithLazyLoad() *HasOne {
 	h.LoadingStrategy = LAZY_LOADING
 	return h
+}
+
+// Extract extracts the value from the resource.
+// For HasOne, we want to extract the ID of the related resource if it's a struct.
+func (h *HasOne) Extract(resource interface{}) {
+	h.Schema.Extract(resource)
+
+	if h.Schema.Data != nil {
+		v := reflect.ValueOf(h.Schema.Data)
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				h.Schema.Data = nil
+				return
+			}
+			v = v.Elem()
+		}
+
+		if v.Kind() == reflect.Struct {
+			// Try to find ID or Id field
+			idField := v.FieldByName("ID")
+			if !idField.IsValid() {
+				idField = v.FieldByName("Id")
+			}
+
+			if idField.IsValid() && idField.CanInterface() {
+				h.Schema.Data = idField.Interface()
+			}
+		}
+	}
 }
 
 // GetRelationshipType returns the relationship type

@@ -2,14 +2,16 @@ package data
 
 import (
 	stdcontext "context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/query"
+	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 type GormDataProvider struct {
@@ -47,6 +49,76 @@ func (p *GormDataProvider) SetWith(rels []string) {
 	p.WithRelationships = rels
 }
 
+// applyFilters applies advanced filter conditions to the GORM query
+// Supports operators: eq, neq, gt, gte, lt, lte, like, nlike, in, nin, null, nnull, between
+func (p *GormDataProvider) applyFilters(db *gorm.DB, filters []query.Filter) *gorm.DB {
+	for _, f := range filters {
+		if f.Field == "" {
+			continue
+		}
+
+		switch f.Operator {
+		case query.OpEqual:
+			db = db.Where(fmt.Sprintf("%s = ?", f.Field), f.Value)
+
+		case query.OpNotEqual:
+			db = db.Where(fmt.Sprintf("%s != ?", f.Field), f.Value)
+
+		case query.OpGreaterThan:
+			db = db.Where(fmt.Sprintf("%s > ?", f.Field), f.Value)
+
+		case query.OpGreaterEq:
+			db = db.Where(fmt.Sprintf("%s >= ?", f.Field), f.Value)
+
+		case query.OpLessThan:
+			db = db.Where(fmt.Sprintf("%s < ?", f.Field), f.Value)
+
+		case query.OpLessEq:
+			db = db.Where(fmt.Sprintf("%s <= ?", f.Field), f.Value)
+
+		case query.OpLike:
+			if strVal, ok := f.Value.(string); ok {
+				db = db.Where(fmt.Sprintf("%s LIKE ?", f.Field), "%"+strVal+"%")
+			}
+
+		case query.OpNotLike:
+			if strVal, ok := f.Value.(string); ok {
+				db = db.Where(fmt.Sprintf("%s NOT LIKE ?", f.Field), "%"+strVal+"%")
+			}
+
+		case query.OpIn:
+			if vals, ok := f.Value.([]string); ok && len(vals) > 0 {
+				db = db.Where(fmt.Sprintf("%s IN ?", f.Field), vals)
+			}
+
+		case query.OpNotIn:
+			if vals, ok := f.Value.([]string); ok && len(vals) > 0 {
+				db = db.Where(fmt.Sprintf("%s NOT IN ?", f.Field), vals)
+			}
+
+		case query.OpIsNull:
+			if boolVal, ok := f.Value.(bool); ok && boolVal {
+				db = db.Where(fmt.Sprintf("%s IS NULL", f.Field))
+			}
+
+		case query.OpIsNotNull:
+			if boolVal, ok := f.Value.(bool); ok && boolVal {
+				db = db.Where(fmt.Sprintf("%s IS NOT NULL", f.Field))
+			}
+
+		case query.OpBetween:
+			if vals, ok := f.Value.([]string); ok && len(vals) == 2 {
+				db = db.Where(fmt.Sprintf("%s BETWEEN ? AND ?", f.Field), vals[0], vals[1])
+			}
+
+		default:
+			// Default to equality
+			db = db.Where(fmt.Sprintf("%s = ?", f.Field), f.Value)
+		}
+	}
+	return db
+}
+
 func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*QueryResponse, error) {
 	var total int64
 	// We need a slice of the model type to hold results.
@@ -69,29 +141,30 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	// Let's start with just using db.Model(p.Model).Find(&results) where results is []map[string]interface{}
 	// GORM supports finding into a map.
 
-	// Log the incoming sorts to Provider
-	fmt.Printf("DEBUG: Provider Index Req Sorts: %+v\n", req.Sorts)
-
 	stdCtx := p.getContext(ctx)
-	db := p.DB.WithContext(stdCtx).Debug().Model(p.Model)
+	db := p.DB.WithContext(stdCtx).Model(p.Model)
 
 	// Apply Eager Loading
 	for _, rel := range p.WithRelationships {
 		db = db.Preload(rel)
 	}
 
-	// Apply Filters (Basic equality)
-	for k, v := range req.Filters {
-		db = db.Where(fmt.Sprintf("%s = ?", k), v)
+	// Apply Advanced Filters
+	if len(req.Filters) > 0 {
+		db = p.applyFilters(db, req.Filters)
 	}
 
 	// Apply Search
+	fmt.Printf("[GORM] Search: %q, SearchColumns: %v\n", req.Search, p.SearchColumns)
 	if req.Search != "" && len(p.SearchColumns) > 0 {
 		searchQuery := p.DB.WithContext(stdCtx).Session(&gorm.Session{NewDB: true})
 		for _, col := range p.SearchColumns {
 			searchQuery = searchQuery.Or(fmt.Sprintf("%s LIKE ?", col), "%"+req.Search+"%")
 		}
 		db = db.Where(searchQuery)
+		fmt.Printf("[GORM] Search applied for columns: %v\n", p.SearchColumns)
+	} else {
+		fmt.Printf("[GORM] Search NOT applied - Search empty: %v, SearchColumns empty: %v\n", req.Search == "", len(p.SearchColumns) == 0)
 	}
 
 	// Count Total
@@ -174,39 +247,230 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 }
 
 func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interface{}) (interface{}, error) {
-	// 1. Create a new instance of the model
+	stmt := &gorm.Statement{DB: p.DB}
+	if err := stmt.Parse(p.Model); err != nil {
+		return nil, err
+	}
+	modelSchema := stmt.Schema
+
+	stdCtx := p.getContext(ctx)
 	modelType := reflect.TypeOf(p.Model)
 	if modelType.Kind() == reflect.Ptr {
 		modelType = modelType.Elem()
 	}
 	newItem := reflect.New(modelType).Interface()
 
-	// 2. Convert map to struct (using json roundtrip for simplicity and tag support)
-	b, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
+	validData := make(map[string]interface{})
+	for k, v := range data {
+		field := modelSchema.LookUpField(k)
+		if field != nil && field.DBName != "" {
+			validData[k] = v
+
+			// Set field value on newItem to ensure it's populated for Create
+			modelVal := reflect.ValueOf(newItem)
+			if modelVal.Kind() == reflect.Ptr {
+				modelVal = modelVal.Elem()
+			}
+			if err := field.Set(stdCtx, modelVal, v); err != nil {
+				fmt.Printf("[GORM] Error setting field %s: %v\n", field.Name, err)
+			}
+		}
 	}
-	if err := json.Unmarshal(b, newItem); err != nil {
+
+	// Set timestamps
+	now := time.Now()
+	if createdAtField := modelSchema.LookUpField("CreatedAt"); createdAtField != nil {
+		modelVal := reflect.ValueOf(newItem)
+		if modelVal.Kind() == reflect.Ptr {
+			modelVal = modelVal.Elem()
+		}
+		createdAtField.Set(stdCtx, modelVal, now)
+	}
+	if updatedAtField := modelSchema.LookUpField("UpdatedAt"); updatedAtField != nil {
+		modelVal := reflect.ValueOf(newItem)
+		if modelVal.Kind() == reflect.Ptr {
+			modelVal = modelVal.Elem()
+		}
+		updatedAtField.Set(stdCtx, modelVal, now)
+	}
+
+	// Use Create with struct to ensure ID backfilling and hooks execution
+	if err := p.DB.WithContext(stdCtx).Create(newItem).Error; err != nil {
 		return nil, err
 	}
 
-	// 3. Create in DB
-	stdCtx := p.getContext(ctx)
-	if err := p.DB.WithContext(stdCtx).Model(p.Model).Create(newItem).Error; err != nil {
-		return nil, err
+	// Handle Associations
+	for k, v := range data {
+		field := modelSchema.LookUpField(k)
+		if field == nil {
+			field = modelSchema.LookUpField(strcase.ToCamel(k))
+		}
+		if field != nil {
+			if field.DBName == "" {
+				if rel, ok := modelSchema.Relationships.Relations[field.Name]; ok {
+					relName := field.Name
+					switch rel.Type {
+					case schema.HasOne:
+						relType := rel.FieldSchema.ModelType
+						if relType.Kind() == reflect.Ptr {
+							relType = relType.Elem()
+						}
+						relInstance := reflect.New(relType).Interface()
+
+						if v != nil {
+							if err := p.DB.WithContext(stdCtx).First(relInstance, v).Error; err == nil {
+								p.DB.WithContext(stdCtx).Model(newItem).Association(relName).Replace(relInstance)
+							}
+						}
+					case schema.Many2Many:
+						// Handle BelongsToMany (Many2Many)
+						// v is likely []interface{} or []string of IDs
+						var ids []interface{}
+						val := reflect.ValueOf(v)
+						if val.Kind() == reflect.Slice {
+							for i := 0; i < val.Len(); i++ {
+								ids = append(ids, val.Index(i).Interface())
+							}
+						} else {
+							ids = append(ids, v)
+						}
+
+						if len(ids) > 0 {
+							relType := rel.FieldSchema.ModelType
+							if relType.Kind() == reflect.Slice {
+								relType = relType.Elem()
+							}
+							if relType.Kind() == reflect.Ptr {
+								relType = relType.Elem()
+							}
+
+							// Create a slice of related structs with just IDs
+							// GORM Association().Replace() works best with struct instances or slice of structs
+							// It can also take slice of primary keys but let's try to be safe
+
+							// Ideally we should find them to ensure they exist, but for performance just binding IDs might work
+							// if we use Omit("Example.*") to avoid updating them, but Association Replace handles linking.
+
+							// Let's query them to be safe and GORM-compliant
+							sliceType := reflect.SliceOf(reflect.PtrTo(relType))
+							relatedItems := reflect.New(sliceType).Interface()
+
+							// Assuming ID is integer or string, GORM Find with slice of IDs works
+							if err := p.DB.WithContext(stdCtx).Where("id IN ?", ids).Find(relatedItems).Error; err == nil {
+								if err := p.DB.WithContext(stdCtx).Model(newItem).Association(relName).Replace(relatedItems); err != nil {
+									// Log error?
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Return fresh item using ID
+	if modelSchema.PrioritizedPrimaryField != nil {
+		idVal := reflect.ValueOf(newItem).Elem().FieldByName(modelSchema.PrioritizedPrimaryField.Name).Interface()
+		id := fmt.Sprint(idVal)
+		if id != "" && id != "0" {
+			return p.Show(ctx, id)
+		}
 	}
 
 	return newItem, nil
 }
 
 func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[string]interface{}) (interface{}, error) {
-	data["updated_at"] = time.Now()
-	stdCtx := p.getContext(ctx)
-	if err := p.DB.WithContext(stdCtx).Model(p.Model).Where("id = ?", id).Updates(data).Error; err != nil {
+	stmt := &gorm.Statement{DB: p.DB}
+	if err := stmt.Parse(p.Model); err != nil {
 		return nil, err
 	}
-	// Return updated struct or just the data?
-	// Let's return the fresh data
+	modelSchema := stmt.Schema
+
+	stdCtx := p.getContext(ctx)
+	modelType := reflect.TypeOf(p.Model)
+	if modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+	}
+	item := reflect.New(modelType).Interface()
+
+	if err := p.DB.WithContext(stdCtx).First(item, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	updates := make(map[string]interface{})
+	for k, v := range data {
+		field := modelSchema.LookUpField(k)
+		if field == nil {
+			field = modelSchema.LookUpField(strcase.ToCamel(k))
+		}
+		if field != nil {
+			if field.DBName != "" {
+				updates[k] = v
+			} else if rel, ok := modelSchema.Relationships.Relations[field.Name]; ok {
+				relName := field.Name
+				switch rel.Type {
+				case schema.HasOne, schema.BelongsTo:
+					relType := rel.FieldSchema.ModelType
+					if relType.Kind() == reflect.Ptr {
+						relType = relType.Elem()
+					}
+					relInstance := reflect.New(relType).Interface()
+
+					if v != nil {
+						if err := p.DB.WithContext(stdCtx).First(relInstance, v).Error; err == nil {
+							p.DB.WithContext(stdCtx).Model(item).Association(relName).Replace(relInstance)
+						}
+					} else {
+						p.DB.WithContext(stdCtx).Model(item).Association(relName).Clear()
+					}
+				case schema.Many2Many:
+					// Handle BelongsToMany (Many2Many) update
+					// v is likely []interface{} or []string of IDs
+					var ids []interface{}
+					if v != nil {
+						val := reflect.ValueOf(v)
+						if val.Kind() == reflect.Slice {
+							for i := 0; i < val.Len(); i++ {
+								ids = append(ids, val.Index(i).Interface())
+							}
+						} else {
+							ids = append(ids, v)
+						}
+					}
+
+					if len(ids) > 0 {
+						relType := rel.FieldSchema.ModelType
+						if relType.Kind() == reflect.Slice {
+							relType = relType.Elem()
+						}
+						if relType.Kind() == reflect.Ptr {
+							relType = relType.Elem()
+						}
+
+						sliceType := reflect.SliceOf(reflect.PtrTo(relType))
+						relatedItems := reflect.New(sliceType).Interface()
+
+						if err := p.DB.WithContext(stdCtx).Where("id IN ?", ids).Find(relatedItems).Error; err == nil {
+							p.DB.WithContext(stdCtx).Model(item).Association(relName).Replace(relatedItems)
+						}
+					} else {
+						// If empty list sent, clear associations
+						p.DB.WithContext(stdCtx).Model(item).Association(relName).Clear()
+					}
+				}
+
+			}
+		}
+	}
+
+	updates["updated_at"] = time.Now()
+	if len(updates) > 0 {
+		if err := p.DB.WithContext(stdCtx).Model(item).Updates(updates).Error; err != nil {
+			return nil, err
+		}
+	}
+
 	return p.Show(ctx, id)
 }
 

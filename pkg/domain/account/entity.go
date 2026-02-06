@@ -8,10 +8,10 @@ import (
 )
 
 type Account struct {
-	ID                    string     `json:"id" gorm:"primaryKey"`
-	AccountID             string     `json:"accountId" gorm:"index"`  // Provider's user ID
+	ID                    uint       `json:"id" gorm:"primaryKey"`
+	AccountID             *string    `json:"accountId" gorm:"index"`  // Provider's user ID (nullable for credentials)
 	ProviderID            string     `json:"providerId" gorm:"index"` // e.g. "credential", "google"
-	UserID                string     `json:"userId" gorm:"index;type:uuid"`
+	UserID                uint       `json:"userId" gorm:"index"`
 	AccessToken           string     `json:"accessToken,omitempty"`
 	RefreshToken          string     `json:"refreshToken,omitempty"`
 	IDToken               string     `json:"idToken,omitempty"`
@@ -26,9 +26,9 @@ type Account struct {
 
 type Repository interface {
 	Create(ctx context.Context, account *Account) error
-	FindByID(ctx context.Context, id string) (*Account, error)
+	FindByID(ctx context.Context, id uint) (*Account, error)
 	FindByProvider(ctx context.Context, providerID, accountID string) (*Account, error)
-	FindByUserID(ctx context.Context, userID string) ([]Account, error)
+	FindByUserID(ctx context.Context, userID uint) ([]Account, error)
 	Update(ctx context.Context, account *Account) error
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id uint) error
 }

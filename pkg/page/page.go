@@ -13,6 +13,8 @@ type Page interface {
 	Slug() string
 	// Title, menüde ve sayfada görünecek başlık.
 	Title() string
+	// Description, sayfanın açıklaması.
+	Description() string
 	// Cards returns the cards/widgets for the resource dashboard
 	Cards() []widget.Card
 	// Fields, sayfada gösterilecek form alanlarını döner.
@@ -27,6 +29,8 @@ type Page interface {
 	NavigationOrder() int
 	// Visible, sayfanın menüde görünüp görünmeyeceğini belirler.
 	Visible() bool
+	// CanAccess, kullanıcının sayfaya erişip erişemeyeceğini belirler.
+	CanAccess(c *context.Context) bool
 }
 
 // Base, Page arayüzünü implemente eden temel yapı.
@@ -39,6 +43,10 @@ func (b Base) Slug() string {
 }
 
 func (b Base) Title() string {
+	return ""
+}
+
+func (b Base) Description() string {
 	return ""
 }
 
@@ -56,6 +64,10 @@ func (b Base) NavigationOrder() int {
 
 func (b Base) Visible() bool {
 	return true
+}
+
+func (b Base) CanAccess(c *context.Context) bool {
+	return true // Default: allow access
 }
 
 func (b Base) Cards() []widget.Card {

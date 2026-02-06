@@ -36,7 +36,7 @@ func (p *AccountPolicy) Create(ctx *context.Context) bool {
 	if ctx == nil {
 		return false
 	}
-	return true
+	return false
 }
 
 // Update, account güncelleme izni
@@ -45,12 +45,14 @@ func (p *AccountPolicy) Update(ctx *context.Context, model any) bool {
 		return false
 	}
 
-	account, ok := model.(*domainAccount.Account)
+	_, ok := model.(*domainAccount.Account)
+	// account, ok := model.(*domainAccount.Account)
 	if !ok {
 		return false
 	}
 
-	return account != nil
+	return false
+	// return account != nil
 }
 
 // Delete, account silme izni
@@ -59,12 +61,14 @@ func (p *AccountPolicy) Delete(ctx *context.Context, model any) bool {
 		return true
 	}
 
-	account, ok := model.(*domainAccount.Account)
+	// account, ok := model.(*domainAccount.Account)
+	_, ok := model.(*domainAccount.Account)
 	if !ok {
 		return false
 	}
 
-	return account != nil
+	return false
+	// return account != nil
 }
 
 // Restore, account geri yükleme izni

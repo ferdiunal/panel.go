@@ -6,7 +6,7 @@ import (
 )
 
 type User struct {
-	ID            string    `json:"id" gorm:"primaryKey;type:uuid"`
+	ID            uint      `json:"id" gorm:"primaryKey"`
 	Name          string    `json:"name" gorm:"index"`
 	Email         string    `json:"email" gorm:"uniqueIndex"`
 	EmailVerified bool      `json:"emailVerified"`
@@ -18,8 +18,8 @@ type User struct {
 
 type Repository interface {
 	CreateUser(ctx context.Context, user *User) error
-	FindByID(ctx context.Context, id string) (*User, error)
+	FindByID(ctx context.Context, id uint) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, user *User) error
-	DeleteUser(ctx context.Context, id string) error
+	DeleteUser(ctx context.Context, id uint) error
 }

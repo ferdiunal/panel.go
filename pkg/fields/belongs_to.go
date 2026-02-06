@@ -17,21 +17,32 @@ type BelongsTo struct {
 
 // NewBelongsTo creates a new BelongsTo relationship field
 func NewBelongsTo(name, key, relatedResource string) *BelongsTo {
-	return &BelongsTo{
+	b := &BelongsTo{
 		Schema: Schema{
-			Name: name,
-			Key:  key,
-			View: "belongs-to-field",
-			Type: TYPE_RELATIONSHIP,
+			Name:  name,
+			Key:   key,
+			View:  "belongs-to-field",
+			Type:  TYPE_RELATIONSHIP,
+			Props: make(map[string]interface{}),
 		},
 		RelatedResourceSlug: relatedResource,
 		DisplayKey:          "name",
 		SearchableColumns:   []string{"name"},
 		LoadingStrategy:     EAGER_LOADING,
 	}
+	b.WithProps("related_resource", relatedResource)
+	return b
+}
+
+// AutoOptions enables automatic options generation from the related table.
+// displayField is the column name to use for the option label.
+func (b *BelongsTo) AutoOptions(displayField string) *BelongsTo {
+	b.Schema.AutoOptions(displayField)
+	return b
 }
 
 // DisplayUsing sets the display key for showing related resource
+
 func (b *BelongsTo) DisplayUsing(key string) *BelongsTo {
 	b.DisplayKey = key
 	return b

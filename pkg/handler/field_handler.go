@@ -4,6 +4,8 @@
 package handler
 
 import (
+	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/ferdiunal/panel.go/pkg/auth"
@@ -13,6 +15,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"github.com/iancoleman/strcase"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -59,7 +62,33 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 		}
 	}
 	provider.SetSearchColumns(searchCols)
-	provider.SetWith(res.With())
+
+	var withRels []string
+	withRels = append(withRels, res.With()...)
+
+	for _, element := range res.Fields() {
+		if relField, ok := fields.IsRelationshipField(element); ok {
+			if relField.GetLoadingStrategy() == fields.EAGER_LOADING {
+				// Use the field key as the relationship name for GORM Preload
+				// Ideally this should match the struct field name
+				// We convert to CamelCase because GORM usually expects struct field names
+				key := strcase.ToCamel(relField.GetKey())
+
+				// Check if already exists to avoid duplicates
+				exists := false
+				for _, existing := range withRels {
+					if existing == key {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					withRels = append(withRels, key)
+				}
+			}
+		}
+	}
+	provider.SetWith(withRels)
 
 	return &FieldHandler{
 		DB:          db,
@@ -133,10 +162,13 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 		element.Extract(item)
 		serialized := element.JsonSerialize()
 
+		// Resolve options
+		h.ResolveFieldOptions(element, serialized, item)
+
 		// Apply callback if exists
 		if callback := element.GetResolveCallback(); callback != nil {
 			if val, ok := serialized["data"]; ok {
-				serialized["data"] = callback(val, c)
+				serialized["data"] = callback(val, item, c)
 			}
 		}
 
@@ -145,7 +177,88 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 	return resourceData
 }
 
+// ResolveFieldOptions resolves dynamic options for a field element.
+// This handles AutoOptions for relationships and executes manual option callbacks.
+func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized map[string]interface{}, item interface{}) {
+	props, _ := serialized["props"].(map[string]interface{})
+	if props == nil {
+		props = make(map[string]interface{})
+		serialized["props"] = props
+	}
+
+	// Handle AutoOptions via Config (works even if element is *Schema due to fluent API)
+	config := element.GetAutoOptionsConfig()
+	fmt.Printf("[DEBUG] ResolveFieldOptions - Key: %s, View: %s, Enabled: %v\n", element.GetKey(), element.GetView(), config.Enabled)
+	if config.Enabled {
+		if _, hasOpts := props["options"]; !hasOpts {
+			table, _ := props["related_resource"].(string)
+			display := config.DisplayField
+			fmt.Printf("[DEBUG] AutoOptions Table: %s, Display: %s\n", table, display)
+
+			if table != "" && display != "" {
+				var results []map[string]interface{}
+				view := element.GetView()
+
+				if view == "has-one-field" {
+					fk, _ := props["foreign_key"].(string)
+					fmt.Printf("[DEBUG] HasOne Query - Table: %s, FK: %s\n", table, fk)
+					if h.DB != nil && fk != "" {
+						query := h.DB.Table(table).Select("id, " + display)
+
+						var itemID interface{}
+						if item != nil {
+							val := reflect.ValueOf(item)
+							if val.Kind() == reflect.Ptr {
+								val = val.Elem()
+							}
+							if val.Kind() == reflect.Struct {
+								// Try to find ID or Id field
+								idField := val.FieldByName("ID")
+								if !idField.IsValid() {
+									idField = val.FieldByName("Id")
+								}
+								if idField.IsValid() {
+									itemID = idField.Interface()
+								}
+							}
+						}
+
+						if itemID != nil {
+							query = query.Where(fk+" IS NULL OR "+fk+" = ?", itemID)
+						} else {
+							query = query.Where(fk + " IS NULL OR " + fk + " = 0")
+						}
+						query.Find(&results)
+					}
+				} else if view == "belongs-to-field" || view == "belongs-to-many-field" {
+					fmt.Printf("[DEBUG] BelongsTo Query - Table: %s\n", table)
+					if h.DB != nil {
+						h.DB.Table(table).Select("id, " + display).Find(&results)
+					}
+				}
+
+				fmt.Printf("[DEBUG] Query Result Count: %d\n", len(results))
+				opts := make(map[string]string)
+				for _, r := range results {
+					if val, ok := r[display]; ok {
+						opts[fmt.Sprint(r["id"])] = fmt.Sprint(val)
+					}
+				}
+				props["options"] = opts
+			}
+		}
+	}
+
+	// Resolve dynamic options if present (callback)
+	if optsFunc, ok := props["options"].(func() map[string]string); ok {
+		props["options"] = optsFunc()
+	} else if optsFunc, ok := props["options"].(func() map[string]interface{}); ok {
+		props["options"] = optsFunc()
+	}
+}
+
 // parseBody extracts data from request
+
 func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, error) {
 	var body = make(map[string]interface{})
 
@@ -169,9 +282,14 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 	if form, err := c.Ctx.MultipartForm(); err == nil {
 		for key, values := range form.Value {
 			if len(values) > 0 {
+				normalizedKey := key
+				if strings.HasSuffix(key, "[]") {
+					normalizedKey = strings.TrimSuffix(key, "[]")
+				}
+
 				var isFileType bool
 				for _, el := range h.Elements {
-					if el.GetKey() == key {
+					if el.GetKey() == normalizedKey {
 						if el.JsonSerialize()["type"] == fields.TYPE_FILE ||
 							el.JsonSerialize()["type"] == fields.TYPE_VIDEO ||
 							el.JsonSerialize()["type"] == fields.TYPE_AUDIO {
@@ -182,7 +300,11 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 				}
 
 				if !isFileType {
-					body[key] = values[0]
+					if strings.HasSuffix(key, "[]") || len(values) > 1 {
+						body[normalizedKey] = values
+					} else {
+						body[normalizedKey] = values[0]
+					}
 				}
 			}
 		}
@@ -215,6 +337,22 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 				}
 
 				body[key] = path
+			}
+		}
+
+		// Handle missing BelongsToMany fields in multipart/form-data
+		// If a BelongsToMany field is missing from the request, it implies the user unchecked all options.
+		// We set it to an empty slice so GormDataProvider clears the relationships.
+		for _, el := range h.Elements {
+			if _, ok := fields.IsRelationshipField(el); ok {
+				// We specifically check for BelongsToMany by view or type if interface allows
+				// Using reflection or type check if possible, or View/Type string
+				if el.JsonSerialize()["view"] == "belongs-to-many-field" {
+					key := el.GetKey()
+					if _, exists := body[key]; !exists {
+						body[key] = []interface{}{}
+					}
+				}
 			}
 		}
 	}

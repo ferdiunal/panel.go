@@ -13,6 +13,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// AutoOptionsConfig holds configuration for automatic options generation
+type AutoOptionsConfig struct {
+	Enabled      bool
+	DisplayField string
+}
+
 // Element is the common interface for fields used in form and list views.
 // It provides methods for data extraction, serialization, visibility control,
 // and fluent configuration of field properties.
@@ -183,11 +189,11 @@ type Element interface {
 
 	// Resolve sets a callback to resolve the value before display.
 	// The callback can transform the value before it is shown to the user.
-	Resolve(fn func(value any, c *fiber.Ctx) any) Element
+	Resolve(fn func(value any, item any, c *fiber.Ctx) any) Element
 
 	// GetResolveCallback returns the resolve callback function.
 	// Returns nil if no resolve callback has been set.
-	GetResolveCallback() func(value any, c *fiber.Ctx) any
+	GetResolveCallback() func(value any, item any, c *fiber.Ctx) any
 
 	// Modify sets a callback to modify the value before storage.
 	// The callback can transform the value before it is saved to the database.
@@ -202,6 +208,9 @@ type Element interface {
 	// Options sets the available options for select-type elements.
 	// The options parameter can be a slice of values or a map of key-value pairs.
 	Options(options any) Element
+
+	// GetAutoOptionsConfig returns the AutoOptions configuration.
+	GetAutoOptionsConfig() AutoOptionsConfig
 
 	// Default sets the default value for the element.
 	// The default value is used when creating new resources.

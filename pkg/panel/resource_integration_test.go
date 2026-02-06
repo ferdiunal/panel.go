@@ -7,7 +7,6 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceAccount "github.com/ferdiunal/panel.go/pkg/resource/account"
 	resourceSession "github.com/ferdiunal/panel.go/pkg/resource/session"
-	resourceSetting "github.com/ferdiunal/panel.go/pkg/resource/setting"
 	resourceUser "github.com/ferdiunal/panel.go/pkg/resource/user"
 	resourceVerification "github.com/ferdiunal/panel.go/pkg/resource/verification"
 	"gorm.io/driver/sqlite"
@@ -31,7 +30,6 @@ func TestPanelResourceRegistration(t *testing.T) {
 			resourceAccount.NewAccountResource(),
 			resourceSession.NewSessionResource(),
 			resourceVerification.NewVerificationResource(),
-			resourceSetting.NewSettingResource(),
 		},
 	}
 
@@ -43,7 +41,7 @@ func TestPanelResourceRegistration(t *testing.T) {
 	}
 
 	// Check specific resources
-	expectedSlugs := []string{"accounts", "sessions", "verifications", "settings", "users"}
+	expectedSlugs := []string{"accounts", "sessions", "verifications", "users"}
 	for _, slug := range expectedSlugs {
 		if _, ok := p.resources[slug]; !ok {
 			t.Errorf("Expected resource with slug '%s' to be registered", slug)
@@ -68,15 +66,14 @@ func TestPanelResourceCount(t *testing.T) {
 			resourceAccount.NewAccountResource(),
 			resourceSession.NewSessionResource(),
 			resourceVerification.NewVerificationResource(),
-			resourceSetting.NewSettingResource(),
 		},
 	}
 
 	p := New(cfg)
 
-	// 4 custom resources + 1 default user resource = 5
-	if len(p.resources) != 5 {
-		t.Errorf("Expected 5 resources, got %d", len(p.resources))
+	// 3 custom resources + 1 default user resource = 4
+	if len(p.resources) != 4 {
+		t.Errorf("Expected 4 resources, got %d", len(p.resources))
 	}
 }
 

@@ -1,18 +1,19 @@
 package handler
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
-	"github.com/ferdiunal/panel.go/pkg/resource"
+	"github.com/ferdiunal/panel.go/pkg/query"
 	"github.com/gofiber/fiber/v2"
 )
 
 // HandleResourceIndex lists resources with pagination, sorting, and filtering.
 // It handles GET requests to /api/resource/:resource endpoint.
+//
+// Supports two query formats:
+//   - Nested: users[search]=query, users[sort][id]=asc, users[filters][status][eq]=active
+//   - Legacy: search=query, sort_column=id, sort_direction=asc
 func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	ctx := c.Resource()
 
@@ -34,79 +35,45 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	// Parse Query Request
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	perPage, _ := strconv.Atoi(c.Query("per_page", "10"))
+	// Parse Query Request using new parser
+	resourceName := c.Params("resource")
+	queryParams := query.ParseResourceQuery(c.Ctx, resourceName)
 
-	// Parse Sort
+	// Convert query.Sort to data.Sort
 	var sorts []data.Sort
-
-	// 1. Try parsing sort_column as a map (e.g. sort_column[id]=desc)
-	// Fiber's QueryParser is needed for maps
-	type SortQuery struct {
-		SortColumn map[string]string `query:"sort_column"`
+	for _, s := range queryParams.Sorts {
+		sorts = append(sorts, data.Sort{
+			Column:    s.Column,
+			Direction: s.Direction,
+		})
 	}
 
-	sq := new(SortQuery)
-	// We only care if parsing succeeds and has data
-	if err := c.QueryParser(sq); err == nil && len(sq.SortColumn) > 0 {
-		for col, dir := range sq.SortColumn {
-			sorts = append(sorts, data.Sort{
-				Column:    col,
-				Direction: dir,
-			})
-		}
-	} else {
-		// 2. Fallback to simple string check if map failed or empty
-		// (Example: ?sort_column=id&sort_direction=desc - legacy support or simple single sort)
-		sCol := c.Query("sort_column")
-		if sCol != "" {
-			sDir := c.Query("sort_direction")
-			if sDir == "" {
-				sDir = "asc"
-			}
-			sorts = append(sorts, data.Sort{
-				Column:    sCol,
-				Direction: sDir,
-			})
-		}
-	}
-
-	// 3. Defaults from Resource if no sorts provided
+	// Apply defaults from Resource if no sorts provided
 	if len(sorts) == 0 {
-		fmt.Printf("DEBUG: No API sorts provided. Checking defaults.\n")
-		var sortables []resource.Sortable
 		if h.Resource != nil {
-			sortables = h.Resource.GetSortable()
-		}
-		if len(sortables) > 0 {
-			fmt.Printf("DEBUG: Found %d defaults from Resource: %+v\n", len(sortables), sortables)
-			for _, s := range sortables {
+			for _, s := range h.Resource.GetSortable() {
 				sorts = append(sorts, data.Sort{
 					Column:    s.Column,
 					Direction: s.Direction,
 				})
 			}
-		} else {
-			fmt.Printf("DEBUG: No defaults from Resource. Using absolute backup.\n")
-			// Absolute backup
+		}
+		// Absolute fallback
+		if len(sorts) == 0 {
 			sorts = append(sorts, data.Sort{
 				Column:    "created_at",
 				Direction: "desc",
 			})
 		}
-	} else {
-		fmt.Printf("DEBUG: API sorts provided: %+v\n", sorts)
 	}
 
-	fmt.Printf("DEBUG: Final Sorts: %+v\n", sorts)
-
+	// Build QueryRequest
 	req := data.QueryRequest{
-		Page:    page,
-		PerPage: perPage,
+		Page:    queryParams.Page,
+		PerPage: queryParams.PerPage,
 		Sorts:   sorts,
-		Search:  c.Query("search"),
-		// Filters would be parsed here from query params or body
+		Search:  queryParams.Search,
+		Filters: queryParams.Filters,
 	}
 
 	// Fetch Data

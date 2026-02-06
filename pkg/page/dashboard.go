@@ -17,8 +17,16 @@ func (d *Dashboard) Title() string {
 	return "Dashboard"
 }
 
+func (d *Dashboard) Description() string {
+	return "Sistem özeti ve istatistikleri"
+}
+
 func (d *Dashboard) Icon() string {
 	return "layout-dashboard"
+}
+
+func (d *Dashboard) NavigationOrder() int {
+	return -1
 }
 
 func (d *Dashboard) Cards() []widget.Card {

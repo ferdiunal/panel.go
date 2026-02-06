@@ -3,21 +3,26 @@ package main
 import (
 	"log"
 
+	"github.com/ferdiunal/panel.go/examples/simple/blog"
 	"github.com/ferdiunal/panel.go/pkg/panel"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceAccount "github.com/ferdiunal/panel.go/pkg/resource/account"
 	resourceSession "github.com/ferdiunal/panel.go/pkg/resource/session"
-	resourceSetting "github.com/ferdiunal/panel.go/pkg/resource/setting"
 	resourceVerification "github.com/ferdiunal/panel.go/pkg/resource/verification"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func main() {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		panic("failed to connect database")
 	}
+
+	db.AutoMigrate(&blog.Author{}, &blog.Profile{}, &blog.Post{}, &blog.Tag{}, &blog.Comment{})
 
 	cfg := panel.Config{
 		Database: panel.DatabaseConfig{
@@ -25,11 +30,11 @@ func main() {
 		},
 		Features: panel.FeatureConfig{
 			Register:       true,
-			ForgotPassword: false,
+			ForgotPassword: true,
 		},
 		Server: panel.ServerConfig{
 			Host: "localhost",
-			Port: "8080",
+			Port: "8787",
 		},
 		Environment: "development", // Forces usage of embedded assets
 		// Storage: panel.StorageConfig{
@@ -43,7 +48,11 @@ func main() {
 			resourceAccount.NewAccountResource(),
 			resourceSession.NewSessionResource(),
 			resourceVerification.NewVerificationResource(),
-			resourceSetting.NewSettingResource(),
+			blog.NewAuthorResource(),
+			blog.NewProfileResource(),
+			blog.NewPostResource(),
+			blog.NewTagResource(),
+			blog.NewCommentResource(),
 		},
 	}
 
@@ -52,7 +61,7 @@ func main() {
 	// You can register custom resources here
 	// app.RegisterResource(MyResource)
 
-	log.Println("Starting panel on http://localhost:8080")
+	log.Println("Starting panel on http://localhost:8787")
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}

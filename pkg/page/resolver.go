@@ -101,8 +101,9 @@ func (n *Navigable) IsVisible() bool {
 type OptimizedBase struct {
 	Resolvable
 	Navigable
-	slug  string
-	title string
+	slug        string
+	title       string
+	description string
 }
 
 // SetSlug, slug'ı ayarlar.
@@ -123,6 +124,16 @@ func (b *OptimizedBase) SetTitle(t string) {
 // Title, başlığı döner.
 func (b *OptimizedBase) Title() string {
 	return b.title
+}
+
+// SetDescription, açıklamayı ayarlar.
+func (b *OptimizedBase) SetDescription(d string) {
+	b.description = d
+}
+
+// Description, açıklamayı döner.
+func (b *OptimizedBase) Description() string {
+	return b.description
 }
 
 // Fields, alanları döner (ResolveFields'i kullanır).

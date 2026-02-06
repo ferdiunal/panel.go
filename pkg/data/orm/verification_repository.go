@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ferdiunal/panel.go/pkg/domain/verification"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -17,13 +16,6 @@ func NewVerificationRepository(db *gorm.DB) *VerificationRepository {
 }
 
 func (r *VerificationRepository) Create(ctx context.Context, v *verification.Verification) error {
-	if v.ID == "" {
-		if id, err := uuid.NewV7(); err == nil {
-			v.ID = id.String()
-		} else {
-			v.ID = uuid.NewString()
-		}
-	}
 	return r.db.WithContext(ctx).Create(v).Error
 }
 
@@ -35,7 +27,7 @@ func (r *VerificationRepository) FindByToken(ctx context.Context, token string) 
 	return &v, nil
 }
 
-func (r *VerificationRepository) Delete(ctx context.Context, id string) error {
+func (r *VerificationRepository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&verification.Verification{}, "id = ?", id).Error
 }
 
