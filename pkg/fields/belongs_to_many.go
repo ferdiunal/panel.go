@@ -13,6 +13,7 @@ type BelongsToMany struct {
 	RelatedKeyColumn    string
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
+	GormRelationConfig  *RelationshipGormConfig
 }
 
 // NewBelongsToMany creates a new BelongsToMany relationship field
@@ -33,6 +34,8 @@ func NewBelongsToMany(name, key, relatedResource string) *BelongsToMany {
 		ForeignKeyColumn:    "user_id",
 		RelatedKeyColumn:    relatedResource + "_id",
 		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithPivotTable(pivotTable, "user_id", relatedResource+"_id"),
 	}
 	b.WithProps("related_resource", relatedResource)
 	return b

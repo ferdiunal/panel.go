@@ -4,6 +4,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -164,6 +165,62 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 
 		// Resolve options
 		h.ResolveFieldOptions(element, serialized, item)
+
+		// Resolve MorphTo display fields
+		if element.GetView() == "morph-to-field" {
+			fmt.Printf("[DEBUG] MorphTo field detected: %s\n", element.GetKey())
+			if data, ok := serialized["data"].(map[string]interface{}); ok {
+				morphType, _ := data["type"].(string)
+				morphID := data["id"]
+				fmt.Printf("[DEBUG] MorphTo data - type: %s, id: %v\n", morphType, morphID)
+
+				if morphType != "" && morphID != nil {
+					// Get display field from props
+					if props, ok := serialized["props"].(map[string]interface{}); ok {
+						if displaysRaw, ok := props["displays"]; ok {
+							fmt.Printf("[DEBUG] Displays found: %+v\n", displaysRaw)
+							// displays can be map[string]string or map[string]interface{}
+							var displayField string
+							switch displays := displaysRaw.(type) {
+							case map[string]string:
+								displayField = displays[morphType]
+							case map[string]interface{}:
+								if df, ok := displays[morphType].(string); ok {
+									displayField = df
+								}
+							}
+							fmt.Printf("[DEBUG] Display field for type '%s': %s\n", morphType, displayField)
+
+							if displayField != "" {
+								// Use type as table name (assuming lowercase)
+								tableName := strings.ToLower(morphType)
+								fmt.Printf("[DEBUG] Querying table '%s' for field '%s' with id %v\n", tableName, displayField, morphID)
+
+								// Query the related resource to get display field value
+								if h.DB != nil {
+									var displayValue interface{}
+									err := h.DB.Table(tableName).Select(displayField).Where("id = ?", morphID).Row().Scan(&displayValue)
+
+									if err != nil {
+										fmt.Printf("[DEBUG] Query error: %v\n", err)
+									} else {
+										fmt.Printf("[DEBUG] Display value retrieved: %v\n", displayValue)
+										if displayValue != nil {
+											data[displayField] = displayValue
+											fmt.Printf("[DEBUG] Display value added to data\n")
+										}
+									}
+								} else {
+									fmt.Printf("[DEBUG] DB is nil\n")
+								}
+							}
+						} else {
+							fmt.Printf("[DEBUG] No displays found in props\n")
+						}
+					}
+				}
+			}
+		}
 
 		// Apply callback if exists
 		if callback := element.GetResolveCallback(); callback != nil {
@@ -362,6 +419,44 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 		if val, ok := body[el.GetKey()]; ok {
 			if callback := el.GetModifyCallback(); callback != nil {
 				body[el.GetKey()] = callback(val, c.Ctx)
+			}
+		}
+	}
+
+	// Handle MorphTo fields: parse JSON object {"type":"...", "id":"..."} into separate fields
+	for _, el := range h.Elements {
+		if el.JsonSerialize()["view"] == "morph-to-field" {
+			key := el.GetKey()
+			typeKey := key + "_type"
+			idKey := key + "_id"
+
+			if val, ok := body[key]; ok && val != nil {
+				// Parse MorphTo value - can be JSON string, map, or already separated
+				switch v := val.(type) {
+				case string:
+					// JSON string from form-data: {"type":"posts","id":"1"}
+					if strings.HasPrefix(v, "{") {
+						var morphData map[string]interface{}
+						if err := json.Unmarshal([]byte(v), &morphData); err == nil {
+							if morphType, ok := morphData["type"].(string); ok && morphType != "" {
+								body[typeKey] = morphType
+							}
+							if morphID := morphData["id"]; morphID != nil {
+								body[idKey] = morphID
+							}
+						}
+					}
+				case map[string]interface{}:
+					// Already parsed JSON object
+					if morphType, ok := v["type"].(string); ok && morphType != "" {
+						body[typeKey] = morphType
+					}
+					if morphID := v["id"]; morphID != nil {
+						body[idKey] = morphID
+					}
+				}
+				// Remove the original composite key
+				delete(body, key)
 			}
 		}
 	}

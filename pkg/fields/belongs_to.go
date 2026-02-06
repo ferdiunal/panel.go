@@ -13,6 +13,7 @@ type BelongsTo struct {
 	SearchableColumns   []string
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
+	GormRelationConfig  *RelationshipGormConfig
 }
 
 // NewBelongsTo creates a new BelongsTo relationship field
@@ -29,6 +30,9 @@ func NewBelongsTo(name, key, relatedResource string) *BelongsTo {
 		DisplayKey:          "name",
 		SearchableColumns:   []string{"name"},
 		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithForeignKey(key + "_id").
+			WithReferences("id"),
 	}
 	b.WithProps("related_resource", relatedResource)
 	return b

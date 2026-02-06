@@ -202,8 +202,9 @@ func New(config Config) *Panel {
 
 	api.Get("/resource/:resource/cards", context.Wrap(p.handleResourceCards))
 	api.Get("/resource/:resource/cards/:index", context.Wrap(p.handleResourceCard))
-	api.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))   // List available lenses
-	api.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens)) // Lens data
+	api.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))      // List available lenses
+	api.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens))    // Lens data
+	api.Get("/resource/:resource/morphable/:field", context.Wrap(p.handleMorphable)) // MorphTo field options
 	api.Get("/resource/:resource", context.Wrap(p.handleResourceIndex))
 	api.Post("/resource/:resource", context.Wrap(p.handleResourceStore))
 	api.Get("/resource/:resource/create", context.Wrap(p.handleResourceCreate)) // New Route
@@ -402,6 +403,12 @@ func (p *Panel) handleResourceLens(c *context.Context) error {
 
 	// Use the lens controller
 	return handler.HandleLens(h, c)
+}
+
+func (p *Panel) handleMorphable(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleMorphable(h, c)
+	})
 }
 
 func (p *Panel) handleNavigation(c *context.Context) error {
