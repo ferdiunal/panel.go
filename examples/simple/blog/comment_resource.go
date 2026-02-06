@@ -33,8 +33,12 @@ func (r *CommentFieldResolver) ResolveFields(ctx *context.Context) []core.Elemen
 
 		// MorphTo Relationship: Comment -> Commentable (Post, Video, etc.)
 		fields.NewMorphTo("Commentable", "commentable").
+			WithLazyLoad().
 			Types(map[string]string{
 				"posts": "posts", // Database Type => Resource Slug
+			}).
+			Displays(map[string]string{
+				"posts": "title", // Post için title field'ını label olarak kullan
 			}),
 
 		fields.DateTime("Created At", "createdAt").ReadOnly().OnList(),

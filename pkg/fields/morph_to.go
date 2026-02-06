@@ -2,14 +2,19 @@ package fields
 
 import (
 	"fmt"
+	"reflect"
+
+	"github.com/iancoleman/strcase"
 )
 
 // MorphTo represents a polymorphic relationship (e.g., Comment -> Commentable)
 type MorphTo struct {
 	Schema
-	TypeMappings    map[string]string // Type => Resource slug mapping
-	QueryCallback   func(query interface{}) interface{}
-	LoadingStrategy LoadingStrategy
+	TypeMappings       map[string]string // Type => Resource slug mapping
+	DisplayMappings    map[string]string // Type => Display field name
+	QueryCallback      func(query interface{}) interface{}
+	LoadingStrategy    LoadingStrategy
+	GormRelationConfig *RelationshipGormConfig
 }
 
 // NewMorphTo creates a new MorphTo relationship field
@@ -20,16 +25,49 @@ func NewMorphTo(name, key string) *MorphTo {
 			Key:  key,
 			View: "morph-to-field",
 			Type: TYPE_RELATIONSHIP,
+			Props: map[string]interface{}{
+				"types":    []map[string]string{},
+				"displays": map[string]string{},
+			},
 		},
 		TypeMappings:    make(map[string]string),
+		DisplayMappings: make(map[string]string),
 		LoadingStrategy: EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithPolymorphic(key+"_type", key+"_id"),
 	}
 }
 
 // Types sets the type mappings for polymorphic relationship
 func (m *MorphTo) Types(types map[string]string) *MorphTo {
 	m.TypeMappings = types
+	m.Props["types"] = m.formatTypesForFrontend(types)
 	return m
+}
+
+// Displays sets the display field for each type (Type => Field Name)
+func (m *MorphTo) Displays(displays map[string]string) *MorphTo {
+	m.DisplayMappings = displays
+	m.Props["displays"] = displays
+	return m
+}
+
+// formatTypesForFrontend converts type mappings to frontend select options
+func (m *MorphTo) formatTypesForFrontend(types map[string]string) []map[string]string {
+	var options []map[string]string
+	for dbType, resourceSlug := range types {
+		label := resourceSlug
+		if len(resourceSlug) > 0 {
+			label = string(resourceSlug[0]-32) + resourceSlug[1:]
+		}
+
+		options = append(options, map[string]string{
+			"label": label,
+			"value": dbType,
+			"slug":  resourceSlug,
+		})
+	}
+	return options
 }
 
 // Query sets the query callback for customizing relationship query
@@ -71,12 +109,64 @@ func (m *MorphTo) ResolveRelationship(item interface{}) (interface{}, error) {
 		return nil, nil
 	}
 
-	// In a real implementation, this would:
-	// 1. Extract the morph type from the item
-	// 2. Look up the resource slug from the type mapping
-	// 3. Query the appropriate resource table
-	// For now, return nil
-	return nil, nil
+	val := reflect.ValueOf(item)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Kind() != reflect.Struct {
+		return nil, nil
+	}
+
+	// Calculate field names
+	// Key is usually camelCase or snake_case in JS, but we want the struct field name prefix.
+	// e.g. "commentable" -> "Commentable"
+	baseName := strcase.ToCamel(m.Key)
+
+	typeFieldNames := []string{baseName + "Type", baseName + "_Type"}
+	idFieldNames := []string{baseName + "ID", baseName + "Id", baseName + "_ID", baseName + "_Id"}
+
+	var typeVal string
+	var idVal interface{}
+	var foundType, foundID bool
+
+	// Find Type
+	for _, name := range typeFieldNames {
+		f := val.FieldByName(name)
+		if f.IsValid() {
+			typeVal = f.String()
+			foundType = true
+			break
+		}
+	}
+
+	// Find ID
+	for _, name := range idFieldNames {
+		f := val.FieldByName(name)
+		if f.IsValid() {
+			idVal = f.Interface()
+			foundID = true
+			break
+		}
+	}
+
+	if !foundType && !foundID {
+		return nil, nil
+	}
+
+	return map[string]interface{}{
+		"type":        typeVal,
+		"id":          idVal,
+		"morphToType": typeVal,
+		"morphToId":   idVal,
+	}, nil
+}
+
+// Extract overrides Schema.Extract to handle MorphTo specific extraction
+func (m *MorphTo) Extract(resource interface{}) {
+	// Don't call Schema.Extract because MorphTo doesn't have a direct field in the struct
+	// Instead, directly resolve the polymorphic relationship from type and id fields
+	resolved, _ := m.ResolveRelationship(resource)
+	m.Data = resolved
 }
 
 // ValidateRelationship validates the relationship

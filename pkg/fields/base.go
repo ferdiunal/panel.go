@@ -84,6 +84,9 @@ type Schema struct {
 	// Pivot (Kategori 9)
 	IsPivotField      bool   `json:"is_pivot_field"`
 	PivotResourceName string `json:"pivot_resource_name"`
+
+	// GORM Veritabanı Yapılandırması (Kategori 10)
+	GormConfiguration *GormConfig `json:"-"`
 }
 
 // Compile-time check to ensure Schema implements core.Element interface
@@ -915,4 +918,86 @@ func (s *Schema) GetCustomValidators() []interface{} {
 // GetResolveHandle returns the resolve handle for client-side component interaction
 func (s *Schema) GetResolveHandle() string {
 	return s.ResolveHandleValue
+}
+
+// GORM Yapılandırma Metotları
+
+// Gorm, alan için GORM veritabanı yapılandırmasını ayarlar.
+// Bu metod, migration ve model oluşturma için kullanılır.
+func (s *Schema) Gorm(config *GormConfig) Element {
+	s.GormConfiguration = config
+	return s
+}
+
+// GetGormConfig, alanın GORM yapılandırmasını döner.
+func (s *Schema) GetGormConfig() *GormConfig {
+	return s.GormConfiguration
+}
+
+// HasGormConfig, alanın GORM yapılandırması olup olmadığını kontrol eder.
+func (s *Schema) HasGormConfig() bool {
+	return s.GormConfiguration != nil
+}
+
+// GormPrimaryKey, alanı birincil anahtar olarak işaretler.
+func (s *Schema) GormPrimaryKey() Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithPrimaryKey()
+	return s
+}
+
+// GormIndex, alan için indeks oluşturur.
+func (s *Schema) GormIndex(name ...string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithIndex(name...)
+	return s
+}
+
+// GormUniqueIndex, alan için benzersiz indeks oluşturur.
+func (s *Schema) GormUniqueIndex(name ...string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithUniqueIndex(name...)
+	return s
+}
+
+// GormType, alan için SQL tipini belirler.
+func (s *Schema) GormType(sqlType string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithType(sqlType)
+	return s
+}
+
+// GormSize, alan için sütun boyutunu belirler.
+func (s *Schema) GormSize(size int) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithSize(size)
+	return s
+}
+
+// GormDefault, alan için varsayılan değer belirler.
+func (s *Schema) GormDefault(value interface{}) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithDefault(value)
+	return s
+}
+
+// GormComment, alan için veritabanı yorumu ekler.
+func (s *Schema) GormComment(comment string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithComment(comment)
+	return s
 }

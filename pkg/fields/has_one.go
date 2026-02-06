@@ -12,6 +12,7 @@ type HasOne struct {
 	OwnerKeyColumn      string
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
+	GormRelationConfig  *RelationshipGormConfig
 }
 
 // NewHasOne creates a new HasOne relationship field
@@ -28,6 +29,9 @@ func NewHasOne(name, key, relatedResource string) *HasOne {
 		ForeignKeyColumn:    relatedResource + "_id",
 		OwnerKeyColumn:      "id",
 		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithForeignKey(relatedResource + "_id").
+			WithReferences("id"),
 	}
 	// Store relationship details in props for generic access (when Schema interface is used)
 	h.WithProps("related_resource", relatedResource)
