@@ -7,7 +7,49 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
-// MorphTo represents a polymorphic relationship (e.g., Comment -> Commentable)
+// MorphTo, polimorfik ilişkiyi temsil eder (örn. Comment -> Commentable).
+//
+// MorphTo ilişkisi, bir kaydın farklı tiplerdeki kayıtlara ait olabileceğini belirtir.
+// Bu, veritabanında morph_type ve morph_id sütunları ile temsil edilir.
+//
+// # Kullanım Senaryoları
+//
+// - **Comment -> Commentable**: Bir yorum hem Post'a hem de Video'ya ait olabilir
+// - **Image -> Imageable**: Bir resim hem User'a hem de Product'a ait olabilir
+// - **Tag -> Taggable**: Bir etiket hem Post'a hem de Video'ya ait olabilir
+//
+// # Özellikler
+//
+// - **Tip Eşlemeleri**: Veritabanı tip değerleri ile resource slug'ları arasında eşleme
+// - **Görüntüleme Eşlemeleri**: Her tip için görüntüleme alanı özelleştirme
+// - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
+// - **GORM Yapılandırması**: Polimorfik sütunlar özelleştirme
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	    }).
+//	    Displays(map[string]string{
+//	        "post":  "title",
+//	        "video": "name",
+//	    }).
+//	    WithEagerLoad()
+//
+// # Veritabanı Yapısı
+//
+// Polimorfik ilişki genellikle şu yapıya sahiptir:
+//
+//	CREATE TABLE comments (
+//	    id INT PRIMARY KEY,
+//	    commentable_type VARCHAR(255),  -- "post" veya "video"
+//	    commentable_id INT,             -- İlgili kaydın ID'si
+//	    content TEXT
+//	);
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type MorphTo struct {
 	Schema
 	TypeMappings       map[string]string // Type => Resource slug mapping
@@ -17,7 +59,45 @@ type MorphTo struct {
 	GormRelationConfig *RelationshipGormConfig
 }
 
-// NewMorphTo creates a new MorphTo relationship field
+// NewMorphTo, yeni bir MorphTo polimorfik ilişki alanı oluşturur.
+//
+// Bu fonksiyon, farklı tiplerdeki kayıtlara ait olabilen polimorfik ilişkiler için kullanılır.
+// Veritabanında morph_type ve morph_id sütunları ile temsil edilir.
+//
+// # Parametreler
+//
+// - **name**: Alanın görünen adı (örn. "Commentable", "Imageable", "Taggable")
+// - **key**: İlişki key'i (örn. "commentable", "imageable", "taggable")
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	    }).
+//	    Displays(map[string]string{
+//	        "post":  "title",
+//	        "video": "name",
+//	    })
+//
+// # Varsayılan Değerler
+//
+// - **TypeMappings**: Boş map (Types() ile doldurulmalıdır)
+// - **DisplayMappings**: Boş map (Displays() ile doldurulmalıdır)
+// - **LoadingStrategy**: EAGER_LOADING (N+1 sorgu problemini önler)
+// - **Polimorfik Sütunlar**: key + "_type" ve key + "_id" (örn. "commentable_type", "commentable_id")
+//
+// # Önemli Notlar
+//
+// - Types() metodu ile tip eşlemelerini tanımlamalısınız
+// - Displays() metodu ile her tip için görüntüleme alanını belirtmelisiniz
+// - Polimorfik sütunlar veritabanında mevcut olmalıdır
+//
+// Döndürür:
+//   - Yapılandırılmış MorphTo pointer'ı
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 func NewMorphTo(name, key string) *MorphTo {
 	return &MorphTo{
 		Schema: Schema{
@@ -38,21 +118,104 @@ func NewMorphTo(name, key string) *MorphTo {
 	}
 }
 
-// Types sets the type mappings for polymorphic relationship
+// Types, polimorfik ilişki için tip eşlemelerini ayarlar.
+//
+// Bu metod, veritabanındaki tip değerleri ile resource slug'ları arasında eşleme oluşturur.
+// Her tip değeri, hangi resource'a karşılık geldiğini belirtir.
+//
+// # Parametreler
+//
+// - **types**: Tip değeri -> resource slug eşlemesi (örn. {"post": "posts", "video": "videos"})
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	        "article": "articles",
+//	    })
+//	// commentable_type = "post" ise posts resource'u kullanılır
+//	// commentable_type = "video" ise videos resource'u kullanılır
+//
+// # Önemli Notlar
+//
+// - Tip değerleri veritabanında commentable_type sütununda saklanır
+// - Resource slug'ları, ilgili resource'ların benzersiz tanımlayıcılarıdır
+// - Tüm olası tip değerleri bu map'te tanımlanmalıdır
+// - Frontend'de select dropdown olarak görüntülenir
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) Types(types map[string]string) *MorphTo {
 	m.TypeMappings = types
 	m.Props["types"] = m.formatTypesForFrontend(types)
 	return m
 }
 
-// Displays sets the display field for each type (Type => Field Name)
+// Displays, her tip için görüntüleme alanını ayarlar.
+//
+// Bu metod, her polimorfik tip için hangi alanın görüntüleneceğini belirler.
+// Farklı tipler farklı görüntüleme alanlarına sahip olabilir.
+//
+// # Parametreler
+//
+// - **displays**: Tip değeri -> görüntüleme alanı eşlemesi (örn. {"post": "title", "video": "name"})
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	    }).
+//	    Displays(map[string]string{
+//	        "post":  "title",    // Post'lar için title alanı görüntülenir
+//	        "video": "name",     // Video'lar için name alanı görüntülenir
+//	    })
+//
+// # Önemli Notlar
+//
+// - Her tip için görüntüleme alanı belirtilmelidir
+// - Görüntüleme alanları, ilgili resource'larda mevcut olmalıdır
+// - Frontend'de ilişkili kaydı gösterirken bu alanlar kullanılır
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) Displays(displays map[string]string) *MorphTo {
 	m.DisplayMappings = displays
 	m.Props["displays"] = displays
 	return m
 }
 
-// formatTypesForFrontend converts type mappings to frontend select options
+// formatTypesForFrontend, tip eşlemelerini frontend select seçeneklerine dönüştürür.
+//
+// Bu helper metod, backend tip eşlemelerini frontend'in anlayabileceği formata çevirir.
+// Her tip için label, value ve slug bilgilerini içeren bir map oluşturur.
+//
+// # Parametreler
+//
+// - **types**: Tip değeri -> resource slug eşlemesi
+//
+// # Döndürür
+//
+// Frontend select dropdown için seçenek listesi:
+//   - **label**: Görüntüleme etiketi (resource slug'ın capitalize edilmiş hali)
+//   - **value**: Veritabanı tip değeri (örn. "post", "video")
+//   - **slug**: Resource slug'ı (örn. "posts", "videos")
+//
+// # Örnek Çıktı
+//
+//	[
+//	    {"label": "Posts", "value": "post", "slug": "posts"},
+//	    {"label": "Videos", "value": "video", "slug": "videos"}
+//	]
+//
+// # Önemli Notlar
+//
+// - Label, resource slug'ın ilk harfi büyük yapılarak oluşturulur
+// - Value, veritabanında saklanacak tip değeridir
+// - Slug, ilgili resource'un benzersiz tanımlayıcısıdır
 func (m *MorphTo) formatTypesForFrontend(types map[string]string) []map[string]string {
 	var options []map[string]string
 	for dbType, resourceSlug := range types {
@@ -70,40 +233,132 @@ func (m *MorphTo) formatTypesForFrontend(types map[string]string) []map[string]s
 	return options
 }
 
-// Query sets the query callback for customizing relationship query
+// Query, ilişki sorgusunu özelleştirmek için callback ayarlar.
+//
+// Bu metod, polimorfik ilişki sorgularını özelleştirmek için kullanılır.
+// Filtreleme, sıralama veya diğer sorgu modifikasyonları yapılabilir.
+//
+// # Parametreler
+//
+// - **fn**: Sorgu özelleştirme callback fonksiyonu
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Query(func(q interface{}) interface{} {
+//	        // Sadece aktif kayıtları getir
+//	        return q.(*gorm.DB).Where("status = ?", "active")
+//	    })
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) Query(fn func(interface{}) interface{}) *MorphTo {
 	m.QueryCallback = fn
 	return m
 }
 
-// WithEagerLoad sets the loading strategy to eager loading
+// WithEagerLoad, yükleme stratejisini eager loading olarak ayarlar.
+//
+// Eager loading, ilişkili verileri önceden yükler ve N+1 sorgu problemini önler.
+// Polimorfik ilişkiler için önerilir.
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    WithEagerLoad()
+//	// İlişkili veriler önceden yüklenir
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) WithEagerLoad() *MorphTo {
 	m.LoadingStrategy = EAGER_LOADING
 	return m
 }
 
-// WithLazyLoad sets the loading strategy to lazy loading
+// WithLazyLoad, yükleme stratejisini lazy loading olarak ayarlar.
+//
+// Lazy loading, ilişkili verileri ihtiyaç anında yükler.
+// Bellek tasarrufu sağlar ancak N+1 sorgu problemine neden olabilir.
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    WithLazyLoad()
+//	// İlişkili veriler ihtiyaç anında yüklenir
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) WithLazyLoad() *MorphTo {
 	m.LoadingStrategy = LAZY_LOADING
 	return m
 }
 
-// GetRelationshipType returns the relationship type
+// GetRelationshipType, ilişki türünü döndürür.
+//
+// MorphTo için her zaman "morphTo" döndürür.
+//
+// Döndürür:
+//   - "morphTo" string değeri
 func (m *MorphTo) GetRelationshipType() string {
 	return "morphTo"
 }
 
-// GetRelatedResource returns the related resource slug (not applicable for MorphTo)
+// GetRelatedResource, ilgili resource slug'ını döndürür.
+//
+// MorphTo için uygulanamaz çünkü birden fazla resource'a ait olabilir.
+// Her zaman boş string döndürür.
+//
+// Döndürür:
+//   - Boş string (MorphTo için uygulanamaz)
 func (m *MorphTo) GetRelatedResource() string {
 	return ""
 }
 
-// GetRelationshipName returns the relationship name
+// GetRelationshipName, ilişkinin adını döndürür.
+//
+// Döndürür:
+//   - İlişkinin adı (örn. "Commentable", "Imageable")
 func (m *MorphTo) GetRelationshipName() string {
 	return m.Name
 }
 
-// ResolveRelationship resolves the relationship by loading based on morph type
+// ResolveRelationship, polimorfik ilişkiyi morph type'a göre çözümler.
+//
+// Bu metod, reflection kullanarak struct'tan morph_type ve morph_id değerlerini çıkarır.
+// Farklı field adı varyasyonlarını (CamelCase, snake_case) destekler.
+//
+// # Parametreler
+//
+// - **item**: İlişkili verileri çözümlenecek kaynak
+//
+// # Döndürür
+//
+// Polimorfik ilişki bilgilerini içeren map:
+//   - **type**: Morph type değeri (örn. "post", "video")
+//   - **id**: Morph ID değeri (ilgili kaydın ID'si)
+//   - **morphToType**: Morph type değeri (alias)
+//   - **morphToId**: Morph ID değeri (alias)
+//
+// # Desteklenen Field Adları
+//
+// - Type için: "CommentableType", "Commentable_Type"
+// - ID için: "CommentableID", "CommentableId", "Commentable_ID", "Commentable_Id"
+//
+// # Kullanım Örneği
+//
+//	type Comment struct {
+//	    ID              int
+//	    CommentableType string  // "post" veya "video"
+//	    CommentableID   int     // İlgili kaydın ID'si
+//	    Content         string
+//	}
+//
+//	resolved, err := field.ResolveRelationship(comment)
+//	// resolved = {"type": "post", "id": 123, "morphToType": "post", "morphToId": 123}
+//
+// Döndürür:
+//   - İlişki bilgileri map'i veya nil
+//   - Hata (çözümleme başarısız olursa)
 func (m *MorphTo) ResolveRelationship(item interface{}) (interface{}, error) {
 	if item == nil {
 		return nil, nil
@@ -161,7 +416,25 @@ func (m *MorphTo) ResolveRelationship(item interface{}) (interface{}, error) {
 	}, nil
 }
 
-// Extract overrides Schema.Extract to handle MorphTo specific extraction
+// Extract, MorphTo'ya özgü veri çıkarma işlemini gerçekleştirir.
+//
+// Bu metod, Schema.Extract'ı override eder çünkü MorphTo struct'ta doğrudan bir field'a sahip değildir.
+// Bunun yerine, morph_type ve morph_id field'larından polimorfik ilişkiyi çözümler.
+//
+// # Parametreler
+//
+// - **resource**: Veri çıkarılacak kaynak
+//
+// # Önemli Notlar
+//
+// - Schema.Extract çağrılmaz çünkü MorphTo doğrudan bir field'a sahip değildir
+// - ResolveRelationship kullanılarak polimorfik ilişki çözümlenir
+// - Çözümlenen veriler m.Data'ya atanır
+//
+// # Kullanım Örneği
+//
+//	field.Extract(comment)
+//	// m.Data = {"type": "post", "id": 123, "morphToType": "post", "morphToId": 123}
 func (m *MorphTo) Extract(resource interface{}) {
 	// Don't call Schema.Extract because MorphTo doesn't have a direct field in the struct
 	// Instead, directly resolve the polymorphic relationship from type and id fields
@@ -169,24 +442,58 @@ func (m *MorphTo) Extract(resource interface{}) {
 	m.Data = resolved
 }
 
-// ValidateRelationship validates the relationship
+// ValidateRelationship, ilişkiyi doğrular.
+//
+// Bu metod, polimorfik ilişkinin geçerli olup olmadığını kontrol eder.
+// Gerçek implementasyonda, morph type'ın tip eşlemelerinde kayıtlı olup olmadığını kontrol eder.
+//
+// # Parametreler
+//
+// - **value**: Doğrulanacak değer
+//
+// # Döndürür
+//
+// - Hata (doğrulama başarısız olursa)
+//
+// # Önemli Notlar
+//
+// - Morph type, TypeMappings'te tanımlanmış olmalıdır
+// - Gerçek implementasyonda veritabanı kısıtlamaları kontrol edilir
 func (m *MorphTo) ValidateRelationship(value interface{}) error {
 	// Validate that morph type is registered
 	// In a real implementation, this would check that the type exists in the mapping
 	return nil
 }
 
-// GetDisplayKey returns the display key (not used for MorphTo)
+// GetDisplayKey, görüntüleme key'ini döndürür.
+//
+// MorphTo için kullanılmaz çünkü her tip farklı görüntüleme alanına sahip olabilir.
+// Her zaman boş string döndürür.
+//
+// Döndürür:
+//   - Boş string (MorphTo için uygulanamaz)
 func (m *MorphTo) GetDisplayKey() string {
 	return ""
 }
 
-// GetSearchableColumns returns the searchable columns (not used for MorphTo)
+// GetSearchableColumns, aranabilir sütunları döndürür.
+//
+// MorphTo için kullanılmaz çünkü polimorfik ilişkilerde doğrudan arama yapılmaz.
+// Her zaman boş slice döndürür.
+//
+// Döndürür:
+//   - Boş string slice (MorphTo için uygulanamaz)
 func (m *MorphTo) GetSearchableColumns() []string {
 	return []string{}
 }
 
-// GetQueryCallback returns the query callback
+// GetQueryCallback, sorgu callback'ini döndürür.
+//
+// Sorgu özelleştirme callback'i tanımlanmışsa onu döndürür,
+// aksi takdirde varsayılan (no-op) callback döndürür.
+//
+// Döndürür:
+//   - Sorgu özelleştirme callback fonksiyonu
 func (m *MorphTo) GetQueryCallback() func(interface{}) interface{} {
 	if m.QueryCallback == nil {
 		return func(q interface{}) interface{} { return q }
@@ -194,7 +501,13 @@ func (m *MorphTo) GetQueryCallback() func(interface{}) interface{} {
 	return m.QueryCallback
 }
 
-// GetLoadingStrategy returns the loading strategy
+// GetLoadingStrategy, yükleme stratejisini döndürür.
+//
+// Yükleme stratejisi tanımlanmışsa onu döndürür,
+// aksi takdirde varsayılan EAGER_LOADING döndürür.
+//
+// Döndürür:
+//   - EAGER_LOADING veya LAZY_LOADING
 func (m *MorphTo) GetLoadingStrategy() LoadingStrategy {
 	if m.LoadingStrategy == "" {
 		return EAGER_LOADING
@@ -202,7 +515,14 @@ func (m *MorphTo) GetLoadingStrategy() LoadingStrategy {
 	return m.LoadingStrategy
 }
 
-// GetTypes returns the type mappings
+// GetTypes, tip eşlemelerini döndürür.
+//
+// Bu metod, polimorfik ilişki için tanımlanmış tüm tip eşlemelerini döndürür.
+// Tip eşlemeleri, veritabanı tip değerleri ile resource slug'ları arasındaki ilişkiyi belirtir.
+//
+// Döndürür:
+//   - Tip değeri -> resource slug eşlemesi (örn. {"post": "posts", "video": "videos"})
+//   - Boş map (tip eşlemeleri tanımlanmamışsa)
 func (m *MorphTo) GetTypes() map[string]string {
 	if m.TypeMappings == nil {
 		return make(map[string]string)
@@ -210,7 +530,26 @@ func (m *MorphTo) GetTypes() map[string]string {
 	return m.TypeMappings
 }
 
-// GetResourceForType returns the resource slug for a given type
+// GetResourceForType, verilen tip için resource slug'ını döndürür.
+//
+// Bu metod, morph type değerine karşılık gelen resource slug'ını bulur.
+// Tip kayıtlı değilse hata döndürür.
+//
+// # Parametreler
+//
+// - **morphType**: Morph type değeri (örn. "post", "video")
+//
+// # Kullanım Örneği
+//
+//	resource, err := field.GetResourceForType("post")
+//	// resource = "posts"
+//
+//	resource, err := field.GetResourceForType("unknown")
+//	// err = "morph type 'unknown' is not registered"
+//
+// Döndürür:
+//   - Resource slug'ı (tip kayıtlıysa)
+//   - Hata (tip kayıtlı değilse)
 func (m *MorphTo) GetResourceForType(morphType string) (string, error) {
 	resource, ok := m.TypeMappings[morphType]
 	if !ok {
@@ -219,13 +558,28 @@ func (m *MorphTo) GetResourceForType(morphType string) (string, error) {
 	return resource, nil
 }
 
-// Searchable marks the element as searchable (implements Element interface)
+// Searchable, alanı aranabilir olarak işaretler.
+//
+// Bu metod, alanın global arama işlemlerine dahil edilmesini sağlar.
+// Element interface'ini implement eder.
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Searchable()
+//	// Bu alan global arama işlemlerine dahil edilir
+//
+// Döndürür:
+//   - Element interface'i (method chaining için)
 func (m *MorphTo) Searchable() Element {
 	m.GlobalSearch = true
 	return m
 }
 
-// IsRequired returns whether the field is required
+// IsRequired, alanın zorunlu olup olmadığını döndürür.
+//
+// Döndürür:
+//   - true ise alan zorunludur
 func (m *MorphTo) IsRequired() bool {
 	return m.Schema.IsRequired
 }

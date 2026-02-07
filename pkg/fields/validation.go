@@ -1,3 +1,8 @@
+// Package fields, admin panel için alan (field) tanımlamalarını sağlar.
+//
+// Bu dosya, alan doğrulama (validation) sistemini içerir.
+// Alanlar için çeşitli doğrulama kuralları tanımlanabilir ve bu kurallar
+// form gönderildiğinde otomatik olarak çalıştırılır.
 package fields
 
 import (
@@ -8,20 +13,55 @@ import (
 	"strings"
 )
 
-// ValidationRule represents a validation rule for a field
+// ValidationRule, bir alan için doğrulama kuralını temsil eder.
+//
+// Doğrulama kuralları, form verilerinin belirli kriterlere uygun olup olmadığını kontrol eder.
+// Her kural bir ad, parametreler ve hata mesajı içerir.
+//
+// # Kullanım Örneği
+//
+//	rule := fields.Required()
+//	rule := fields.MinLength(5)
+//	rule := fields.EmailRule()
+//
+// Daha fazla bilgi için docs/Fields.md dosyasına bakın.
 type ValidationRule struct {
-	Name       string        // Rule name (required, email, min, etc.)
-	Parameters []interface{} // Rule parameters
-	Message    string        // Error message
+	Name       string        // Kural adı (required, email, min, vb.)
+	Parameters []interface{} // Kural parametreleri
+	Message    string        // Hata mesajı
 }
 
-// ValidatorFunc is a function that validates a value
+// ValidatorFunc, bir değeri doğrulayan fonksiyondur.
+//
+// Bu tip, özel doğrulama mantığı tanımlamak için kullanılır.
+// Fonksiyon, değer geçerliyse nil, geçersizse hata döndürür.
+//
+// # Kullanım Örneği
+//
+//	validator := func(value interface{}, context interface{}) error {
+//	    if value == nil {
+//	        return fmt.Errorf("değer boş olamaz")
+//	    }
+//	    return nil
+//	}
 type ValidatorFunc func(value interface{}, context interface{}) error
 
-// ValidationResult represents the result of validation
+// ValidationResult, doğrulama sonucunu temsil eder.
+//
+// Bu yapı, doğrulama işleminin başarılı olup olmadığını ve
+// varsa hata mesajlarını içerir.
+//
+// # Kullanım Örneği
+//
+//	result := ValidationResult{
+//	    IsValid: false,
+//	    Errors: map[string][]string{
+//	        "email": {"Geçerli bir e-posta adresi giriniz"},
+//	    },
+//	}
 type ValidationResult struct {
-	IsValid bool
-	Errors  map[string][]string
+	IsValid bool                // Doğrulama başarılı mı?
+	Errors  map[string][]string // Alan adı -> hata mesajları
 }
 
 // Built-in validators

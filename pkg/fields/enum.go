@@ -1,13 +1,41 @@
+// Package fields, admin panel için alan (field) tanımlamalarını sağlar.
+//
+// Bu dosya, core paketinden type alias'ları ve constant'ları içe aktarır.
+// Bu sayede fields paketi, core paketine doğrudan bağımlı olmadan temel tipleri kullanabilir.
 package fields
 
 import "github.com/ferdiunal/panel.go/pkg/core"
 
+// ElementType, bir elemanın tipini belirtir.
+//
+// Bu tip, core.ElementType'ın bir alias'ıdır ve her field türünün (Text, Number, BelongsTo, vb.)
+// hangi UI bileşenini kullanacağını belirler.
+//
+// Daha fazla bilgi için pkg/core/element_type.go dosyasına bakın.
 type ElementType = core.ElementType
 
+// ElementContext, bir elemanın hangi bağlamda görüntüleneceğini belirtir.
+//
+// Bu tip, core.ElementContext'in bir alias'ıdır ve elemanların form, liste veya detay
+// sayfalarında görünürlüğünü kontrol eder.
+//
+// Daha fazla bilgi için pkg/core/element_context.go dosyasına bakın.
 type ElementContext = core.ElementContext
 
+// VisibilityContext, görünürlük kontrolü için bağlam bilgisini sağlar.
+//
+// Bu tip, core.VisibilityContext'in bir alias'ıdır ve elemanların hangi işlem
+// sırasında (oluşturma, güncelleme, listeleme, vb.) görüntüleneceğini belirler.
+//
+// Daha fazla bilgi için pkg/core/visibility_context.go dosyasına bakın.
 type VisibilityContext = core.VisibilityContext
 
+// Resolver, alan değerlerini çözümleyen interface'dir.
+//
+// Bu tip, core.Resolver'ın bir alias'ıdır ve özel alan değeri çözümleme mantığı
+// sağlamak için kullanılır.
+//
+// Daha fazla bilgi için pkg/core/resolver.go dosyasına bakın.
 type Resolver = core.Resolver
 
 const (
