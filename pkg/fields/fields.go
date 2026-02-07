@@ -39,6 +39,22 @@ func Text(name string, attribute ...string) *Schema {
 	return f
 }
 
+// Textarea, çok satırlı metin giriş alanı (textarea) oluşturur.
+func Textarea(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "textarea-field"
+	f.Type = TYPE_TEXTAREA
+	return f
+}
+
+// RichText, zengin metin editörü (WYSIWYG) alanı oluşturur.
+func RichText(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "richtext-field"
+	f.Type = TYPE_RICHTEXT
+	return f
+}
+
 // Password, şifre giriş alanı (input type="password") oluşturur.
 func Password(name string, attribute ...string) *Schema {
 	f := NewField(name, attribute...)

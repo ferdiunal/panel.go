@@ -12,6 +12,8 @@ type Resolver = core.Resolver
 
 const (
 	TYPE_TEXT            ElementType = core.TYPE_TEXT
+	TYPE_TEXTAREA        ElementType = core.TYPE_TEXTAREA
+	TYPE_RICHTEXT        ElementType = core.TYPE_RICHTEXT
 	TYPE_PASSWORD        ElementType = core.TYPE_PASSWORD
 	TYPE_NUMBER          ElementType = core.TYPE_NUMBER
 	TYPE_TEL             ElementType = core.TYPE_TEL
