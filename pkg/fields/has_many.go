@@ -132,6 +132,10 @@ func HasMany(name, key string, relatedResource interface{}) *HasManyField {
 	if resourceInstance != nil {
 		h.WithProps("related_resource_instance", resourceInstance)
 	}
+	// HasMany fields should not be shown in create/update forms
+	// They should be managed in separate interfaces
+	h.HideOnCreate()
+	h.HideOnUpdate()
 	return h
 }
 

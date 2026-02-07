@@ -392,7 +392,13 @@ func (s *Schema) SetKey(key string) Element {
 //	field := &Schema{Key: "id"}
 //	field.SetContext(HIDE_ON_FORM)
 func (s *Schema) SetContext(context ElementContext) Element {
-	s.Context = context
+	// Eğer mevcut context boş değilse ve yeni context farklıysa, birleştir
+	if s.Context != "" && s.Context != context {
+		// Context'i space-separated string olarak birleştir
+		s.Context = ElementContext(string(s.Context) + " " + string(context))
+	} else {
+		s.Context = context
+	}
 	return s
 }
 
