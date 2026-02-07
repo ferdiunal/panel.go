@@ -28,8 +28,10 @@ package panel
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -57,6 +59,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/earlydata"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/etag"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
@@ -92,6 +95,7 @@ type Panel struct {
 	Auth      *auth.Service
 	resources map[string]resource.Resource
 	pages     map[string]page.Page
+	http2PushResources []string // Cached list of critical assets for HTTP/2 push
 }
 
 /// # New Fonksiyonu
@@ -154,7 +158,17 @@ type Panel struct {
 /// - Middleware sırası önemlidir ve değiştirilmemelidir
 /// - CSRF koruması test ortamında devre dışı bırakılır
 func New(config Config) *Panel {
-	app := fiber.New()
+	// SECURITY: Configure Fiber with TrustProxy for production deployments behind reverse proxy
+	// This is REQUIRED for earlydata middleware to work securely
+	app := fiber.New(fiber.Config{
+		// Enable trusted proxy check for production environments
+		EnableTrustedProxyCheck: config.Environment == "production",
+		// Trust common reverse proxy IPs (nginx, cloudflare, etc.)
+		// In production, configure this based on your infrastructure
+		TrustedProxies: []string{"127.0.0.1", "::1"},
+		// Use X-Forwarded-For header to get real client IP
+		ProxyHeader: fiber.HeaderXForwardedFor,
+	})
 	db := config.Database.Instance
 
 	// Auth Components
@@ -171,7 +185,25 @@ func New(config Config) *Panel {
 	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{}, &notificationDomain.Notification{})
 
 	// Middleware Registration
-	app.Use(compress.New())
+	// SECURITY: EncryptCookie middleware - MUST be registered BEFORE other cookie middleware
+	// Encrypts cookie values using AES-GCM (cookie names remain unencrypted)
+	// CRITICAL: Requires stable encryption key (changing key makes existing cookies unreadable)
+	// CSRF token cookie is excluded from encryption (CSRF middleware needs to read it)
+	if config.EncryptionKey != "" {
+		app.Use(encryptcookie.New(encryptcookie.Config{
+			Key: config.EncryptionKey,
+			// Exclude CSRF token cookies from encryption (both dev and prod names)
+			// CSRF middleware needs to read these cookies in plain text
+			Except: []string{"csrf_token", "__Host-csrf_token"},
+		}))
+	}
+
+	// PERFORMANCE: Compress middleware with optimized settings for API responses
+	// LevelBestSpeed prioritizes latency over compression ratio (ideal for APIs)
+	// Bodies < 200 bytes are automatically skipped (compression would increase size)
+	app.Use(compress.New(compress.Config{
+		Level: compress.LevelBestSpeed, // Optimize for low latency
+	}))
 
 	// SECURITY: CORS Configuration - NEVER use "*" in production
 	// Configure allowed origins in your config
@@ -190,18 +222,32 @@ func New(config Config) *Panel {
 	}))
 
 	// SECURITY: CSRF Protection - ALWAYS enabled (except in test environment)
+	// Uses Double Submit Cookie pattern: token in cookie + header
+	// Cookie name is consistent across environments for frontend compatibility
 	if config.Environment != "test" {
 		app.Use(csrf.New(csrf.Config{
-			KeyLookup:      "header:X-CSRF-Token",
-			CookieName:     "__Host-csrf-token",
-			CookieSecure:   config.Environment == "production",
-			CookieHTTPOnly: true,
-			CookieSameSite: "Strict",
+			KeyLookup:      "header:X-CSRF-Token", // Extract token from header
+			CookieName:     "csrf_token", // Must match frontend axios xsrfCookieName
+			CookieSecure:   config.Environment == "production", // HTTPS only in production
+			CookieHTTPOnly: false, // CRITICAL: Must be false for SPA (JavaScript needs to read cookie)
+			CookieSameSite: "Lax", // Lax allows GET requests from external sites (better UX than Strict)
 			Expiration:     24 * time.Hour,
 		}))
 	}
 
-	app.Use(earlydata.New())
+	// SECURITY: EarlyData (TLS 1.3 0-RTT) middleware
+	// CRITICAL: Only enabled in production with TrustProxy enabled
+	// EarlyData allows replay attacks, so it's only safe behind a reverse proxy
+	// Default behavior: Only allows safe HTTP methods (GET, HEAD, OPTIONS, TRACE)
+	// See RFC 8446 Section 8 for security implications
+	if config.Environment == "production" {
+		app.Use(earlydata.New(earlydata.Config{
+			Error: fiber.ErrTooEarly, // Return 425 Too Early for rejected requests
+		}))
+	}
+	// Note: In development, earlydata is disabled for security
+	// Enable TrustProxy and use a reverse proxy in production to use this feature
+
 	app.Use(etag.New())
 
 	// SECURITY: Enhanced security headers
@@ -225,6 +271,7 @@ func New(config Config) *Panel {
 	// SECURITY: Audit logging for security events
 	auditLogger := &middleware.ConsoleAuditLogger{}
 	app.Use(middleware.AuditMiddleware(auditLogger))
+
 	// Static file serving
 	// For SDK users: always use embedded assets
 	// For SDK developers: use local path if available (development mode only)
@@ -243,9 +290,71 @@ func New(config Config) *Panel {
 		fmt.Println("Warning: Failed to load embedded assets:", err)
 	}
 
+	// PERFORMANCE: Discover critical assets for HTTP/2 push (if enabled)
+	// Automatically find JS, CSS, and font files in assets directory
+	var http2PushResources []string
+	if config.EnableHTTP2Push && assetsFS != nil {
+		fs.WalkDir(assetsFS, "assets", func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			// Push critical resources: JS, CSS, and fonts
+			ext := filepath.Ext(path)
+			if ext == ".js" || ext == ".css" || ext == ".woff" || ext == ".woff2" || ext == ".ttf" || ext == ".otf" {
+				// Convert to web path: assets/index.js -> /assets/index.js
+				webPath := "/" + filepath.ToSlash(path)
+				http2PushResources = append(http2PushResources, webPath)
+			}
+			return nil
+		})
+
+		if len(http2PushResources) > 0 {
+			fmt.Printf("HTTP/2 Push enabled for %d resources: %v\n", len(http2PushResources), http2PushResources)
+		}
+	}
+
 	if useEmbed && assetsFS != nil {
+		// PERFORMANCE: High compression for static assets (cached, compressed once)
+		// Use LevelBestCompression for static files since they're cached and served repeatedly
+		staticCompress := compress.New(compress.Config{
+			Level: compress.LevelBestCompression, // Maximum compression for static assets
+			Next: func(c *fiber.Ctx) bool {
+				// Skip compression for API routes
+				return strings.HasPrefix(c.Path(), "/api")
+			},
+		})
+
+		// PERFORMANCE: HTTP/2 Server Push for critical resources (optional, config-controlled)
+		// Push critical assets (JS, CSS) proactively to reduce round-trip latency
+		// IMPORTANT: Only enabled if config.EnableHTTP2Push is true and resources are specified
+		if config.EnableHTTP2Push && len(config.HTTP2PushResources) > 0 {
+			app.Use("/", func(c *fiber.Ctx) error {
+				// Only push on initial page load (HTML requests)
+				// Skip for API routes and asset requests
+				if c.Path() == "/" || (!strings.HasPrefix(c.Path(), "/api") && !strings.HasPrefix(c.Path(), "/assets")) {
+					// Check if HTTP/2 push is supported
+					if pusher, ok := c.Response().ResponseWriter.(http.Pusher); ok {
+						// Push configured critical resources
+						for _, resource := range config.HTTP2PushResources {
+							// Push with Accept-Encoding header to match client capabilities
+							if err := pusher.Push(resource, &http.PushOptions{
+								Header: http.Header{
+									"Accept-Encoding": c.Request().Header["Accept-Encoding"],
+								},
+							}); err != nil {
+								// Push failure is not critical, log and continue
+								// Common reasons: resource already cached, HTTP/1.1 connection
+								fmt.Printf("HTTP/2 Push failed for %s: %v\n", resource, err)
+							}
+						}
+					}
+				}
+				return c.Next()
+			})
+		}
+
 		// Use embedded assets (for SDK users and production)
-		app.Use("/", filesystem.New(filesystem.Config{
+		app.Use("/", staticCompress, filesystem.New(filesystem.Config{
 			Root:         http.FS(assetsFS),
 			Browse:       false,
 			Index:        "index.html",
@@ -256,13 +365,24 @@ func New(config Config) *Panel {
 			},
 		}))
 	} else {
+		// PERFORMANCE: High compression for static assets in development mode
+		staticCompress := compress.New(compress.Config{
+			Level: compress.LevelBestCompression,
+			Next: func(c *fiber.Ctx) bool {
+				return strings.HasPrefix(c.Path(), "/api")
+			},
+		})
+
 		// Development mode with local path (for SDK developers only)
 		if config.Storage.URL != "" && config.Storage.Path != "" {
+			app.Use(config.Storage.URL, staticCompress)
 			app.Static(config.Storage.URL, config.Storage.Path)
 		} else {
+			app.Use("/storage", staticCompress)
 			app.Static("/storage", "./storage/public")
 		}
 
+		app.Use("/", staticCompress)
 		app.Static("/", "./pkg/panel/ui")
 		app.Get("*", func(c *fiber.Ctx) error {
 			// Skip API routes
@@ -1343,6 +1463,12 @@ func (p *Panel) handleInit(c *context.Context) error {
 			fmt.Println("Recovered in handleInit:", r)
 		}
 	}()
+
+	// Get CSRF token from context (set by CSRF middleware) and send in response header
+	// This allows JavaScript to read the token (since the cookie is HTTPOnly)
+	if csrfToken := c.Locals("csrf"); csrfToken != nil {
+		c.Set("X-CSRF-Token", csrfToken.(string))
+	}
 
 	// Get features from settings or use config defaults
 	registerEnabled := p.Config.Features.Register

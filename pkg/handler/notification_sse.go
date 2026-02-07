@@ -7,6 +7,7 @@ import (
 
 	"github.com/ferdiunal/panel.go/pkg/context"
 	notificationDomain "github.com/ferdiunal/panel.go/pkg/domain/notification"
+	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -282,17 +283,27 @@ func NewNotificationSSEHandler(db *gorm.DB) *NotificationSSEHandler {
 // }
 // ```
 func (h *NotificationSSEHandler) HandleNotificationStream(c *context.Context) error {
-	// Kullanıcı kimliğini context'ten al
-	// Bu değer genellikle authentication middleware tarafından set edilir
-	userID := c.Locals("user_id")
+	// Kullanıcı objesini context'ten al
+	// Bu değer SessionMiddleware tarafından set edilir
+	user := c.Locals("user")
 
-	// Kullanıcı kimliği yoksa yetkisiz erişim hatası döndür
+	// Kullanıcı yoksa yetkisiz erişim hatası döndür
 	// SSE bağlantısı için authentication zorunludur
-	if userID == nil {
+	if user == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
+			"error": "Unauthorized - No user in context",
 		})
 	}
+
+	// User objesinden ID'yi al
+	userModel, ok := user.(*user.User)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized - Invalid user type",
+		})
+	}
+
+	userID := userModel.ID
 
 	// SSE için gerekli HTTP header'larını ayarla
 	// Bu header'lar tarayıcıya SSE bağlantısı olduğunu bildirir

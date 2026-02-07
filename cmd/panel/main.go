@@ -40,10 +40,10 @@ import (
 //go:embed stubs/*.stub
 var stubsFS embed.FS
 
-// skillsFS, .claude/skills dizinindeki tüm skill dosyalarını gömülü dosya sistemi
+// skillsFS, skills dizinindeki tüm skill dosyalarını gömülü dosya sistemi
 // olarak içerir. SDK kullanıcıları bu skill'leri kendi projelerine kopyalayabilir.
 //
-//go:embed ../../.claude/skills/**/*
+//go:embed skills/**/*
 var skillsFS embed.FS
 
 // Bu fonksiyon, Panel CLI uygulamasının ana giriş noktasıdır.
@@ -590,7 +590,6 @@ func publishStubs() {
 //   - Mevcut dosyalar üzerine yazılır
 //   - Claude Code otomatik olarak skill'leri yükler
 func publishSkills() {
-	sourceDir := "../../.claude/skills"
 	targetDir := ".claude/skills"
 
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
@@ -616,7 +615,7 @@ func publishSkills() {
 		}
 
 		// SKILL.md dosyasını kopyala
-		sourcePath := filepath.Join(sourceDir, skill, "SKILL.md")
+		sourcePath := filepath.Join("skills", skill, "SKILL.md")
 		content, err := skillsFS.ReadFile(sourcePath)
 		if err != nil {
 			fmt.Printf("Error reading skill %s: %v\n", skill, err)

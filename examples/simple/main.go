@@ -54,7 +54,7 @@ func main() {
 			Host: "localhost",
 			Port: "8787",
 		},
-		Environment: "development", // Forces usage of embedded assets
+		Environment: "test", // CSRF disabled for testing
 		// Storage: panel.StorageConfig{
 		// 	Path: "./storage/public",
 		// 	URL:  "/storage",
