@@ -28,7 +28,8 @@ func (r *ProductFieldResolver) ResolveFields(ctx *context.Context) []core.Elemen
 	return []core.Element{
 		fields.ID("ID").Sortable(),
 		fields.Text("Name", "name").Required().Sortable().Searchable(),
-		fields.Text("Description", "description"),
+		fields.Textarea("Description", "description").Searchable(),
+		fields.RichText("Details", "details"),
 		fields.Number("Price", "price").Required(),
 		fields.Number("Stock", "stock"),
 		fields.DateTime("Created At", "created_at").ReadOnly(),

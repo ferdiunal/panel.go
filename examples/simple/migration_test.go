@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ferdiunal/panel.go/examples/simple/blog"
@@ -389,10 +390,23 @@ func TestProducts_ModellessMigration(t *testing.T) {
 	}
 
 	// Check expected columns
-	expectedColumns := []string{"id", "name", "description", "price", "stock", "created_at", "updated_at", "deleted_at"}
+	expectedColumns := []string{"id", "name", "description", "details", "price", "stock", "created_at", "updated_at", "deleted_at"}
 	for _, expected := range expectedColumns {
 		assert.True(t, columnNames[expected], "Column %s should exist", expected)
 	}
+
+	// Verify SQL types
+	columnTypes := make(map[string]string)
+	for _, col := range columns {
+		columnTypes[col.Name] = strings.ToLower(col.Type)
+	}
+
+	// Text field → VARCHAR
+	assert.Contains(t, columnTypes["name"], "varchar", "name should be VARCHAR")
+	// Textarea field → TEXT
+	assert.Equal(t, "text", columnTypes["description"], "description should be TEXT")
+	// RichText field → TEXT
+	assert.Equal(t, "text", columnTypes["details"], "details should be TEXT")
 
 	// Test CRUD operations
 	t.Run("Create Product", func(t *testing.T) {

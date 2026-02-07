@@ -17,6 +17,12 @@ const (
 	// TYPE_TEXT represents a text input field.
 	TYPE_TEXT ElementType = "text"
 
+	// TYPE_TEXTAREA represents a multi-line text input field.
+	TYPE_TEXTAREA ElementType = "textarea"
+
+	// TYPE_RICHTEXT represents a rich text editor field (WYSIWYG).
+	TYPE_RICHTEXT ElementType = "richtext"
+
 	// TYPE_PASSWORD represents a password input field.
 	TYPE_PASSWORD ElementType = "password"
 

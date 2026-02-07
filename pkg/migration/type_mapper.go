@@ -29,7 +29,7 @@ func (tm *TypeMapper) MapFieldTypeToGo(fieldType fields.ElementType, nullable bo
 
 	switch fieldType {
 	// Metin Tipleri
-	case fields.TYPE_TEXT, fields.TYPE_PASSWORD:
+	case fields.TYPE_TEXT, fields.TYPE_PASSWORD, fields.TYPE_TEXTAREA, fields.TYPE_RICHTEXT:
 		baseType = reflect.TypeOf("")
 	case fields.TYPE_EMAIL:
 		baseType = reflect.TypeOf("")
@@ -101,6 +101,10 @@ func (tm *TypeMapper) MapFieldTypeToSQL(fieldType fields.ElementType, size int) 
 			return "varchar(" + itoa(size) + ")"
 		}
 		return "varchar(255)"
+
+	// Uzun Metin Tipleri (TEXT column)
+	case fields.TYPE_TEXTAREA, fields.TYPE_RICHTEXT:
+		return "text"
 
 	// Sayısal Tipler
 	case fields.TYPE_NUMBER:
