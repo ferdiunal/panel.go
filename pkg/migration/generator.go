@@ -19,10 +19,11 @@ type MigrationGenerator struct {
 
 // NewMigrationGenerator, yeni bir MigrationGenerator oluşturur.
 func NewMigrationGenerator(db *gorm.DB) *MigrationGenerator {
+	dialect := db.Dialector.Name()
 	return &MigrationGenerator{
 		db:         db,
 		resources:  []resource.Resource{},
-		typeMapper: NewTypeMapper(),
+		typeMapper: NewTypeMapperWithDialect(dialect),
 	}
 }
 
@@ -39,20 +40,17 @@ func (mg *MigrationGenerator) RegisterResources(resources ...resource.Resource) 
 }
 
 // AutoMigrate, kayıtlı tüm resource'ların modellerini migrate eder.
-// Model yoksa field-based migration kullanır.
+// Model olmayan resource'lar için hata döner.
 func (mg *MigrationGenerator) AutoMigrate() error {
 	for _, r := range mg.resources {
 		model := r.Model()
 		if model == nil {
-			// Model yoksa field-based migration kullan
-			if err := mg.createTableFromFields(r); err != nil {
-				return fmt.Errorf("field-based migration failed for %s: %w", r.Slug(), err)
-			}
-		} else {
-			// GORM AutoMigrate
-			if err := mg.db.AutoMigrate(model); err != nil {
-				return fmt.Errorf("migration failed for %s: %w", r.Slug(), err)
-			}
+			return fmt.Errorf("resource %s has no model - all resources must have a model for migration", r.Slug())
+		}
+
+		// GORM AutoMigrate
+		if err := mg.db.AutoMigrate(model); err != nil {
+			return fmt.Errorf("migration failed for %s: %w", r.Slug(), err)
 		}
 
 		// Field constraint'lerini uygula
@@ -510,185 +508,3 @@ func (mg *MigrationGenerator) GenerateModelStub(r resource.Resource) string {
 
 // createTableFromFields, resource'un field tanımlarından tablo oluşturur.
 // Model olmayan resource'lar için kullanılır.
-func (mg *MigrationGenerator) createTableFromFields(r resource.Resource) error {
-	tableName := mg.getTableName(r)
-
-	// Tablo zaten var mı kontrol et
-	if mg.db.Migrator().HasTable(tableName) {
-		// Tablo var, mevcut yapıyı güncelle (ALTER TABLE)
-		return mg.updateTableFromFields(r, tableName)
-	}
-
-	// Field'lardan SQL column tanımları oluştur
-	var columns []string
-
-	// ID column (primary key)
-	columns = append(columns, "id INTEGER PRIMARY KEY AUTOINCREMENT")
-
-	// Timestamp field'larını takip et
-	hasCreatedAt := false
-	hasUpdatedAt := false
-	hasDeletedAt := false
-
-	// Field'lardan column'lar
-	for _, field := range r.Fields() {
-		// İlişkisel field'ları kontrol et
-		if relField, ok := fields.IsRelationshipField(field); ok {
-			// BelongsTo için foreign key column'u ekle
-			if relField.GetRelationshipType() == "belongsTo" {
-				if bt, ok := relField.(*fields.BelongsTo); ok {
-					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
-						fkColumn := bt.GormRelationConfig.ForeignKey
-						// Foreign key column
-						columns = append(columns, fmt.Sprintf("%s INTEGER", fkColumn))
-					}
-				}
-			}
-			// Diğer ilişki tipleri için column ekleme (HasOne, HasMany, BelongsToMany için column yok)
-			continue
-		}
-
-		// Normal field'lar
-		schema, ok := field.(*fields.Schema)
-		if !ok {
-			continue
-		}
-
-		if schema.Key == "id" {
-			continue // ID zaten eklendi
-		}
-
-		// Timestamp field'larını takip et
-		if schema.Key == "created_at" {
-			hasCreatedAt = true
-		} else if schema.Key == "updated_at" {
-			hasUpdatedAt = true
-		} else if schema.Key == "deleted_at" {
-			hasDeletedAt = true
-		}
-
-		// SQL type
-		sqlType := mg.typeMapper.MapFieldTypeToSQL(schema.Type, 0)
-
-		// Column definition
-		columnDef := fmt.Sprintf("%s %s", schema.Key, sqlType)
-
-		// NOT NULL
-		if schema.IsRequired && !schema.IsNullable {
-			columnDef += " NOT NULL"
-		}
-
-		// Default value
-		if schema.HasGormConfig() {
-			config := schema.GetGormConfig()
-			if config.Default != "" {
-				columnDef += fmt.Sprintf(" DEFAULT %s", config.Default)
-			}
-		}
-
-		columns = append(columns, columnDef)
-	}
-
-	// Timestamp columns (sadece field'larda tanımlanmamışsa ekle)
-	if !hasCreatedAt {
-		columns = append(columns, "created_at DATETIME")
-	}
-	if !hasUpdatedAt {
-		columns = append(columns, "updated_at DATETIME")
-	}
-	if !hasDeletedAt {
-		columns = append(columns, "deleted_at DATETIME") // Soft delete
-	}
-
-	// CREATE TABLE SQL
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n\t%s\n)", tableName, strings.Join(columns, ",\n\t"))
-
-	// Execute
-	if err := mg.db.Exec(sql).Error; err != nil {
-		return fmt.Errorf("failed to create table %s: %w", tableName, err)
-	}
-
-	return nil
-}
-
-// updateTableFromFields, mevcut tabloyu field tanımlarına göre günceller.
-// Eksik column'ları ekler, mevcut column'ları değiştirmez (güvenli).
-func (mg *MigrationGenerator) updateTableFromFields(r resource.Resource, tableName string) error {
-	// Mevcut column'ları al
-	type ColumnInfo struct {
-		Name string
-	}
-	var existingColumns []ColumnInfo
-
-	// SQLite için column listesi
-	mg.db.Raw(fmt.Sprintf("PRAGMA table_info(%s)", tableName)).Scan(&existingColumns)
-
-	existingColumnMap := make(map[string]bool)
-	for _, col := range existingColumns {
-		existingColumnMap[col.Name] = true
-	}
-
-	// Eksik column'ları ekle
-	for _, field := range r.Fields() {
-		// İlişkisel field'ları kontrol et
-		if relField, ok := fields.IsRelationshipField(field); ok {
-			// BelongsTo için foreign key column'u
-			if relField.GetRelationshipType() == "belongsTo" {
-				if bt, ok := relField.(*fields.BelongsTo); ok {
-					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
-						fkColumn := bt.GormRelationConfig.ForeignKey
-						if !existingColumnMap[fkColumn] {
-							// Column ekle
-							sql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s INTEGER", tableName, fkColumn)
-							if err := mg.db.Exec(sql).Error; err != nil {
-								return fmt.Errorf("failed to add column %s: %w", fkColumn, err)
-							}
-						}
-					}
-				}
-			}
-			continue
-		}
-
-		// Normal field'lar
-		schema, ok := field.(*fields.Schema)
-		if !ok {
-			continue
-		}
-
-		if schema.Key == "id" {
-			continue
-		}
-
-		// Column zaten var mı?
-		if existingColumnMap[schema.Key] {
-			continue
-		}
-
-		// SQL type
-		sqlType := mg.typeMapper.MapFieldTypeToSQL(schema.Type, 0)
-
-		// Column definition
-		columnDef := fmt.Sprintf("%s %s", schema.Key, sqlType)
-
-		// NOT NULL (dikkat: mevcut tabloya NOT NULL column eklerken default value gerekir)
-		if schema.IsRequired && !schema.IsNullable {
-			// Mevcut tabloya NOT NULL column eklerken default value ekle
-			if schema.HasGormConfig() {
-				config := schema.GetGormConfig()
-				if config.Default != "" {
-					columnDef += fmt.Sprintf(" DEFAULT %s NOT NULL", config.Default)
-				}
-				// Default value yoksa, NULL'a izin ver (NOT NULL ekleme)
-			}
-		}
-
-		// ALTER TABLE ADD COLUMN
-		sql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", tableName, columnDef)
-		if err := mg.db.Exec(sql).Error; err != nil {
-			return fmt.Errorf("failed to add column %s: %w", schema.Key, err)
-		}
-	}
-
-	return nil
-}
