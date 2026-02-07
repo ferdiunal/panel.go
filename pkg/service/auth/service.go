@@ -45,11 +45,20 @@ func (s *Service) RegisterEmail(ctx context.Context, name, email, password strin
 		return nil, err
 	}
 
+	// Determine role: first user is admin, others are regular users
+	role := "user"
+	userCount, err := s.userRepo.Count(ctx)
+	if err == nil && userCount == 0 {
+		// This is the first user, make them admin
+		role = "admin"
+	}
+
 	// Create User
 	u := &user.User{
 		Name:          name,
 		Email:         email,
 		EmailVerified: false,
+		Role:          role,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}

@@ -63,6 +63,14 @@ func (r *UserRepository) DeleteUser(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&user.User{}, "id = ?", id).Error
 }
 
+func (r *UserRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&user.User{}).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *UserRepository) Show(ctx *pkgContext.Context, id string) (interface{}, error) {
 	return r.GormDataProvider.Show(ctx, id)
 }
