@@ -28,12 +28,24 @@ func NewProductResource() *ProductResource {
 func (r *ProductFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
 	return []core.Element{
 		fields.ID("ID").Sortable(),
-		fields.Text("Name", "name").Required().Sortable().Searchable(),
-		fields.Textarea("Description", "description").Searchable(),
-		fields.RichText("Details", "details"),
-		fields.Number("Price", "price").Required(),
-		fields.Number("Stock", "stock"),
-		fields.DateTime("Created At", "created_at").ReadOnly(),
-		fields.DateTime("Updated At", "updated_at").ReadOnly(),
+
+		// Basic Information Panel
+		fields.Panel("Basic Information",
+			fields.Text("Name", "name").Required().Sortable().Searchable(),
+			fields.Number("Price", "price").Required(),
+			fields.Number("Stock", "stock"),
+		).WithDescription("Product basic details").WithColumns(2),
+
+		// Description Panel
+		fields.Panel("Description",
+			fields.Textarea("Short Description", "description").Searchable(),
+			fields.RichText("Full Details", "details"),
+		).WithDescription("Product descriptions and details").Collapsible(),
+
+		// Metadata Panel
+		fields.Panel("Metadata",
+			fields.DateTime("Created At", "created_at").ReadOnly(),
+			fields.DateTime("Updated At", "updated_at").ReadOnly(),
+		).WithDescription("System information").WithColumns(2).DefaultCollapsed(),
 	}
 }

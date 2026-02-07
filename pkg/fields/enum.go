@@ -34,6 +34,7 @@ const (
 	TYPE_POLY_CONNECT    ElementType = core.TYPE_POLY_CONNECT
 	TYPE_BOOLEAN         ElementType = core.TYPE_BOOLEAN
 	TYPE_SELECT          ElementType = core.TYPE_SELECT
+	TYPE_PANEL           ElementType = core.TYPE_PANEL
 	TYPE_RELATIONSHIP    ElementType = core.TYPE_RELATIONSHIP
 )
 
