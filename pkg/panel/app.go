@@ -325,28 +325,35 @@ func New(config Config) *Panel {
 		})
 
 		// PERFORMANCE: HTTP/2 Server Push for critical resources (optional, config-controlled)
-		// Push critical assets (JS, CSS) proactively to reduce round-trip latency
-		// IMPORTANT: Only enabled if config.EnableHTTP2Push is true and resources are specified
-		if config.EnableHTTP2Push && len(config.HTTP2PushResources) > 0 {
+		// Push critical assets (JS, CSS, fonts) proactively to reduce round-trip latency
+		// Uses Link header with rel=preload (works with both HTTP/1.1 and HTTP/2)
+		// IMPORTANT: Only enabled if config.EnableHTTP2Push is true and resources are discovered
+		if config.EnableHTTP2Push && len(http2PushResources) > 0 {
 			app.Use("/", func(c *fiber.Ctx) error {
 				// Only push on initial page load (HTML requests)
 				// Skip for API routes and asset requests
 				if c.Path() == "/" || (!strings.HasPrefix(c.Path(), "/api") && !strings.HasPrefix(c.Path(), "/assets")) {
-					// Check if HTTP/2 push is supported
-					if pusher, ok := c.Response().ResponseWriter.(http.Pusher); ok {
-						// Push configured critical resources
-						for _, resource := range config.HTTP2PushResources {
-							// Push with Accept-Encoding header to match client capabilities
-							if err := pusher.Push(resource, &http.PushOptions{
-								Header: http.Header{
-									"Accept-Encoding": c.Request().Header["Accept-Encoding"],
-								},
-							}); err != nil {
-								// Push failure is not critical, log and continue
-								// Common reasons: resource already cached, HTTP/1.1 connection
-								fmt.Printf("HTTP/2 Push failed for %s: %v\n", resource, err)
-							}
+					// Use Link header for HTTP/2 Server Push
+					// This works with both HTTP/1.1 (as preload hint) and HTTP/2 (as server push)
+					var links []string
+					for _, resource := range http2PushResources {
+						// Determine resource type from extension
+						ext := filepath.Ext(resource)
+						var asType string
+						switch ext {
+						case ".js":
+							asType = "script"
+						case ".css":
+							asType = "style"
+						case ".woff", ".woff2", ".ttf", ".otf":
+							asType = "font"
+						default:
+							asType = "fetch"
 						}
+						links = append(links, fmt.Sprintf("<%s>; rel=preload; as=%s", resource, asType))
+					}
+					if len(links) > 0 {
+						c.Set("Link", strings.Join(links, ", "))
 					}
 				}
 				return c.Next()
