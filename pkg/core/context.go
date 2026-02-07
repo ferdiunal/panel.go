@@ -2,6 +2,14 @@ package core
 
 import "github.com/gofiber/fiber/v2"
 
+// Notification represents a user notification (lightweight version for context)
+type Notification struct {
+	Message  string `json:"message"`
+	Type     string `json:"type"`
+	Duration int    `json:"duration"`
+	UserID   *uint  `json:"user_id,omitempty"`
+}
+
 // ResourceContext holds the context during a resource operation.
 // It contains the resource being operated on, the elements (fields) associated with it,
 // visibility context, the item being operated on, the user performing the operation,
@@ -41,6 +49,9 @@ type ResourceContext struct {
 
 	// Request is the Fiber HTTP context.
 	Request *fiber.Ctx
+
+	// Notifications are the notifications to be sent to the user
+	Notifications []Notification
 }
 
 // ResourceContextKey is the key used to store ResourceContext in fiber.Locals.
@@ -61,6 +72,7 @@ func NewResourceContext(c *fiber.Ctx, resource any, elements []Element) *Resourc
 		Elements:       elements,
 		Request:        c,
 		fieldResolvers: make(map[string]Resolver),
+		Notifications:  []Notification{},
 	}
 }
 
@@ -97,6 +109,7 @@ func NewResourceContextWithVisibility(
 		Elements:       elements,
 		Request:        c,
 		fieldResolvers: make(map[string]Resolver),
+		Notifications:  []Notification{},
 	}
 }
 
@@ -179,4 +192,38 @@ func (rc *ResourceContext) GetResourceMetadata() map[string]interface{} {
 		"has_item":           rc.Item != nil,
 		"has_user":           rc.User != nil,
 	}
+}
+
+// Notify adds a notification to the context
+func (rc *ResourceContext) Notify(message string, notifType string) {
+	rc.Notifications = append(rc.Notifications, Notification{
+		Message:  message,
+		Type:     notifType,
+		Duration: 3000,
+	})
+}
+
+// NotifySuccess adds a success notification
+func (rc *ResourceContext) NotifySuccess(message string) {
+	rc.Notify(message, "success")
+}
+
+// NotifyError adds an error notification
+func (rc *ResourceContext) NotifyError(message string) {
+	rc.Notify(message, "error")
+}
+
+// NotifyWarning adds a warning notification
+func (rc *ResourceContext) NotifyWarning(message string) {
+	rc.Notify(message, "warning")
+}
+
+// NotifyInfo adds an info notification
+func (rc *ResourceContext) NotifyInfo(message string) {
+	rc.Notify(message, "info")
+}
+
+// GetNotifications returns all notifications
+func (rc *ResourceContext) GetNotifications() []Notification {
+	return rc.Notifications
 }

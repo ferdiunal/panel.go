@@ -14,6 +14,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/notification"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/widget"
 	"github.com/iancoleman/strcase"
@@ -23,16 +24,17 @@ import (
 )
 
 type FieldHandler struct {
-	DB          *gorm.DB
-	Provider    data.DataProvider
-	Elements    []fields.Element
-	Policy      auth.Policy
-	StoragePath string
-	StorageURL  string
-	Resource    resource.Resource
-	Cards       []widget.Card
-	Title       string
-	DialogType  resource.DialogType
+	DB                  *gorm.DB
+	Provider            data.DataProvider
+	Elements            []fields.Element
+	Policy              auth.Policy
+	StoragePath         string
+	StorageURL          string
+	Resource            resource.Resource
+	Cards               []widget.Card
+	Title               string
+	DialogType          resource.DialogType
+	NotificationService *notification.Service
 }
 
 func NewFieldHandler(provider data.DataProvider) *FieldHandler {
@@ -91,17 +93,21 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	}
 	provider.SetWith(withRels)
 
+	// Initialize notification service
+	notificationService := notification.NewService(db)
+
 	return &FieldHandler{
-		DB:          db,
-		Provider:    provider,
-		Elements:    res.Fields(),
-		Policy:      res.Policy(),
-		Resource:    res,
-		StoragePath: storagePath,
-		StorageURL:  storageURL,
-		Cards:       cards,
-		Title:       res.Title(),
-		DialogType:  res.GetDialogType(),
+		DB:                  db,
+		Provider:            provider,
+		Elements:            res.Fields(),
+		Policy:              res.Policy(),
+		Resource:            res,
+		StoragePath:         storagePath,
+		StorageURL:          storageURL,
+		Cards:               cards,
+		Title:               res.Title(),
+		DialogType:          res.GetDialogType(),
+		NotificationService: notificationService,
 	}
 }
 

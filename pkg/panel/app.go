@@ -12,6 +12,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data/orm"
 	"github.com/ferdiunal/panel.go/pkg/domain/account"
+	notificationDomain "github.com/ferdiunal/panel.go/pkg/domain/notification"
 	"github.com/ferdiunal/panel.go/pkg/domain/session"
 	"github.com/ferdiunal/panel.go/pkg/domain/setting"
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
@@ -20,6 +21,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/handler"
 	authHandler "github.com/ferdiunal/panel.go/pkg/handler/auth"
 	"github.com/ferdiunal/panel.go/pkg/middleware"
+	"github.com/ferdiunal/panel.go/pkg/notification"
 	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/permission"
 	"github.com/ferdiunal/panel.go/pkg/resource"
@@ -64,7 +66,7 @@ func New(config Config) *PanelField {
 	authH := authHandler.NewHandler(authService, accountLockout, config.Environment)
 
 	// Auto Migrate Auth Domains
-	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{})
+	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{}, &notificationDomain.Notification{})
 
 	// Middleware Registration
 	app.Use(compress.New())
@@ -262,6 +264,13 @@ func New(config Config) *PanelField {
 	api.Put("/resource/:resource/:id", context.Wrap(p.handleResourceUpdate))
 	api.Delete("/resource/:resource/:id", context.Wrap(p.handleResourceDestroy))
 	api.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
+
+	// Notification Routes
+	notificationService := notification.NewService(db)
+	notificationHandler := handler.NewNotificationHandler(notificationService)
+	api.Get("/notifications", context.Wrap(notificationHandler.HandleGetUnreadNotifications))
+	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
+	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
 
 	// /resolve endpoint for dynamic routing check
 	api.Get("/resolve", context.Wrap(p.handleResolve))

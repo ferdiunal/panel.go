@@ -23,5 +23,36 @@ func HandleResourceStore(h *FieldHandler, c *context.Context) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": h.resolveResourceFields(c.Ctx, c.Resource(), result, h.Elements)})
+	// Add default success notification if none exists
+	if c.Resource() != nil {
+		notifications := c.Resource().GetNotifications()
+		if len(notifications) == 0 {
+			c.Resource().NotifySuccess("Record created successfully")
+		}
+	}
+
+	// Save notifications to database
+	if c.Resource() != nil && h.NotificationService != nil {
+		if err := h.NotificationService.SaveNotifications(c.Resource()); err != nil {
+			// Log error but don't fail the request
+			// fmt.Printf("Failed to save notifications: %v\n", err)
+		}
+	}
+
+	// Get notifications for response
+	var notificationsResponse []map[string]interface{}
+	if c.Resource() != nil {
+		for _, notif := range c.Resource().GetNotifications() {
+			notificationsResponse = append(notificationsResponse, map[string]interface{}{
+				"message":  notif.Message,
+				"type":     notif.Type,
+				"duration": notif.Duration,
+			})
+		}
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"data":          h.resolveResourceFields(c.Ctx, c.Resource(), result, h.Elements),
+		"notifications": notificationsResponse,
+	})
 }
