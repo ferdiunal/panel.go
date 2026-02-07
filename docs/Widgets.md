@@ -1,6 +1,6 @@
 # Widget'lar (Cards)
 
-Widget'lar (veya Cards), resource'larınızın özet bilgilerini, grafiklerini ve metriklerini göstermenize olanak tanır. Laravel Nova Metrics sistemine benzer bir yapı sunar.
+Widget'lar (veya Cards), resource'larınızın özet bilgilerini, grafiklerini ve metriklerini göstermenize olanak tanır.
 
 ## Kullanılabilir Kart Tipleri
 
