@@ -7,16 +7,84 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserResource, kullanıcı kaynağını temsil eder
+// Bu yapı, panel yönetim sisteminde kullanıcı kaynağını (resource) temsil eder.
+//
+// UserResource, CRUD işlemleri, yetkilendirme, alan çözümleme ve veri sağlama
+// gibi kullanıcı yönetimi ile ilgili tüm işlevleri kapsüller. OptimizedBase
+// yapısından kalıtım alarak, panel sisteminin temel kaynak özelliklerini
+// otomatik olarak miras alır.
+//
+// # Kullanım Senaryoları
+//
+// - Kullanıcı listesi görüntüleme ve yönetimi
+// - Yeni kullanıcı oluşturma ve düzenleme
+// - Kullanıcı silme ve geri yükleme
+// - Kullanıcı izinleri ve rolleri yönetimi
+// - Kullanıcı profil bilgilerinin görüntülenmesi
+//
+// # Önemli Notlar
+//
+// - UserResource, OptimizedBase'den kalıtım alarak performans optimizasyonlarından faydalanır
+// - Tüm CRUD işlemleri UserPolicy tarafından yetkilendirilir
+// - Alan çözümleme UserFieldResolver tarafından yönetilir
+// - Kart görünümü UserCardResolver tarafından işlenir
+//
+// # Örnek Kullanım
+//
+//	userResource := NewUserResource()
+//	// userResource artık panel sistemine kaydedilebilir ve kullanılabilir
 type UserResource struct {
+	// OptimizedBase, panel sisteminin temel kaynak özelliklerini sağlar.
+	// Bu yapı, model tanımı, slug, başlık, ikon, grup, görünürlük,
+	// navigasyon sırası, yetkilendirme politikası, alan çözümleyici,
+	// kart çözümleyici ve veri sağlayıcı gibi özellikleri içerir.
 	resource.OptimizedBase
 }
 
-// NewUserResource, yeni bir UserResource oluşturur
+// Bu fonksiyon, yeni bir UserResource örneği oluşturur ve tüm gerekli
+// konfigürasyonları uygulayarak hazır hale getirir.
+//
+// # Fonksiyon Açıklaması
+//
+// NewUserResource, UserResource yapısının factory fonksiyonudur. Yeni bir
+// UserResource örneği oluşturur, tüm temel ayarları yapılandırır ve panel
+// sistemine entegre olmak için gerekli tüm bileşenleri (policy, resolver'lar)
+// atanır.
+//
+// # Dönüş Değeri
+//
+// Döndürür: - Tam olarak yapılandırılmış UserResource pointer'ı
+//
+// # Yapılandırılan Özellikler
+//
+// - Model: domainUser.User (kullanıcı domain modeli)
+// - Slug: "users" (URL'de kullanılan benzersiz tanımlayıcı)
+// - Başlık: "Users" (UI'da gösterilen başlık)
+// - İkon: "users" (UI'da gösterilen ikon)
+// - Grup: "System" (panel menüsünde gösterileceği grup)
+// - Görünürlük: true (panel menüsünde görünür)
+// - Navigasyon Sırası: 1 (menüde gösterilme sırası)
+// - Yetkilendirme Politikası: UserPolicy (erişim kontrolü)
+// - Alan Çözümleyici: UserFieldResolver (alan işleme)
+// - Kart Çözümleyici: UserCardResolver (kart görünümü işleme)
+//
+// # Kullanım Örneği
+//
+//	userResource := NewUserResource()
+//	// userResource artık panel sistemine kaydedilebilir
+//	panel.RegisterResource(userResource)
+//
+// # Önemli Notlar
+//
+// - Bu fonksiyon her çağrıldığında yeni bir UserResource örneği oluşturur
+// - Tüm ayarlar sırasıyla uygulanır, bu nedenle sıra önemlidir
+// - UserPolicy, UserFieldResolver ve UserCardResolver paketinde tanımlanmış olmalıdır
+// - Oluşturulan kaynak, panel sistemine kaydedilmeden önce ek konfigürasyonlar yapılabilir
 func NewUserResource() *UserResource {
 	r := &UserResource{}
 
-	// Core ayarları yap
+	// Temel kaynak ayarlarını yapılandır
+	// Model, slug, başlık, ikon ve grup gibi temel özellikleri tanımla
 	r.SetModel(&domainUser.User{})
 	r.SetSlug("users")
 	r.SetTitle("Users")
@@ -26,16 +94,60 @@ func NewUserResource() *UserResource {
 	r.SetNavigationOrder(1)
 
 	// Yetkilendirme politikasını ayarla
+	// UserPolicy, bu kaynağa erişim kontrolü sağlar
 	r.SetPolicy(&UserPolicy{})
 
-	// Resolver'ları ayarla
+	// Alan ve kart çözümleyicilerini ayarla
+	// UserFieldResolver, alan işleme ve görüntüleme mantığını yönetir
+	// UserCardResolver, kart görünümü işleme mantığını yönetir
 	r.SetFieldResolver(&UserFieldResolver{})
 	r.SetCardResolver(&UserCardResolver{})
 
 	return r
 }
 
-// Repository, UserResource için özel repository'yi döner
+// Bu metod, UserResource için özel bir veri sağlayıcı (data provider) oluşturur
+// ve döndürür.
+//
+// # Metod Açıklaması
+//
+// Repository metodu, verilen GORM veritabanı bağlantısını kullanarak
+// UserResource için özel bir veri sağlayıcı oluşturur. Bu veri sağlayıcı,
+// kullanıcı verilerine erişim, sorgu, filtreleme ve manipülasyon işlemlerini
+// yönetir.
+//
+// # Parametreler
+//
+// - db (*gorm.DB): GORM veritabanı bağlantısı. Bu bağlantı, veri sağlayıcı
+//   tarafından tüm veritabanı işlemleri için kullanılır.
+//
+// # Dönüş Değeri
+//
+// Döndürür: - Yapılandırılmış UserDataProvider pointer'ı (data.DataProvider interface'ini uygular)
+//
+// # Kullanım Senaryoları
+//
+// - Kullanıcı verilerini veritabanından sorgulamak
+// - Yeni kullanıcı kayıtları oluşturmak
+// - Mevcut kullanıcı bilgilerini güncellemek
+// - Kullanıcı kayıtlarını silmek
+// - Kullanıcı verilerini filtrelemek ve sıralamak
+//
+// # Kullanım Örneği
+//
+//	userResource := NewUserResource()
+//	db := gorm.Open(sqlite.Open("test.db"))
+//	dataProvider := userResource.Repository(db)
+//	// dataProvider artık kullanıcı verilerine erişmek için kullanılabilir
+//
+// # Önemli Notlar
+//
+// - Bu metod, her çağrıldığında yeni bir UserDataProvider örneği oluşturur
+// - Verilen db bağlantısı, veri sağlayıcı tarafından tüm işlemler boyunca kullanılır
+// - UserDataProvider, data.DataProvider interface'ini uygulamalıdır
+// - Veritabanı bağlantısı geçerli ve açık olmalıdır
+// - Bağlantı kapatıldıktan sonra veri sağlayıcı kullanılamaz
+// - Hata yönetimi, veri sağlayıcı tarafından yapılır
 func (r *UserResource) Repository(db *gorm.DB) data.DataProvider {
 	return NewUserDataProvider(db)
 }
