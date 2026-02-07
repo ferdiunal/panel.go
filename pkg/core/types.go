@@ -88,6 +88,18 @@ const (
 
 	// TYPE_RELATIONSHIP represents a relationship field.
 	TYPE_RELATIONSHIP ElementType = "relationship"
+
+	// TYPE_BADGE represents a badge/status display field.
+	TYPE_BADGE ElementType = "badge"
+
+	// TYPE_CODE represents a code editor field with syntax highlighting.
+	TYPE_CODE ElementType = "code"
+
+	// TYPE_COLOR represents a color picker field.
+	TYPE_COLOR ElementType = "color"
+
+	// TYPE_BOOLEAN_GROUP represents a group of boolean checkboxes.
+	TYPE_BOOLEAN_GROUP ElementType = "boolean_group"
 )
 
 // Element context constants define where elements are displayed.
