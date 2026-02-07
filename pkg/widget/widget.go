@@ -9,9 +9,11 @@ import (
 type CardType string
 
 const (
-	CardTypeValue CardType = "value"
-	CardTypeTrend CardType = "trend"
-	CardTypeTable CardType = "table"
+	CardTypeValue     CardType = "value"
+	CardTypeTrend     CardType = "trend"
+	CardTypeTable     CardType = "table"
+	CardTypePartition CardType = "partition"
+	CardTypeProgress  CardType = "progress"
 )
 
 // Card matches Laravel Nova's Card concept.
