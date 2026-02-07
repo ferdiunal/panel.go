@@ -4,25 +4,51 @@ import (
 	"context"
 )
 
-// RelationshipSort handles sorting functionality for relationships
+// RelationshipSort, ilişkiler için sıralama işlevselliğini yönetir.
+//
+// Bu interface, ilişkili kayıtları sıralamak için metodlar sağlar.
+// Tek veya çoklu sıralamalar uygulanabilir.
+//
+// # Kullanım Örneği
+//
+//	sort := fields.NewRelationshipSort(field)
+//	results, err := sort.ApplySort(ctx, "created_at", "DESC")
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipSort interface {
-	// ApplySort applies a sort to the relationship query
+	// ApplySort, ilişki sorgusuna bir sıralama uygular
 	ApplySort(ctx context.Context, column string, direction string) ([]interface{}, error)
 
-	// ApplyMultipleSorts applies multiple sorts
+	// ApplyMultipleSorts, birden fazla sıralama uygular
 	ApplyMultipleSorts(ctx context.Context, sorts map[string]string) ([]interface{}, error)
 
-	// RemoveSort removes a sort and uses default sort order
+	// RemoveSort, sıralamayı kaldırır ve varsayılan sıralama düzenini kullanır
 	RemoveSort(ctx context.Context) ([]interface{}, error)
 }
 
-// RelationshipSortImpl implements RelationshipSort
+// RelationshipSortImpl, RelationshipSort interface'ini implement eder.
+//
+// Bu yapı, ilişki sıralama işlemlerini gerçekleştirir.
+// Sıralamalar saklanır ve sorguya uygulanır.
 type RelationshipSortImpl struct {
 	field RelationshipField
 	sorts map[string]string
 }
 
-// NewRelationshipSort creates a new relationship sort handler
+// NewRelationshipSort, yeni bir relationship sort handler oluşturur.
+//
+// Bu fonksiyon, verilen field için sıralama handler'ı döndürür.
+//
+// # Parametreler
+//
+// - **field**: İlişki field'ı
+//
+// # Kullanım Örneği
+//
+//	sort := fields.NewRelationshipSort(field)
+//
+// Döndürür:
+//   - Yapılandırılmış RelationshipSortImpl pointer'ı
 func NewRelationshipSort(field RelationshipField) *RelationshipSortImpl {
 	return &RelationshipSortImpl{
 		field: field,

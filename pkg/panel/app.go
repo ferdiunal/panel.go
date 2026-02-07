@@ -124,13 +124,25 @@ func New(config Config) *Panel {
 	auditLogger := &middleware.ConsoleAuditLogger{}
 	app.Use(middleware.AuditMiddleware(auditLogger))
 	// Static file serving
-	useEmbed := config.Environment != "development"
+	// For SDK users: always use embedded assets
+	// For SDK developers: use local path if available (development mode only)
+	useEmbed := true
+	localUIPath := "./pkg/panel/ui/index.html"
+
+	// Check if we're in SDK development mode (local UI files exist)
+	if config.Environment == "development" {
+		if _, statErr := os.Stat(localUIPath); statErr == nil {
+			useEmbed = false
+		}
+	}
+
 	assetsFS, err := GetFileSystem(useEmbed)
 	if err != nil {
 		fmt.Println("Warning: Failed to load embedded assets:", err)
 	}
 
 	if useEmbed && assetsFS != nil {
+		// Use embedded assets (for SDK users and production)
 		app.Use("/", filesystem.New(filesystem.Config{
 			Root:         http.FS(assetsFS),
 			Browse:       false,
@@ -142,43 +154,21 @@ func New(config Config) *Panel {
 			},
 		}))
 	} else {
-		// Development mode: Serve from local directory
+		// Development mode with local path (for SDK developers only)
 		if config.Storage.URL != "" && config.Storage.Path != "" {
 			app.Static(config.Storage.URL, config.Storage.Path)
 		} else {
 			app.Static("/storage", "./storage/public")
 		}
 
-		// Development mode: Serve UI from pkg/panel/ui instead of web/dist
-		// Check if UI files exist before serving (SDK users may not have UI files)
-		uiPath := "./pkg/panel/ui"
-		indexPath := "./pkg/panel/ui/index.html"
-
-		if _, err := os.Stat(indexPath); err == nil {
-			// UI files exist, serve them
-			app.Static("/", uiPath)
-			app.Get("*", func(c *fiber.Ctx) error {
-				// Skip API routes
-				if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
-					return c.Next()
-				}
-				return c.SendFile(indexPath)
-			})
-		} else {
-			// UI files not found - this is OK for SDK users
-			// Just serve a simple message for non-API routes
-			app.Get("*", func(c *fiber.Ctx) error {
-				// Skip API routes
-				if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
-					return c.Next()
-				}
-				// Return a simple message for SDK users
-				return c.Status(fiber.StatusOK).JSON(fiber.Map{
-					"message": "Panel.go API is running",
-					"version": "1.0.0",
-				})
-			})
-		}
+		app.Static("/", "./pkg/panel/ui")
+		app.Get("*", func(c *fiber.Ctx) error {
+			// Skip API routes
+			if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
+				return c.Next()
+			}
+			return c.SendFile(localUIPath)
+		})
 	}
 
 	// İzinleri yükle
