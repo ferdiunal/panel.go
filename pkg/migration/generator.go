@@ -15,6 +15,7 @@ type MigrationGenerator struct {
 	db         *gorm.DB
 	resources  []resource.Resource
 	typeMapper *TypeMapper
+	dialect    string
 }
 
 // NewMigrationGenerator, yeni bir MigrationGenerator oluşturur.
@@ -24,6 +25,7 @@ func NewMigrationGenerator(db *gorm.DB) *MigrationGenerator {
 		db:         db,
 		resources:  []resource.Resource{},
 		typeMapper: NewTypeMapperWithDialect(dialect),
+		dialect:    dialect,
 	}
 }
 
@@ -63,7 +65,10 @@ func (mg *MigrationGenerator) AutoMigrate() error {
 
 // applyFieldConstraints, field tanımlarından ek constraint'ler oluşturur.
 func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
-	tableName := mg.getTableName(r)
+	model := r.Model()
+	if model == nil {
+		return fmt.Errorf("resource %s has no model", r.Slug())
+	}
 
 	for _, field := range r.Fields() {
 		// İlişkisel field'ları kontrol et
@@ -73,8 +78,8 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 				if bt, ok := relField.(*fields.BelongsToField); ok {
 					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
 						fkColumn := bt.GormRelationConfig.ForeignKey
-						if !mg.hasIndex(tableName, fkColumn) {
-							if err := mg.createIndex(tableName, fkColumn, false); err != nil {
+						if !mg.hasIndexWithModel(model, fkColumn) {
+							if err := mg.createIndexWithModel(model, fkColumn, false); err != nil {
 								return err
 							}
 						}
@@ -101,22 +106,22 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 		}
 
 		// Searchable alanlar için index
-		if schema.GlobalSearch && !mg.hasIndex(tableName, schema.Key) {
-			if err := mg.createIndex(tableName, schema.Key, false); err != nil {
+		if schema.GlobalSearch && !mg.hasIndexWithModel(model, schema.Key) {
+			if err := mg.createIndexWithModel(model, schema.Key, false); err != nil {
 				return err
 			}
 		}
 
 		// Sortable alanlar için index
-		if schema.IsSortable && !mg.hasIndex(tableName, schema.Key) {
-			if err := mg.createIndex(tableName, schema.Key, false); err != nil {
+		if schema.IsSortable && !mg.hasIndexWithModel(model, schema.Key) {
+			if err := mg.createIndexWithModel(model, schema.Key, false); err != nil {
 				return err
 			}
 		}
 
 		// Filterable alanlar için index
-		if schema.IsFilterable && !mg.hasIndex(tableName, schema.Key) {
-			if err := mg.createIndex(tableName, schema.Key, false); err != nil {
+		if schema.IsFilterable && !mg.hasIndexWithModel(model, schema.Key) {
+			if err := mg.createIndexWithModel(model, schema.Key, false); err != nil {
 				return err
 			}
 		}
@@ -126,15 +131,15 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 			config := schema.GetGormConfig()
 
 			// Unique Index
-			if config.UniqueIndex && !mg.hasUniqueIndex(tableName, schema.Key) {
-				if err := mg.createIndex(tableName, schema.Key, true); err != nil {
+			if config.UniqueIndex && !mg.hasUniqueIndexWithModel(model, schema.Key) {
+				if err := mg.createIndexWithModel(model, schema.Key, true); err != nil {
 					return err
 				}
 			}
 
 			// Normal Index
-			if config.Index && !mg.hasIndex(tableName, schema.Key) {
-				if err := mg.createIndex(tableName, schema.Key, false); err != nil {
+			if config.Index && !mg.hasIndexWithModel(model, schema.Key) {
+				if err := mg.createIndexWithModel(model, schema.Key, false); err != nil {
 					return err
 				}
 			}
@@ -143,8 +148,8 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 		// Validation rules'dan unique constraint
 		for _, rule := range schema.ValidationRules {
 			if rule.Name == "unique" {
-				if !mg.hasUniqueIndex(tableName, schema.Key) {
-					if err := mg.createIndex(tableName, schema.Key, true); err != nil {
+				if !mg.hasUniqueIndexWithModel(model, schema.Key) {
+					if err := mg.createIndexWithModel(model, schema.Key, true); err != nil {
 						return err
 					}
 				}
@@ -177,15 +182,84 @@ func (mg *MigrationGenerator) getTableName(r resource.Resource) string {
 	return stmt.Table
 }
 
-// hasIndex, tabloda index var mı kontrol eder.
+// hasIndex, tabloda index var mı kontrol eder (GORM Migrator kullanarak).
 func (mg *MigrationGenerator) hasIndex(table, column string) bool {
 	indexName := fmt.Sprintf("idx_%s_%s", table, column)
-	var count int64
 
-	// SQLite için
-	mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", indexName).Scan(&count)
+	// GORM Migrator kullanarak - dialect-aware ve güvenli
+	// Not: Migrator.HasIndex() model instance gerektirir, ama biz sadece tablo adını biliyoruz
+	// Bu yüzden GORM'nin internal query'lerini kullanmak zorundayız
+	// Alternatif: Her resource için model instance'ı kullan
 
-	return count > 0
+	// Daha iyi yaklaşım: GORM'nin kendi index kontrolünü kullan
+	// Ama bu durumda model instance gerekiyor
+	// Şimdilik EXISTS query kullanıyoruz (daha performanslı)
+	var exists bool
+
+	switch mg.dialect {
+	case "postgres":
+		mg.db.Raw("SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = ? AND indexname = ?)",
+			table, indexName).Scan(&exists)
+	case "mysql":
+		mg.db.Raw("SELECT EXISTS(SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?)",
+			table, indexName).Scan(&exists)
+	default:
+		// SQLite için
+		var count int64
+		mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", indexName).Scan(&count)
+		exists = count > 0
+	}
+
+	return exists
+}
+
+// hasIndexWithModel, tabloda index var mı kontrol eder (GORM Migrator kullanarak - model instance ile).
+func (mg *MigrationGenerator) hasIndexWithModel(model interface{}, column string) bool {
+	tableName := mg.getTableNameFromModel(model)
+	indexName := fmt.Sprintf("idx_%s_%s", tableName, column)
+
+	// GORM Migrator kullanarak - dialect-aware ve güvenli
+	return mg.db.Migrator().HasIndex(model, indexName)
+}
+
+// hasUniqueIndexWithModel, tabloda unique index var mı kontrol eder (GORM Migrator kullanarak - model instance ile).
+func (mg *MigrationGenerator) hasUniqueIndexWithModel(model interface{}, column string) bool {
+	tableName := mg.getTableNameFromModel(model)
+	indexName := fmt.Sprintf("uniq_%s_%s", tableName, column)
+
+	// GORM Migrator kullanarak - dialect-aware ve güvenli
+	return mg.db.Migrator().HasIndex(model, indexName)
+}
+
+// createIndexWithModel, index oluşturur (GORM Migrator kullanarak - model instance ile).
+func (mg *MigrationGenerator) createIndexWithModel(model interface{}, column string, unique bool) error {
+	tableName := mg.getTableNameFromModel(model)
+
+	if unique {
+		// Unique index için - GORM Migrator'da unique index oluşturmak için özel bir yöntem yok
+		// Bu yüzden manuel SQL kullanıyoruz (dialect-aware)
+		indexName := fmt.Sprintf("uniq_%s_%s", tableName, column)
+		indexType := "UNIQUE INDEX"
+		sql := fmt.Sprintf("CREATE %s IF NOT EXISTS %s ON %s(%s)", indexType, indexName, tableName, column)
+		return mg.db.Exec(sql).Error
+	}
+
+	// Normal index için GORM Migrator kullan
+	indexName := fmt.Sprintf("idx_%s_%s", tableName, column)
+
+	// GORM Migrator'ın CreateIndex metodu field adı veya index adı alabilir
+	// Biz index adını kullanıyoruz
+	return mg.db.Migrator().CreateIndex(model, indexName)
+}
+
+// getTableNameFromModel, model instance'ından tablo adını çıkarır.
+func (mg *MigrationGenerator) getTableNameFromModel(model interface{}) string {
+	stmt := &gorm.Statement{DB: mg.db}
+	err := stmt.Parse(model)
+	if err != nil {
+		return ""
+	}
+	return stmt.Table
 }
 
 // hasUniqueIndex, tabloda unique index var mı kontrol eder.
@@ -193,7 +267,23 @@ func (mg *MigrationGenerator) hasUniqueIndex(table, column string) bool {
 	indexName := fmt.Sprintf("uniq_%s_%s", table, column)
 	var count int64
 
-	mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", indexName).Scan(&count)
+	switch mg.dialect {
+	case "postgres":
+		// PostgreSQL için - unique index kontrolü
+		mg.db.Raw(`SELECT COUNT(*) FROM pg_indexes i
+			JOIN pg_class c ON i.indexname = c.relname
+			JOIN pg_index idx ON c.oid = idx.indexrelid
+			WHERE i.schemaname = 'public' AND i.tablename = ? AND i.indexname = ? AND idx.indisunique = true`,
+			table, indexName).Scan(&count)
+	case "mysql":
+		// MySQL için - unique index kontrolü
+		mg.db.Raw(`SELECT COUNT(*) FROM information_schema.statistics
+			WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? AND non_unique = 0`,
+			table, indexName).Scan(&count)
+	default:
+		// SQLite için (default)
+		mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", indexName).Scan(&count)
+	}
 
 	return count > 0
 }
@@ -215,21 +305,52 @@ func (mg *MigrationGenerator) createIndex(table, column string, unique bool) err
 
 // createPivotTable, BelongsToMany ilişkileri için pivot tablo oluşturur.
 func (mg *MigrationGenerator) createPivotTable(btm *fields.BelongsToManyField) error {
-	// Pivot tablo zaten var mı kontrol et
 	var count int64
-	mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", btm.PivotTableName).Scan(&count)
+
+	// Pivot tablo zaten var mı kontrol et
+	switch mg.dialect {
+	case "postgres":
+		mg.db.Raw("SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public' AND tablename = ?", btm.PivotTableName).Scan(&count)
+	case "mysql":
+		mg.db.Raw("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?", btm.PivotTableName).Scan(&count)
+	default:
+		// SQLite için
+		mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", btm.PivotTableName).Scan(&count)
+	}
+
 	if count > 0 {
 		return nil // Tablo zaten var
 	}
 
-	// Pivot tablo oluştur
-	sql := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			%s INTEGER NOT NULL,
-			%s INTEGER NOT NULL,
-			PRIMARY KEY (%s, %s)
-		)
-	`, btm.PivotTableName, btm.ForeignKeyColumn, btm.RelatedKeyColumn, btm.ForeignKeyColumn, btm.RelatedKeyColumn)
+	// Pivot tablo oluştur - dialect-aware SQL
+	var sql string
+	switch mg.dialect {
+	case "postgres":
+		sql = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				%s BIGINT NOT NULL,
+				%s BIGINT NOT NULL,
+				PRIMARY KEY (%s, %s)
+			)
+		`, btm.PivotTableName, btm.ForeignKeyColumn, btm.RelatedKeyColumn, btm.ForeignKeyColumn, btm.RelatedKeyColumn)
+	case "mysql":
+		sql = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				%s BIGINT NOT NULL,
+				%s BIGINT NOT NULL,
+				PRIMARY KEY (%s, %s)
+			)
+		`, btm.PivotTableName, btm.ForeignKeyColumn, btm.RelatedKeyColumn, btm.ForeignKeyColumn, btm.RelatedKeyColumn)
+	default:
+		// SQLite için (INTEGER)
+		sql = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				%s INTEGER NOT NULL,
+				%s INTEGER NOT NULL,
+				PRIMARY KEY (%s, %s)
+			)
+		`, btm.PivotTableName, btm.ForeignKeyColumn, btm.RelatedKeyColumn, btm.ForeignKeyColumn, btm.RelatedKeyColumn)
+	}
 
 	if err := mg.db.Exec(sql).Error; err != nil {
 		return fmt.Errorf("failed to create pivot table %s: %w", btm.PivotTableName, err)
