@@ -5,24 +5,50 @@ import (
 	"strings"
 )
 
-// RelationshipSearch handles search functionality for relationships
+// RelationshipSearch, ilişkiler için arama işlevselliğini yönetir.
+//
+// Bu interface, ilişkili kayıtlarda arama yapmak için metodlar sağlar.
+// Belirli sütunlarda veya tüm aranabilir sütunlarda arama yapılabilir.
+//
+// # Kullanım Örneği
+//
+//	search := fields.NewRelationshipSearch(field)
+//	results, err := search.Search(ctx, "john")
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipSearch interface {
-	// Search searches for related resources by term
+	// Search, terime göre ilişkili kaynakları arar
 	Search(ctx context.Context, term string) ([]interface{}, error)
 
-	// SearchInColumns searches in specific columns
+	// SearchInColumns, belirli sütunlarda arama yapar
 	SearchInColumns(ctx context.Context, term string, columns []string) ([]interface{}, error)
 
-	// GetSearchableColumns returns the searchable columns
+	// GetSearchableColumns, aranabilir sütunları döndürür
 	GetSearchableColumns() []string
 }
 
-// RelationshipSearchImpl implements RelationshipSearch
+// RelationshipSearchImpl, RelationshipSearch interface'ini implement eder.
+//
+// Bu yapı, ilişki arama işlemlerini gerçekleştirir.
+// Aranabilir sütunlar field'dan alınır.
 type RelationshipSearchImpl struct {
 	field RelationshipField
 }
 
-// NewRelationshipSearch creates a new relationship search handler
+// NewRelationshipSearch, yeni bir relationship search handler oluşturur.
+//
+// Bu fonksiyon, verilen field için arama handler'ı döndürür.
+//
+// # Parametreler
+//
+// - **field**: İlişki field'ı
+//
+// # Kullanım Örneği
+//
+//	search := fields.NewRelationshipSearch(field)
+//
+// Döndürür:
+//   - Yapılandırılmış RelationshipSearchImpl pointer'ı
 func NewRelationshipSearch(field RelationshipField) *RelationshipSearchImpl {
 	return &RelationshipSearchImpl{
 		field: field,

@@ -4,25 +4,51 @@ import (
 	"context"
 )
 
-// RelationshipFilter handles filtering functionality for relationships
+// RelationshipFilter, ilişkiler için filtreleme işlevselliğini yönetir.
+//
+// Bu interface, ilişkili kayıtları filtrelemek için metodlar sağlar.
+// Tek veya çoklu filtreler uygulanabilir.
+//
+// # Kullanım Örneği
+//
+//	filter := fields.NewRelationshipFilter(field)
+//	results, err := filter.ApplyFilter(ctx, "status", "=", "active")
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipFilter interface {
-	// ApplyFilter applies a filter to the relationship query
+	// ApplyFilter, ilişki sorgusuna bir filtre uygular
 	ApplyFilter(ctx context.Context, column string, operator string, value interface{}) ([]interface{}, error)
 
-	// ApplyMultipleFilters applies multiple filters
+	// ApplyMultipleFilters, birden fazla filtre uygular
 	ApplyMultipleFilters(ctx context.Context, filters map[string]interface{}) ([]interface{}, error)
 
-	// RemoveFilter removes a filter and loads all related resources
+	// RemoveFilter, filtreyi kaldırır ve tüm ilişkili kaynakları yükler
 	RemoveFilter(ctx context.Context) ([]interface{}, error)
 }
 
-// RelationshipFilterImpl implements RelationshipFilter
+// RelationshipFilterImpl, RelationshipFilter interface'ini implement eder.
+//
+// Bu yapı, ilişki filtreleme işlemlerini gerçekleştirir.
+// Filtreler saklanır ve sorguya uygulanır.
 type RelationshipFilterImpl struct {
 	field   RelationshipField
 	filters map[string]interface{}
 }
 
-// NewRelationshipFilter creates a new relationship filter handler
+// NewRelationshipFilter, yeni bir relationship filter handler oluşturur.
+//
+// Bu fonksiyon, verilen field için filtreleme handler'ı döndürür.
+//
+// # Parametreler
+//
+// - **field**: İlişki field'ı
+//
+// # Kullanım Örneği
+//
+//	filter := fields.NewRelationshipFilter(field)
+//
+// Döndürür:
+//   - Yapılandırılmış RelationshipFilterImpl pointer'ı
 func NewRelationshipFilter(field RelationshipField) *RelationshipFilterImpl {
 	return &RelationshipFilterImpl{
 		field:   field,
