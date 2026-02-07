@@ -10,28 +10,28 @@ Relationship fields, ilişkili verileri yüklemek, göstermek, aramak, filtrelem
 
 ```go
 // BelongsTo: Post -> Author
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     DisplayUsing("name").
     WithSearchableColumns("name", "email").
     WithEagerLoad()
 
 // HasMany: Author -> Posts
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     ForeignKey("author_id").
     WithEagerLoad()
 
 // HasOne: User -> Profile
-field := NewHasOne("Profile", "profile", "profiles").
+field := HasOne("Profile", "profile", "profiles").
     ForeignKey("user_id")
 
 // BelongsToMany: User -> Roles
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     PivotTable("role_user").
     ForeignKey("user_id").
     RelatedKey("role_id")
 
 // MorphTo: Comment -> Commentable (Post, Video, vb.)
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     Types(map[string]string{
         "post":    "posts",
         "video":   "videos",
@@ -44,22 +44,22 @@ Resource instance kullanarak tip güvenli ilişki tanımlama:
 
 ```go
 // BelongsTo: Post -> Author
-field := NewBelongsToResource("Author", "author_id", blog.NewAuthorResource()).
+field := BelongsTo("Author", "author_id", blog.NewAuthorResource()).
     DisplayUsing("name").
     WithSearchableColumns("name", "email").
     WithEagerLoad()
 
 // HasMany: Author -> Posts
-field := NewHasManyResource("Posts", "posts", blog.NewPostResource()).
+field := HasMany("Posts", "posts", blog.NewPostResource()).
     ForeignKey("author_id").
     WithEagerLoad()
 
 // HasOne: User -> Profile
-field := NewHasOneResource("Profile", "profile", blog.NewProfileResource()).
+field := HasOne("Profile", "profile", blog.NewProfileResource()).
     ForeignKey("user_id")
 
 // BelongsToMany: User -> Roles
-field := NewBelongsToManyResource("Roles", "roles", blog.NewRoleResource()).
+field := BelongsToMany("Roles", "roles", blog.NewRoleResource()).
     PivotTable("role_user").
     ForeignKey("user_id").
     RelatedKey("role_id")
@@ -84,12 +84,12 @@ Inverse one-to-one veya one-to-many relationship. Bir model'in başka bir model'
 
 **Slug-Based (Geleneksel):**
 ```go
-field := NewBelongsTo("Author", "author_id", "authors")
+field := BelongsTo("Author", "author_id", "authors")
 ```
 
 **Resource-Based (Önerilen):**
 ```go
-field := NewBelongsToResource("Author", "author_id", blog.NewAuthorResource())
+field := BelongsTo("Author", "author_id", blog.NewAuthorResource())
 ```
 
 Resource-based yaklaşımda, tablo adı (`authors`) otomatik olarak resource'dan alınır (`blog.NewAuthorResource().Slug()`). Bu sayede:
@@ -103,7 +103,7 @@ Resource-based yaklaşımda, tablo adı (`authors`) otomatik olarak resource'dan
 İlişkili kayıtta hangi field'ın label olarak gösterileceğini belirler. Default olarak "name" field'ı kullanılır.
 
 ```go
-field := NewBelongsTo("Author", "author_id", "authors").
+field := BelongsTo("Author", "author_id", "authors").
     DisplayUsing("email")  // Author'un email'i gösterilir
 ```
 
@@ -111,7 +111,7 @@ field := NewBelongsTo("Author", "author_id", "authors").
 İlişkili kayıtlarda arama yapılabilecek sütunları belirler. Bu sütunlar combobox'ta arama yaparken kullanılır.
 
 ```go
-field := NewBelongsTo("Author", "author_id", "authors").
+field := BelongsTo("Author", "author_id", "authors").
     WithSearchableColumns("name", "email", "username")
 ```
 
@@ -120,7 +120,7 @@ Form elemanları (Combobox/Select) için seçenekleri veritabanından otomatik o
 
 ```go
 // Tüm author'ları getirir ve 'name' field'ını gösterir
-field := NewBelongsTo("Author", "author_id", "authors").
+field := BelongsTo("Author", "author_id", "authors").
     AutoOptions("name")
 ```
 
@@ -130,7 +130,7 @@ field := NewBelongsTo("Author", "author_id", "authors").
 İlişkili kayıtları filtrelemek, sıralamak veya sınırlamak için özel query tanımlar.
 
 ```go
-field := NewBelongsTo("Author", "author_id", "authors").
+field := BelongsTo("Author", "author_id", "authors").
     Query(func(q *Query) *Query {
         return q.
             Where("status", "=", "active").
@@ -143,11 +143,11 @@ Yükleme stratejisini belirler.
 
 ```go
 // Eager loading: N+1 query problemini önler (önerilen)
-field := NewBelongsTo("Author", "author_id", "authors").
+field := BelongsTo("Author", "author_id", "authors").
     WithEagerLoad()
 
 // Lazy loading: İhtiyaç anında yükler
-field := NewBelongsTo("Author", "author_id", "authors").
+field := BelongsTo("Author", "author_id", "authors").
     WithLazyLoad()
 ```
 
@@ -213,7 +213,7 @@ func (r *PostResource) Fields() []core.Element {
         fields.Textarea("Content", "content"),
 
         // BelongsTo: Post -> Author (slug-based)
-        fields.NewBelongsTo("Author", "author_id", "authors").
+        fields.BelongsTo("Author", "author_id", "authors").
             DisplayUsing("name").
             WithSearchableColumns("name", "email").
             AutoOptions("name").
@@ -239,7 +239,7 @@ func (r *PostResource) Fields() []core.Element {
         fields.Textarea("Content", "content"),
 
         // BelongsTo: Post -> Author (resource-based)
-        fields.NewBelongsToResource("Author", "author_id", blog.NewAuthorResource()).
+        fields.BelongsTo("Author", "author_id", blog.NewAuthorResource()).
             DisplayUsing("name").
             WithSearchableColumns("name", "email").
             AutoOptions("name").
@@ -278,12 +278,12 @@ One-to-many relationship. Örneğin, bir Author birçok Post'a sahiptir.
 
 **Slug-Based:**
 ```go
-field := NewHasMany("Posts", "posts", "posts")
+field := HasMany("Posts", "posts", "posts")
 ```
 
 **Resource-Based (Önerilen):**
 ```go
-field := NewHasManyResource("Posts", "posts", blog.NewPostResource())
+field := HasMany("Posts", "posts", blog.NewPostResource())
 ```
 
 **Metodlar:**
@@ -295,7 +295,7 @@ field := NewHasManyResource("Posts", "posts", blog.NewPostResource())
 
 **Örnek:**
 ```go
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     ForeignKey("author_id").
     Query(func(q *Query) *Query {
         return q.OrderBy("created_at", "DESC")
@@ -310,12 +310,12 @@ One-to-one relationship. Bir model'in başka bir model'e sahip olduğunu belirti
 
 **Slug-Based:**
 ```go
-field := NewHasOne("Profile", "profile", "profiles")
+field := HasOne("Profile", "profile", "profiles")
 ```
 
 **Resource-Based (Önerilen):**
 ```go
-field := NewHasOneResource("Profile", "profile", blog.NewProfileResource())
+field := HasOne("Profile", "profile", blog.NewProfileResource())
 ```
 
 **Metodlar:**
@@ -324,7 +324,7 @@ field := NewHasOneResource("Profile", "profile", blog.NewProfileResource())
 İlişkili tablodaki foreign key sütununu belirler. Default olarak `{parent_model}_id` kullanılır.
 
 ```go
-field := NewHasOne("Profile", "profile", "profiles").
+field := HasOne("Profile", "profile", "profiles").
     ForeignKey("user_id")  // profiles.user_id
 ```
 
@@ -332,7 +332,7 @@ field := NewHasOne("Profile", "profile", "profiles").
 Parent model'deki key sütununu belirler. Default olarak `id` kullanılır.
 
 ```go
-field := NewHasOne("Profile", "profile", "profiles").
+field := HasOne("Profile", "profile", "profiles").
     OwnerKey("id")  // users.id
 ```
 
@@ -341,7 +341,7 @@ Form elemanları için seçenekleri veritabanından otomatik olarak yükler. **H
 
 ```go
 // Sadece user_id'si boş olan profilleri getirir
-field := NewHasOne("Profile", "profile", "profiles").
+field := HasOne("Profile", "profile", "profiles").
     ForeignKey("user_id").
     AutoOptions("bio")
 ```
@@ -352,7 +352,7 @@ field := NewHasOne("Profile", "profile", "profiles").
 İlişkili kayıtları filtrelemek veya sıralamak için özel query tanımlar.
 
 ```go
-field := NewHasOne("Profile", "profile", "profiles").
+field := HasOne("Profile", "profile", "profiles").
     Query(func(q *Query) *Query {
         return q.Where("status", "=", "active")
     })
@@ -421,7 +421,7 @@ func (r *UserResource) Fields() []core.Element {
         fields.Email("Email", "email").Required(),
 
         // HasOne: User -> Profile (slug-based)
-        fields.NewHasOne("Profile", "profile", "profiles").
+        fields.HasOne("Profile", "profile", "profiles").
             ForeignKey("user_id").
             AutoOptions("bio"),
 
@@ -444,7 +444,7 @@ func (r *UserResource) Fields() []core.Element {
         fields.Email("Email", "email").Required(),
 
         // HasOne: User -> Profile (resource-based)
-        fields.NewHasOneResource("Profile", "profile", blog.NewProfileResource()).
+        fields.HasOne("Profile", "profile", blog.NewProfileResource()).
             ForeignKey("user_id").
             AutoOptions("bio"),
 
@@ -479,12 +479,12 @@ Many-to-many relationship. İki model arasında çoktan çoğa ilişki kurar. Ö
 
 **Slug-Based:**
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles")
+field := BelongsToMany("Roles", "role_user", "roles")
 ```
 
 **Resource-Based (Önerilen):**
 ```go
-field := NewBelongsToManyResource("Roles", "roles", blog.NewRoleResource())
+field := BelongsToMany("Roles", "roles", blog.NewRoleResource())
 ```
 
 Resource-based yaklaşımda, pivot tablo adı otomatik oluşturulur (alfabetik sıralama ile).
@@ -495,7 +495,7 @@ Resource-based yaklaşımda, pivot tablo adı otomatik oluşturulur (alfabetik s
 Pivot (ara) table'ın adını belirler. Bu table iki model arasındaki ilişkiyi saklar.
 
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     PivotTable("role_user")
 ```
 
@@ -503,7 +503,7 @@ field := NewBelongsToMany("Roles", "role_user", "roles").
 Pivot table'daki parent model'in foreign key sütununu belirler. Default olarak `{parent_model}_id` kullanılır.
 
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     ForeignKey("user_id")  // role_user.user_id
 ```
 
@@ -511,7 +511,7 @@ field := NewBelongsToMany("Roles", "role_user", "roles").
 Pivot table'daki related model'in foreign key sütununu belirler. Default olarak `{related_model}_id` kullanılır.
 
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     RelatedKey("role_id")  // role_user.role_id
 ```
 
@@ -519,7 +519,7 @@ field := NewBelongsToMany("Roles", "role_user", "roles").
 İlişkili kayıtlarda hangi field'ın label olarak gösterileceğini belirler. Default olarak "name" field'ı kullanılır.
 
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     DisplayUsing("title")  // Role'ün title'ı gösterilir
 ```
 
@@ -527,7 +527,7 @@ field := NewBelongsToMany("Roles", "role_user", "roles").
 İlişkili kayıtlarda arama yapılabilecek sütunları belirler.
 
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     WithSearchableColumns("name", "description")
 ```
 
@@ -536,7 +536,7 @@ Form elemanları için seçenekleri veritabanından otomatik olarak yükler. Tü
 
 ```go
 // Tüm role'leri getirir ve 'name' field'ını gösterir
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     AutoOptions("name")
 ```
 
@@ -544,7 +544,7 @@ field := NewBelongsToMany("Roles", "role_user", "roles").
 İlişkili kayıtları filtrelemek veya sıralamak için özel query tanımlar.
 
 ```go
-field := NewBelongsToMany("Roles", "role_user", "roles").
+field := BelongsToMany("Roles", "role_user", "roles").
     Query(func(q *Query) *Query {
         return q.
             Where("status", "=", "active").
@@ -626,7 +626,7 @@ func (r *UserResource) Fields() []core.Element {
         fields.Email("Email", "email").Required(),
 
         // BelongsToMany: User -> Roles (slug-based)
-        fields.NewBelongsToMany("Roles", "role_user", "roles").
+        fields.BelongsToMany("Roles", "role_user", "roles").
             PivotTable("role_user").
             ForeignKey("user_id").
             RelatedKey("role_id").
@@ -653,7 +653,7 @@ func (r *UserResource) Fields() []core.Element {
         fields.Email("Email", "email").Required(),
 
         // BelongsToMany: User -> Roles (resource-based)
-        fields.NewBelongsToManyResource("Roles", "roles", blog.NewRoleResource()).
+        fields.BelongsToMany("Roles", "roles", blog.NewRoleResource()).
             PivotTable("role_user").
             ForeignKey("user_id").
             RelatedKey("role_id").
@@ -714,7 +714,7 @@ Polymorphic (çok biçimli) relationship. Bir model'in birden fazla farklı mode
 
 **Temel Kullanım:**
 ```go
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     Types(map[string]string{
         "posts":  "posts",   // Database Type => Resource Slug
         "videos": "videos",
@@ -727,7 +727,7 @@ field := NewMorphTo("Commentable", "commentable").
 Polymorphic relationship için type mapping'i belirler. Key olarak database'de saklanan type değeri, value olarak resource slug'ı kullanılır.
 
 ```go
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     Types(map[string]string{
         "posts":    "posts",     // commentable_type = "posts" -> posts resource
         "videos":   "videos",    // commentable_type = "videos" -> videos resource
@@ -739,7 +739,7 @@ field := NewMorphTo("Commentable", "commentable").
 Her type için hangi field'ın label olarak gösterileceğini belirler. Bu sayede frontend'de ilişkili kaydın hangi field'ı gösterileceği kontrol edilir.
 
 ```go
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     Types(map[string]string{
         "posts":  "posts",
         "videos": "videos",
@@ -757,11 +757,11 @@ Yükleme stratejisini belirler.
 
 ```go
 // Eager loading: İlişkili veriyi önceden yükle
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     WithEagerLoad()
 
 // Lazy loading: İlişkili veriyi ihtiyaç anında yükle (default)
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     WithLazyLoad()
 ```
 
@@ -832,7 +832,7 @@ func (r *CommentResource) Fields() []core.Element {
         fields.Text("Content", "content").Required(),
 
         // MorphTo: Comment -> Commentable (Post, Video, vb.)
-        fields.NewMorphTo("Commentable", "commentable").
+        fields.MorphTo("Commentable", "commentable").
             Types(map[string]string{
                 "posts":  "posts",
                 "videos": "videos",
@@ -873,7 +873,7 @@ func (r *CommentResource) Fields() []core.Element {
 İlişkili verileri önceden yükle. Default strateji.
 
 ```go
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithEagerLoad()
 ```
 
@@ -887,7 +887,7 @@ field := NewBelongsTo("Author", "user_id", "users").
 İlişkili verileri ihtiyaç anında yükle.
 
 ```go
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithLazyLoad()
 ```
 
@@ -901,7 +901,7 @@ field := NewBelongsTo("Author", "user_id", "users").
 Query callback'leri kullanarak ilişkili verileri özelleştir.
 
 ```go
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.
             Where("status", "=", "published").
@@ -923,20 +923,20 @@ field := NewHasMany("Posts", "posts", "posts").
 
 ```go
 // BelongsTo: Hangi alanı göster
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     DisplayUsing("email")
 
 // HasMany: Sayı veya liste
-field := NewHasMany("Posts", "posts", "posts")
+field := HasMany("Posts", "posts", "posts")
 
 // HasOne: İlişkili kayıt veya boş durum
-field := NewHasOne("Profile", "profile", "profiles")
+field := HasOne("Profile", "profile", "profiles")
 
 // BelongsToMany: İlişkili kayıtların listesi
-field := NewBelongsToMany("Roles", "role_user", "roles")
+field := BelongsToMany("Roles", "role_user", "roles")
 
 // MorphTo: Kayıt ve type göstergesi
-field := NewMorphTo("Commentable", "commentable").
+field := MorphTo("Commentable", "commentable").
     Types(map[string]string{
         "post":  "posts",
         "video": "videos",
@@ -955,7 +955,7 @@ field := NewMorphTo("Commentable", "commentable").
 // Author -> Profile (HasOne)
 // 'profiles' tablosundan, 'author_id'si boş olan kayıtları getirir.
 // Listede 'bio' alanını gösterir.
-fields.NewHasOne("Profile", "profile", "profiles").
+fields.HasOne("Profile", "profile", "profiles").
     AutoOptions("bio")
 ```
 
@@ -967,7 +967,7 @@ fields.NewHasOne("Profile", "profile", "profiles").
 // Post -> Author (BelongsTo)
 // 'authors' tablosundan tüm yazarları getirir.
 // Listede 'name' alanını gösterir.
-fields.NewBelongsTo("Author", "author_id", "authors").
+fields.BelongsTo("Author", "author_id", "authors").
     AutoOptions("name")
 ```
 
@@ -978,7 +978,7 @@ fields.NewBelongsTo("Author", "author_id", "authors").
 İlişkili verilerde arama yap.
 
 ```go
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithSearchableColumns("name", "email")
 ```
 
@@ -992,7 +992,7 @@ field := NewBelongsTo("Author", "user_id", "users").
 İlişkili verileri filtrele.
 
 ```go
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.Where("status", "=", "published")
     })
@@ -1003,7 +1003,7 @@ field := NewHasMany("Posts", "posts", "posts").
 İlişkili verileri sırala.
 
 ```go
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.OrderBy("created_at", "DESC")
     })
@@ -1018,7 +1018,7 @@ field := NewHasMany("Posts", "posts", "posts").
 İlişkili verileri sayfalandır.
 
 ```go
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.Limit(10).Offset(0)
     })
@@ -1029,7 +1029,7 @@ field := NewHasMany("Posts", "posts", "posts").
 İlişkili verilere kısıtlamalar uygula.
 
 ```go
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.
             Where("status", "=", "published").
@@ -1072,11 +1072,11 @@ doesntExist := field.DoesntExist(data)
 
 ```go
 // Zorunlu ilişki
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     Required()
 
 // İsteğe bağlı ilişki (default)
-field := NewBelongsTo("Author", "user_id", "users")
+field := BelongsTo("Author", "user_id", "users")
 ```
 
 **Doğrulama Kuralları:**
@@ -1118,11 +1118,11 @@ N+1 query problemini önlemek için eager loading kullan.
 
 ```go
 // ✓ İyi
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithEagerLoad()
 
 // ✗ Kaçın
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithLazyLoad()
 ```
 
@@ -1131,11 +1131,11 @@ Arama performansını artırmak için indexed alanları kullan.
 
 ```go
 // ✓ İyi
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithSearchableColumns("name", "email")
 
 // ✗ Kaçın
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithSearchableColumns("bio", "description")
 ```
 
@@ -1144,13 +1144,13 @@ Gereksiz verileri yüklemekten kaçın.
 
 ```go
 // ✓ İyi
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.Where("status", "=", "published")
     })
 
 // ✗ Kaçın
-field := NewHasMany("Posts", "posts", "posts")
+field := HasMany("Posts", "posts", "posts")
 ```
 
 ### 4. Sayfalandırma Kullan
@@ -1158,13 +1158,13 @@ Büyük koleksiyonlar için sayfalandırma kullan.
 
 ```go
 // ✓ İyi
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.Limit(10).Offset(0)
     })
 
 // ✗ Kaçın
-field := NewHasMany("Posts", "posts", "posts")
+field := HasMany("Posts", "posts", "posts")
 ```
 
 ### 5. Doğrulama Kullan
@@ -1172,11 +1172,11 @@ field := NewHasMany("Posts", "posts", "posts")
 
 ```go
 // ✓ İyi
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     Required()
 
 // ✗ Kaçın
-field := NewBelongsTo("Author", "user_id", "users")
+field := BelongsTo("Author", "user_id", "users")
 ```
 
 ## Örnekler
@@ -1193,7 +1193,7 @@ func (r *PostResource) Fields() []Element {
     return []Element{
         Text("Başlık", "title"),
         Textarea("İçerik", "content"),
-        NewBelongsTo("Yazar", "user_id", "users").
+        BelongsTo("Yazar", "user_id", "users").
             DisplayUsing("name").
             WithSearchableColumns("name", "email").
             WithEagerLoad(),
@@ -1213,7 +1213,7 @@ func (r *AuthorResource) Fields() []Element {
     return []Element{
         Text("İsim", "name"),
         Email("E-posta", "email"),
-        NewHasMany("Yazılar", "posts", "posts").
+        HasMany("Yazılar", "posts", "posts").
             ForeignKey("author_id").
             Query(func(q *Query) *Query {
                 return q.OrderBy("created_at", "DESC")
@@ -1235,7 +1235,7 @@ func (r *UserResource) Fields() []Element {
     return []Element{
         Text("İsim", "name"),
         Email("E-posta", "email"),
-        NewHasOne("Profil", "profile", "profiles").
+        HasOne("Profil", "profile", "profiles").
             ForeignKey("user_id"),
     }
 }
@@ -1253,7 +1253,7 @@ func (r *UserResource) Fields() []Element {
     return []Element{
         Text("İsim", "name"),
         Email("E-posta", "email"),
-        NewBelongsToMany("Roller", "role_user", "roles").
+        BelongsToMany("Roller", "role_user", "roles").
             PivotTable("role_user").
             ForeignKey("user_id").
             RelatedKey("role_id"),
@@ -1272,7 +1272,7 @@ type CommentResource struct {
 func (r *CommentResource) Fields() []Element {
     return []Element{
         Textarea("İçerik", "content"),
-        NewMorphTo("Yorumlanabilir", "commentable").
+        MorphTo("Yorumlanabilir", "commentable").
             Types(map[string]string{
                 "post":  "posts",
                 "video": "videos",
@@ -1291,7 +1291,7 @@ func (r *CommentResource) Fields() []Element {
 
 ```go
 // ✓ İyi
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithEagerLoad()
 ```
 
@@ -1303,7 +1303,7 @@ field := NewBelongsTo("Author", "user_id", "users").
 
 ```go
 // ✓ İyi
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     WithEagerLoad()
 ```
 
@@ -1315,7 +1315,7 @@ field := NewBelongsTo("Author", "user_id", "users").
 
 ```go
 // ✓ İyi
-field := NewBelongsTo("Author", "user_id", "users").
+field := BelongsTo("Author", "user_id", "users").
     Required()
 ```
 
@@ -1327,7 +1327,7 @@ field := NewBelongsTo("Author", "user_id", "users").
 
 ```go
 // ✓ İyi
-field := NewHasMany("Posts", "posts", "posts").
+field := HasMany("Posts", "posts", "posts").
     Query(func(q *Query) *Query {
         return q.
             Where("status", "=", "published").

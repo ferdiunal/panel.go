@@ -105,9 +105,9 @@ func (r *TestUserFieldResolver) ResolveFields(ctx *context.Context) []core.Eleme
 		fields.Text("Name", "name").Required().Sortable().Searchable(),
 		fields.Email("Email", "email").Required().Searchable(),
 		fields.Number("Age", "age"),
-		fields.NewHasOne("Profile", "profile", "profiles").ForeignKey("user_id"),
-		fields.NewHasMany("Posts", "posts", "posts").ForeignKey("author_id"),
-		fields.NewBelongsToMany("Roles", "user_roles", "roles").
+		fields.HasOne("Profile", "profile", "profiles").ForeignKey("user_id"),
+		fields.HasMany("Posts", "posts", "posts").ForeignKey("author_id"),
+		fields.BelongsToMany("Roles", "user_roles", "roles").
 			PivotTable("user_roles").
 			ForeignKey("user_id").
 			RelatedKey("role_id"),
@@ -135,7 +135,7 @@ func (r *TestProfileFieldResolver) ResolveFields(ctx *context.Context) []core.El
 		fields.ID("ID").Sortable(),
 		fields.Text("Bio", "bio"),
 		fields.Text("Website", "website"),
-		fields.NewBelongsTo("User", "user_id", "users").DisplayUsing("name"),
+		fields.BelongsTo("User", "user_id", "users").DisplayUsing("name"),
 		fields.DateTime("Created At", "createdAt").ReadOnly(),
 	}
 }
@@ -159,7 +159,7 @@ func (r *TestTagFieldResolver) ResolveFields(ctx *context.Context) []core.Elemen
 	return []core.Element{
 		fields.ID("ID").Sortable(),
 		fields.Text("Name", "name").Required().Searchable(),
-		fields.NewBelongsToMany("Posts", "post_tags", "posts").
+		fields.BelongsToMany("Posts", "post_tags", "posts").
 			PivotTable("post_tags").
 			ForeignKey("tag_id").
 			RelatedKey("post_id"),
@@ -186,7 +186,7 @@ func (r *TestRoleFieldResolver) ResolveFields(ctx *context.Context) []core.Eleme
 	return []core.Element{
 		fields.ID("ID").Sortable(),
 		fields.Text("Name", "name").Required().Searchable(),
-		fields.NewBelongsToMany("Users", "user_roles", "users").
+		fields.BelongsToMany("Users", "user_roles", "users").
 			PivotTable("user_roles").
 			ForeignKey("role_id").
 			RelatedKey("user_id"),
@@ -214,10 +214,10 @@ func (r *TestPostFieldResolver) ResolveFields(ctx *context.Context) []core.Eleme
 		fields.ID("ID").Sortable(),
 		fields.Text("Title", "title").Required().Sortable().Searchable(),
 		fields.Text("Content", "content").Required(),
-		fields.NewBelongsTo("Author", "author_id", "users").
+		fields.BelongsTo("Author", "author_id", "users").
 			DisplayUsing("name").
 			WithSearchableColumns("name", "email"),
-		fields.NewBelongsToMany("Tags", "post_tags", "tags").
+		fields.BelongsToMany("Tags", "post_tags", "tags").
 			PivotTable("post_tags").
 			ForeignKey("post_id").
 			RelatedKey("tag_id"),
