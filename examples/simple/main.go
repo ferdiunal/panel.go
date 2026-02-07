@@ -4,6 +4,8 @@ import (
 	"log"
 
 	"github.com/ferdiunal/panel.go/examples/simple/blog"
+	"github.com/ferdiunal/panel.go/examples/simple/products"
+	"github.com/ferdiunal/panel.go/pkg/migration"
 	"github.com/ferdiunal/panel.go/pkg/panel"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceAccount "github.com/ferdiunal/panel.go/pkg/resource/account"
@@ -22,7 +24,23 @@ func main() {
 		panic("failed to connect database")
 	}
 
-	db.AutoMigrate(&blog.Author{}, &blog.Profile{}, &blog.Post{}, &blog.Tag{}, &blog.Comment{})
+	// Migration generator kullanarak tüm resource'ları migrate et
+	// Model'li ve model'siz resource'ları birlikte migrate eder
+	mg := migration.NewMigrationGenerator(db)
+	mg.RegisterResources(
+		resourceAccount.NewAccountResource(),
+		resourceSession.NewSessionResource(),
+		resourceVerification.NewVerificationResource(),
+		blog.NewAuthorResource(),
+		blog.NewProfileResource(),
+		blog.NewPostResource(),
+		blog.NewTagResource(),
+		blog.NewCommentResource(),
+		products.NewProductResource(), // Model'siz resource
+	)
+	if err := mg.AutoMigrate(); err != nil {
+		panic("failed to migrate database: " + err.Error())
+	}
 
 	cfg := panel.Config{
 		Database: panel.DatabaseConfig{
@@ -53,6 +71,7 @@ func main() {
 			blog.NewPostResource(),
 			blog.NewTagResource(),
 			blog.NewCommentResource(),
+			products.NewProductResource(),
 		},
 	}
 

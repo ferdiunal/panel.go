@@ -8,6 +8,7 @@ import (
 type HasOne struct {
 	Schema
 	RelatedResourceSlug string
+	RelatedResource     interface{} // resource.Resource interface (interface{} to avoid circular import)
 	ForeignKeyColumn    string
 	OwnerKeyColumn      string
 	QueryCallback       func(query interface{}) interface{}
@@ -35,6 +36,47 @@ func NewHasOne(name, key, relatedResource string) *HasOne {
 	}
 	// Store relationship details in props for generic access (when Schema interface is used)
 	h.WithProps("related_resource", relatedResource)
+	h.WithProps("foreign_key", h.ForeignKeyColumn)
+	return h
+}
+
+// NewHasOneResource, resource instance kullanarak HasOne ilişkisi oluşturur.
+// Bu metod, resource referansı kullanarak tip güvenli ilişki tanımlaması sağlar.
+//
+// Örnek kullanım:
+//   fields.NewHasOneResource("Profile", "profile", blog.NewProfileResource())
+func NewHasOneResource(name, key string, relatedResource interface{}) *HasOne {
+	// Resource interface'inden slug'ı al
+	type resourceSlugger interface {
+		Slug() string
+	}
+
+	var slug string
+	if res, ok := relatedResource.(resourceSlugger); ok {
+		slug = res.Slug()
+	} else {
+		slug = ""
+	}
+
+	h := &HasOne{
+		Schema: Schema{
+			Name:  name,
+			Key:   key,
+			View:  "has-one-field",
+			Type:  TYPE_RELATIONSHIP,
+			Props: make(map[string]interface{}),
+		},
+		RelatedResourceSlug: slug,
+		RelatedResource:     relatedResource,
+		ForeignKeyColumn:    slug + "_id",
+		OwnerKeyColumn:      "id",
+		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithForeignKey(slug + "_id").
+			WithReferences("id"),
+	}
+	h.WithProps("related_resource", slug)
+	h.WithProps("related_resource_instance", relatedResource)
 	h.WithProps("foreign_key", h.ForeignKeyColumn)
 	return h
 }

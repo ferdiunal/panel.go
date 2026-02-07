@@ -19,12 +19,21 @@ type GormDataProvider struct {
 	Model             interface{}
 	SearchColumns     []string
 	WithRelationships []string
+	columnValidator   *ColumnValidator
 }
 
 func NewGormDataProvider(db *gorm.DB, model interface{}) *GormDataProvider {
+	// Initialize column validator for SQL injection protection
+	validator, err := NewColumnValidator(db, model)
+	if err != nil {
+		// Log error but don't fail - fall back to basic validation
+		fmt.Printf("[SECURITY WARNING] Failed to create column validator: %v\n", err)
+	}
+
 	return &GormDataProvider{
-		DB:    db,
-		Model: model,
+		DB:              db,
+		Model:           model,
+		columnValidator: validator,
 	}
 }
 
@@ -51,69 +60,85 @@ func (p *GormDataProvider) SetWith(rels []string) {
 
 // applyFilters applies advanced filter conditions to the GORM query
 // Supports operators: eq, neq, gt, gte, lt, lte, like, nlike, in, nin, null, nnull, between
+// SECURITY: Validates column names to prevent SQL injection
 func (p *GormDataProvider) applyFilters(db *gorm.DB, filters []query.Filter) *gorm.DB {
 	for _, f := range filters {
 		if f.Field == "" {
 			continue
 		}
 
+		// SECURITY: Validate column name to prevent SQL injection
+		safeColumn := f.Field
+		if p.columnValidator != nil {
+			validatedCol, err := p.columnValidator.ValidateColumn(f.Field)
+			if err != nil {
+				// Skip invalid columns - don't expose error to user
+				fmt.Printf("[SECURITY] Rejected invalid column in filter: %s\n", f.Field)
+				continue
+			}
+			safeColumn = validatedCol
+		} else {
+			// Fallback: sanitize column name if validator not available
+			safeColumn = SanitizeColumnName(f.Field)
+		}
+
 		switch f.Operator {
 		case query.OpEqual:
-			db = db.Where(fmt.Sprintf("%s = ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s = ?", safeColumn), f.Value)
 
 		case query.OpNotEqual:
-			db = db.Where(fmt.Sprintf("%s != ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s != ?", safeColumn), f.Value)
 
 		case query.OpGreaterThan:
-			db = db.Where(fmt.Sprintf("%s > ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s > ?", safeColumn), f.Value)
 
 		case query.OpGreaterEq:
-			db = db.Where(fmt.Sprintf("%s >= ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s >= ?", safeColumn), f.Value)
 
 		case query.OpLessThan:
-			db = db.Where(fmt.Sprintf("%s < ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s < ?", safeColumn), f.Value)
 
 		case query.OpLessEq:
-			db = db.Where(fmt.Sprintf("%s <= ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s <= ?", safeColumn), f.Value)
 
 		case query.OpLike:
 			if strVal, ok := f.Value.(string); ok {
-				db = db.Where(fmt.Sprintf("%s LIKE ?", f.Field), "%"+strVal+"%")
+				db = db.Where(fmt.Sprintf("%s LIKE ?", safeColumn), "%"+strVal+"%")
 			}
 
 		case query.OpNotLike:
 			if strVal, ok := f.Value.(string); ok {
-				db = db.Where(fmt.Sprintf("%s NOT LIKE ?", f.Field), "%"+strVal+"%")
+				db = db.Where(fmt.Sprintf("%s NOT LIKE ?", safeColumn), "%"+strVal+"%")
 			}
 
 		case query.OpIn:
 			if vals, ok := f.Value.([]string); ok && len(vals) > 0 {
-				db = db.Where(fmt.Sprintf("%s IN ?", f.Field), vals)
+				db = db.Where(fmt.Sprintf("%s IN ?", safeColumn), vals)
 			}
 
 		case query.OpNotIn:
 			if vals, ok := f.Value.([]string); ok && len(vals) > 0 {
-				db = db.Where(fmt.Sprintf("%s NOT IN ?", f.Field), vals)
+				db = db.Where(fmt.Sprintf("%s NOT IN ?", safeColumn), vals)
 			}
 
 		case query.OpIsNull:
 			if boolVal, ok := f.Value.(bool); ok && boolVal {
-				db = db.Where(fmt.Sprintf("%s IS NULL", f.Field))
+				db = db.Where(fmt.Sprintf("%s IS NULL", safeColumn))
 			}
 
 		case query.OpIsNotNull:
 			if boolVal, ok := f.Value.(bool); ok && boolVal {
-				db = db.Where(fmt.Sprintf("%s IS NOT NULL", f.Field))
+				db = db.Where(fmt.Sprintf("%s IS NOT NULL", safeColumn))
 			}
 
 		case query.OpBetween:
 			if vals, ok := f.Value.([]string); ok && len(vals) == 2 {
-				db = db.Where(fmt.Sprintf("%s BETWEEN ? AND ?", f.Field), vals[0], vals[1])
+				db = db.Where(fmt.Sprintf("%s BETWEEN ? AND ?", safeColumn), vals[0], vals[1])
 			}
 
 		default:
 			// Default to equality
-			db = db.Where(fmt.Sprintf("%s = ?", f.Field), f.Value)
+			db = db.Where(fmt.Sprintf("%s = ?", safeColumn), f.Value)
 		}
 	}
 	return db
@@ -154,12 +179,26 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		db = p.applyFilters(db, req.Filters)
 	}
 
-	// Apply Search
+	// Apply Search with column validation
 	fmt.Printf("[GORM] Search: %q, SearchColumns: %v\n", req.Search, p.SearchColumns)
 	if req.Search != "" && len(p.SearchColumns) > 0 {
 		searchQuery := p.DB.WithContext(stdCtx).Session(&gorm.Session{NewDB: true})
 		for _, col := range p.SearchColumns {
-			searchQuery = searchQuery.Or(fmt.Sprintf("%s LIKE ?", col), "%"+req.Search+"%")
+			// SECURITY: Validate search column names
+			safeColumn := col
+			if p.columnValidator != nil {
+				validatedCol, err := p.columnValidator.ValidateColumn(col)
+				if err != nil {
+					// Skip invalid columns - don't expose error to user
+					fmt.Printf("[SECURITY] Rejected invalid search column: %s\n", col)
+					continue
+				}
+				safeColumn = validatedCol
+			} else {
+				// Fallback: sanitize column name if validator not available
+				safeColumn = SanitizeColumnName(col)
+			}
+			searchQuery = searchQuery.Or(fmt.Sprintf("%s LIKE ?", safeColumn), "%"+req.Search+"%")
 		}
 		db = db.Where(searchQuery)
 		fmt.Printf("[GORM] Search applied for columns: %v\n", p.SearchColumns)
@@ -172,15 +211,30 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		return nil, err
 	}
 
-	// Sorting
+	// Sorting with column validation
 	if len(req.Sorts) > 0 {
 		for _, sort := range req.Sorts {
 			if sort.Column != "" {
+				// SECURITY: Validate sort column names
+				safeColumn := sort.Column
+				if p.columnValidator != nil {
+					validatedCol, err := p.columnValidator.ValidateColumn(sort.Column)
+					if err != nil {
+						// Skip invalid columns - don't expose error to user
+						fmt.Printf("[SECURITY] Rejected invalid sort column: %s\n", sort.Column)
+						continue
+					}
+					safeColumn = validatedCol
+				} else {
+					// Fallback: sanitize column name if validator not available
+					safeColumn = SanitizeColumnName(sort.Column)
+				}
+
 				direction := "ASC"
 				if strings.ToUpper(sort.Direction) == "DESC" {
 					direction = "DESC"
 				}
-				db = db.Order(fmt.Sprintf("%s %s", sort.Column, direction))
+				db = db.Order(fmt.Sprintf("%s %s", safeColumn, direction))
 			}
 		}
 	}

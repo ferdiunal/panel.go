@@ -24,6 +24,9 @@ func TestAuthFlow(t *testing.T) {
 			Instance: db,
 		},
 		Environment: "test",
+		Features: FeatureConfig{
+			Register: true, // Enable registration for tests
+		},
 	}
 
 	app := New(cfg)

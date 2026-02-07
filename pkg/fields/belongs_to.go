@@ -9,6 +9,7 @@ import (
 type BelongsTo struct {
 	Schema
 	RelatedResourceSlug string
+	RelatedResource     interface{} // resource.Resource interface (interface{} to avoid circular import)
 	DisplayKey          string
 	SearchableColumns   []string
 	QueryCallback       func(query interface{}) interface{}
@@ -31,10 +32,51 @@ func NewBelongsTo(name, key, relatedResource string) *BelongsTo {
 		SearchableColumns:   []string{"name"},
 		LoadingStrategy:     EAGER_LOADING,
 		GormRelationConfig: NewRelationshipGormConfig().
-			WithForeignKey(key + "_id").
+			WithForeignKey(key). // Don't add "_id" suffix - key should already include it
 			WithReferences("id"),
 	}
 	b.WithProps("related_resource", relatedResource)
+	return b
+}
+
+// NewBelongsToResource, resource instance kullanarak BelongsTo ilişkisi oluşturur.
+// Bu metod, resource referansı kullanarak tip güvenli ilişki tanımlaması sağlar.
+//
+// Örnek kullanım:
+//   fields.NewBelongsToResource("Author", "author_id", blog.NewAuthorResource())
+func NewBelongsToResource(name, key string, relatedResource interface{}) *BelongsTo {
+	// Resource interface'inden slug'ı al
+	type resourceSlugger interface {
+		Slug() string
+	}
+
+	var slug string
+	if res, ok := relatedResource.(resourceSlugger); ok {
+		slug = res.Slug()
+	} else {
+		// Fallback: boş slug
+		slug = ""
+	}
+
+	b := &BelongsTo{
+		Schema: Schema{
+			Name:  name,
+			Key:   key,
+			View:  "belongs-to-field",
+			Type:  TYPE_RELATIONSHIP,
+			Props: make(map[string]interface{}),
+		},
+		RelatedResourceSlug: slug,
+		RelatedResource:     relatedResource,
+		DisplayKey:          "name",
+		SearchableColumns:   []string{"name"},
+		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithForeignKey(key).
+			WithReferences("id"),
+	}
+	b.WithProps("related_resource", slug)
+	b.WithProps("related_resource_instance", relatedResource)
 	return b
 }
 

@@ -4,10 +4,12 @@ package fields
 type HasMany struct {
 	Schema
 	RelatedResourceSlug string
+	RelatedResource     interface{} // resource.Resource interface (interface{} to avoid circular import)
 	ForeignKeyColumn    string
 	OwnerKeyColumn      string
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
+	GormRelationConfig  *RelationshipGormConfig
 }
 
 // NewHasMany creates a new HasMany relationship field
@@ -23,8 +25,50 @@ func NewHasMany(name, key, relatedResource string) *HasMany {
 		ForeignKeyColumn:    relatedResource + "_id",
 		OwnerKeyColumn:      "id",
 		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithForeignKey(relatedResource + "_id").
+			WithReferences("id"),
 	}
 	h.WithProps("related_resource", relatedResource)
+	return h
+}
+
+// NewHasManyResource, resource instance kullanarak HasMany ilişkisi oluşturur.
+// Bu metod, resource referansı kullanarak tip güvenli ilişki tanımlaması sağlar.
+//
+// Örnek kullanım:
+//   fields.NewHasManyResource("Posts", "posts", blog.NewPostResource())
+func NewHasManyResource(name, key string, relatedResource interface{}) *HasMany {
+	// Resource interface'inden slug'ı al
+	type resourceSlugger interface {
+		Slug() string
+	}
+
+	var slug string
+	if res, ok := relatedResource.(resourceSlugger); ok {
+		slug = res.Slug()
+	} else {
+		slug = ""
+	}
+
+	h := &HasMany{
+		Schema: Schema{
+			Name: name,
+			Key:  key,
+			View: "has-many-field",
+			Type: TYPE_RELATIONSHIP,
+		},
+		RelatedResourceSlug: slug,
+		RelatedResource:     relatedResource,
+		ForeignKeyColumn:    slug + "_id",
+		OwnerKeyColumn:      "id",
+		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithForeignKey(slug + "_id").
+			WithReferences("id"),
+	}
+	h.WithProps("related_resource", slug)
+	h.WithProps("related_resource_instance", relatedResource)
 	return h
 }
 

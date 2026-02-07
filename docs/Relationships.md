@@ -6,6 +6,8 @@
 
 Relationship fields, ilişkili verileri yüklemek, göstermek, aramak, filtrelemek ve sıralamak için fluent API sağlar.
 
+### Slug-Based Yaklaşım (Geleneksel)
+
 ```go
 // BelongsTo: Post -> Author
 field := NewBelongsTo("Author", "user_id", "users").
@@ -36,6 +38,42 @@ field := NewMorphTo("Commentable", "commentable").
     })
 ```
 
+### Resource-Based Yaklaşım (Önerilen)
+
+Resource instance kullanarak tip güvenli ilişki tanımlama:
+
+```go
+// BelongsTo: Post -> Author
+field := NewBelongsToResource("Author", "author_id", blog.NewAuthorResource()).
+    DisplayUsing("name").
+    WithSearchableColumns("name", "email").
+    WithEagerLoad()
+
+// HasMany: Author -> Posts
+field := NewHasManyResource("Posts", "posts", blog.NewPostResource()).
+    ForeignKey("author_id").
+    WithEagerLoad()
+
+// HasOne: User -> Profile
+field := NewHasOneResource("Profile", "profile", blog.NewProfileResource()).
+    ForeignKey("user_id")
+
+// BelongsToMany: User -> Roles
+field := NewBelongsToManyResource("Roles", "roles", blog.NewRoleResource()).
+    PivotTable("role_user").
+    ForeignKey("user_id").
+    RelatedKey("role_id")
+```
+
+**Resource-Based Avantajları:**
+- ✅ Tip güvenliği (derleme zamanı kontrolü)
+- ✅ Refactoring desteği (resource adı değişirse otomatik güncellenir)
+- ✅ IDE desteği (autocomplete, go-to-definition)
+- ✅ Tablo adı otomatik alınır (`resource.Slug()`)
+- ✅ Backward compatible (eski slug-based yöntem hala çalışır)
+
+**Detaylı bilgi için:** [Resource-Based İlişkiler Dokümantasyonu](../.docs/RESOURCE_BASED_RELATIONSHIPS.md)
+
 ## İlişki Türleri
 
 ### BelongsTo
@@ -43,9 +81,21 @@ field := NewMorphTo("Commentable", "commentable").
 Inverse one-to-one veya one-to-many relationship. Bir model'in başka bir model'e ait olduğunu belirtir. Örneğin, bir Post bir Author'a aittir.
 
 **Temel Kullanım:**
+
+**Slug-Based (Geleneksel):**
 ```go
 field := NewBelongsTo("Author", "author_id", "authors")
 ```
+
+**Resource-Based (Önerilen):**
+```go
+field := NewBelongsToResource("Author", "author_id", blog.NewAuthorResource())
+```
+
+Resource-based yaklaşımda, tablo adı (`authors`) otomatik olarak resource'dan alınır (`blog.NewAuthorResource().Slug()`). Bu sayede:
+- ✅ Tip güvenliği sağlanır
+- ✅ Refactoring desteği artar
+- ✅ IDE autocomplete çalışır
 
 **Metodlar:**
 
@@ -149,6 +199,7 @@ Backend'den gelen data formatı:
 
 **Örnek: Post ve Author İlişkisi**
 
+**Slug-Based:**
 ```go
 // Post Resource
 type PostResource struct {
@@ -161,8 +212,34 @@ func (r *PostResource) Fields() []core.Element {
         fields.Text("Title", "title").Required(),
         fields.Textarea("Content", "content"),
 
-        // BelongsTo: Post -> Author
+        // BelongsTo: Post -> Author (slug-based)
         fields.NewBelongsTo("Author", "author_id", "authors").
+            DisplayUsing("name").
+            WithSearchableColumns("name", "email").
+            AutoOptions("name").
+            WithEagerLoad().
+            Required(),
+
+        fields.DateTime("Created At", "createdAt").ReadOnly(),
+    }
+}
+```
+
+**Resource-Based (Önerilen):**
+```go
+// Post Resource
+type PostResource struct {
+    resource.OptimizedBase
+}
+
+func (r *PostResource) Fields() []core.Element {
+    return []core.Element{
+        fields.ID("ID").Sortable(),
+        fields.Text("Title", "title").Required(),
+        fields.Textarea("Content", "content"),
+
+        // BelongsTo: Post -> Author (resource-based)
+        fields.NewBelongsToResource("Author", "author_id", blog.NewAuthorResource()).
             DisplayUsing("name").
             WithSearchableColumns("name", "email").
             AutoOptions("name").
@@ -197,8 +274,16 @@ func (r *PostResource) Fields() []core.Element {
 
 One-to-many relationship. Örneğin, bir Author birçok Post'a sahiptir.
 
+**Temel Kullanım:**
+
+**Slug-Based:**
 ```go
 field := NewHasMany("Posts", "posts", "posts")
+```
+
+**Resource-Based (Önerilen):**
+```go
+field := NewHasManyResource("Posts", "posts", blog.NewPostResource())
 ```
 
 **Metodlar:**
@@ -222,8 +307,15 @@ field := NewHasMany("Posts", "posts", "posts").
 One-to-one relationship. Bir model'in başka bir model'e sahip olduğunu belirtir. Örneğin, bir User bir Profile'a sahiptir.
 
 **Temel Kullanım:**
+
+**Slug-Based:**
 ```go
 field := NewHasOne("Profile", "profile", "profiles")
+```
+
+**Resource-Based (Önerilen):**
+```go
+field := NewHasOneResource("Profile", "profile", blog.NewProfileResource())
 ```
 
 **Metodlar:**
@@ -315,6 +407,7 @@ Backend'den gelen data formatı:
 
 **Örnek: User ve Profile İlişkisi**
 
+**Slug-Based:**
 ```go
 // User Resource
 type UserResource struct {
@@ -327,8 +420,31 @@ func (r *UserResource) Fields() []core.Element {
         fields.Text("Name", "name").Required(),
         fields.Email("Email", "email").Required(),
 
-        // HasOne: User -> Profile
+        // HasOne: User -> Profile (slug-based)
         fields.NewHasOne("Profile", "profile", "profiles").
+            ForeignKey("user_id").
+            AutoOptions("bio"),
+
+        fields.DateTime("Created At", "createdAt").ReadOnly(),
+    }
+}
+```
+
+**Resource-Based (Önerilen):**
+```go
+// User Resource
+type UserResource struct {
+    resource.OptimizedBase
+}
+
+func (r *UserResource) Fields() []core.Element {
+    return []core.Element{
+        fields.ID("ID").Sortable(),
+        fields.Text("Name", "name").Required(),
+        fields.Email("Email", "email").Required(),
+
+        // HasOne: User -> Profile (resource-based)
+        fields.NewHasOneResource("Profile", "profile", blog.NewProfileResource()).
             ForeignKey("user_id").
             AutoOptions("bio"),
 
@@ -360,9 +476,18 @@ func (r *UserResource) Fields() []core.Element {
 Many-to-many relationship. İki model arasında çoktan çoğa ilişki kurar. Örneğin, bir User birçok Role'e sahiptir ve bir Role birçok User'a sahiptir.
 
 **Temel Kullanım:**
+
+**Slug-Based:**
 ```go
 field := NewBelongsToMany("Roles", "role_user", "roles")
 ```
+
+**Resource-Based (Önerilen):**
+```go
+field := NewBelongsToManyResource("Roles", "roles", blog.NewRoleResource())
+```
+
+Resource-based yaklaşımda, pivot tablo adı otomatik oluşturulur (alfabetik sıralama ile).
 
 **Metodlar:**
 
@@ -487,6 +612,7 @@ Backend'den gelen data formatı:
 
 **Örnek: User ve Roles İlişkisi**
 
+**Slug-Based:**
 ```go
 // User Resource
 type UserResource struct {
@@ -499,8 +625,35 @@ func (r *UserResource) Fields() []core.Element {
         fields.Text("Name", "name").Required(),
         fields.Email("Email", "email").Required(),
 
-        // BelongsToMany: User -> Roles
+        // BelongsToMany: User -> Roles (slug-based)
         fields.NewBelongsToMany("Roles", "role_user", "roles").
+            PivotTable("role_user").
+            ForeignKey("user_id").
+            RelatedKey("role_id").
+            DisplayUsing("name").
+            WithSearchableColumns("name", "description").
+            AutoOptions("name"),
+
+        fields.DateTime("Created At", "createdAt").ReadOnly(),
+    }
+}
+```
+
+**Resource-Based (Önerilen):**
+```go
+// User Resource
+type UserResource struct {
+    resource.OptimizedBase
+}
+
+func (r *UserResource) Fields() []core.Element {
+    return []core.Element{
+        fields.ID("ID").Sortable(),
+        fields.Text("Name", "name").Required(),
+        fields.Email("Email", "email").Required(),
+
+        // BelongsToMany: User -> Roles (resource-based)
+        fields.NewBelongsToManyResource("Roles", "roles", blog.NewRoleResource()).
             PivotTable("role_user").
             ForeignKey("user_id").
             RelatedKey("role_id").

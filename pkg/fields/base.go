@@ -251,6 +251,9 @@ func (s *Schema) ReadOnly() Element {
 }
 
 func (s *Schema) WithProps(key string, value interface{}) Element {
+	if s.Props == nil {
+		s.Props = make(map[string]interface{})
+	}
 	s.Props[key] = value
 	return s
 }
@@ -999,5 +1002,86 @@ func (s *Schema) GormComment(comment string) Element {
 		s.GormConfiguration = NewGormConfig()
 	}
 	s.GormConfiguration.WithComment(comment)
+	return s
+}
+
+// GormFullTextIndex, alan için fulltext indeks oluşturur.
+func (s *Schema) GormFullTextIndex(name ...string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithFullTextIndex(name...)
+	return s
+}
+
+// GormSoftDelete, alan için soft delete desteği ekler.
+func (s *Schema) GormSoftDelete() Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithSoftDelete()
+	return s
+}
+
+// GormAutoIncrement, alanı otomatik artış olarak işaretler.
+func (s *Schema) GormAutoIncrement() Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithAutoIncrement()
+	return s
+}
+
+// GormForeignKey, alan için foreign key ilişkisi tanımlar.
+func (s *Schema) GormForeignKey(fk, references string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithForeignKey(fk, references)
+	return s
+}
+
+// GormOnDelete, foreign key için ON DELETE davranışını belirler.
+func (s *Schema) GormOnDelete(action string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithOnDelete(action)
+	return s
+}
+
+// GormOnUpdate, foreign key için ON UPDATE davranışını belirler.
+func (s *Schema) GormOnUpdate(action string) Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithOnUpdate(action)
+	return s
+}
+
+// GormUUID, UUID tipinde ID kullanır.
+func (s *Schema) GormUUID() Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithUUID()
+	return s
+}
+
+// GormSnowflake, Snowflake tipinde ID kullanır.
+func (s *Schema) GormSnowflake() Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithSnowflake()
+	return s
+}
+
+// GormULID, ULID tipinde ID kullanır.
+func (s *Schema) GormULID() Element {
+	if s.GormConfiguration == nil {
+		s.GormConfiguration = NewGormConfig()
+	}
+	s.GormConfiguration.WithULID()
 	return s
 }
