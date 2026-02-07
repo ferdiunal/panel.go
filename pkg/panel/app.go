@@ -49,7 +49,7 @@ type Panel struct {
 
 // New, yeni bir Panel örneği oluşturur ve başlatır.
 // Veritabanı migration'ları, middleware kayıtları ve yönlendirmeleri yapılandırır.
-func New(config Config) *Panel {
+func New(config Config) *PanelField {
 	app := fiber.New()
 	db := config.Database.Instance
 
@@ -250,6 +250,8 @@ func New(config Config) *Panel {
 	api.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))      // List available lenses
 	api.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens))    // Lens data
 	api.Get("/resource/:resource/morphable/:field", context.Wrap(p.handleMorphable)) // MorphTo field options
+	api.Get("/resource/:resource/actions", context.Wrap(p.handleResourceActions))    // List available actions
+	api.Post("/resource/:resource/actions/:action", context.Wrap(p.handleResourceActionExecute)) // Execute action
 	api.Get("/resource/:resource", context.Wrap(p.handleResourceIndex))
 	api.Post("/resource/:resource", context.Wrap(p.handleResourceStore))
 	api.Get("/resource/:resource/create", context.Wrap(p.handleResourceCreate)) // New Route
@@ -268,7 +270,7 @@ func New(config Config) *Panel {
 }
 
 // LoadSettings, veritabanından ayarları okur ve yapılandırmayı günceller.
-func (p *Panel) LoadSettings() error {
+func (p *PanelField) LoadSettings() error {
 	var settings []setting.Setting
 	// Tablo yoksa henüz hata vermesin (ilk çalıştırma)
 	if !p.Db.Migrator().HasTable(&setting.Setting{}) {
@@ -314,26 +316,26 @@ func (p *Panel) LoadSettings() error {
 	return nil
 }
 
-func (p *Panel) Register(slug string, res resource.Resource) {
+func (p *PanelField) Register(slug string, res resource.Resource) {
 	res.SetDialogType(resource.DialogTypeSheet)
 	p.resources[slug] = res
 }
 
-func (p *Panel) RegisterResource(res resource.Resource) {
+func (p *PanelField) RegisterResource(res resource.Resource) {
 	p.Register(res.Slug(), res)
 }
 
-func (p *Panel) RegisterPage(pg page.Page) {
+func (p *PanelField) RegisterPage(pg page.Page) {
 	p.pages[pg.Slug()] = pg
 }
 
-func (p *Panel) Start() error {
+func (p *PanelField) Start() error {
 	addr := fmt.Sprintf("%s:%s", p.Config.Server.Host, p.Config.Server.Port)
 	return p.Fiber.Listen(addr)
 }
 
 // Helper to resolve resource and create handler
-func (p *Panel) withResourceHandler(c *context.Context, fn func(*handler.FieldHandler) error) error {
+func (p *PanelField) withResourceHandler(c *context.Context, fn func(*handler.FieldHandler) error) error {
 	slug := c.Params("resource")
 	res, ok := p.resources[slug]
 	if !ok {
@@ -345,79 +347,79 @@ func (p *Panel) withResourceHandler(c *context.Context, fn func(*handler.FieldHa
 	return fn(h)
 }
 
-func (p *Panel) handleResourceIndex(c *context.Context) error {
+func (p *PanelField) handleResourceIndex(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceIndex(h, c)
 	})
 }
 
-func (p *Panel) handleResourceShow(c *context.Context) error {
+func (p *PanelField) handleResourceShow(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceShow(h, c)
 	})
 }
 
-func (p *Panel) handleResourceDetail(c *context.Context) error {
+func (p *PanelField) handleResourceDetail(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceDetail(h, c)
 	})
 }
 
-func (p *Panel) handleResourceStore(c *context.Context) error {
+func (p *PanelField) handleResourceStore(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceStore(h, c)
 	})
 }
 
-func (p *Panel) handleResourceCreate(c *context.Context) error {
+func (p *PanelField) handleResourceCreate(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceCreate(h, c)
 	})
 }
 
-func (p *Panel) handleResourceUpdate(c *context.Context) error {
+func (p *PanelField) handleResourceUpdate(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceUpdate(h, c)
 	})
 }
 
-func (p *Panel) handleResourceDestroy(c *context.Context) error {
+func (p *PanelField) handleResourceDestroy(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceDestroy(h, c)
 	})
 }
 
-func (p *Panel) handleResourceEdit(c *context.Context) error {
+func (p *PanelField) handleResourceEdit(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceEdit(h, c)
 	})
 }
 
-func (p *Panel) handleFieldResolve(c *context.Context) error {
+func (p *PanelField) handleFieldResolve(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleFieldResolve(h, c)
 	})
 }
 
-func (p *Panel) handleResourceCards(c *context.Context) error {
+func (p *PanelField) handleResourceCards(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleCardList(h, c)
 	})
 }
 
-func (p *Panel) handleResourceCard(c *context.Context) error {
+func (p *PanelField) handleResourceCard(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleCardDetail(h, c)
 	})
 }
 
-func (p *Panel) handleResourceLenses(c *context.Context) error {
+func (p *PanelField) handleResourceLenses(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleLensIndex(h, c)
 	})
 }
 
-func (p *Panel) handleResourceLens(c *context.Context) error {
+func (p *PanelField) handleResourceLens(c *context.Context) error {
 	slug := c.Params("resource")
 	lensSlug := c.Params("lens")
 
@@ -450,13 +452,25 @@ func (p *Panel) handleResourceLens(c *context.Context) error {
 	return handler.HandleLens(h, c)
 }
 
-func (p *Panel) handleMorphable(c *context.Context) error {
+func (p *PanelField) handleMorphable(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleMorphable(h, c)
 	})
 }
 
-func (p *Panel) handleNavigation(c *context.Context) error {
+func (p *PanelField) handleResourceActions(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleActionList(h, c.Ctx)
+	})
+}
+
+func (p *PanelField) handleResourceActionExecute(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleActionExecute(h, c.Ctx)
+	})
+}
+
+func (p *PanelField) handleNavigation(c *context.Context) error {
 	type NavItem struct {
 		Slug  string `json:"slug"`
 		Title string `json:"title"`
@@ -508,7 +522,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 	})
 }
 
-func (p *Panel) handleInit(c *context.Context) error {
+func (p *PanelField) handleInit(c *context.Context) error {
 	fmt.Printf("DEBUG: handleInit called. Config: %+v\n", p.Config)
 	fmt.Printf("DEBUG: SettingsValues: %+v\n", p.Config.SettingsValues)
 
@@ -549,7 +563,7 @@ func (p *Panel) handleInit(c *context.Context) error {
 	})
 }
 
-func (p *Panel) handleResolve(c *context.Context) error {
+func (p *PanelField) handleResolve(c *context.Context) error {
 	path := c.Query("path")
 	// Simple Logic: Check if path matches a known resource slug
 	// E.g. path "/users" -> Resource "users"
