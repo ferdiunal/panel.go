@@ -1,7 +1,6 @@
 package fields
 
 import (
-	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/core"
 )
 

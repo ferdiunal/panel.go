@@ -70,7 +70,7 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 		if relField, ok := fields.IsRelationshipField(field); ok {
 			// BelongsTo için foreign key index'i
 			if relField.GetRelationshipType() == "belongsTo" {
-				if bt, ok := relField.(*fields.BelongsTo); ok {
+				if bt, ok := relField.(*fields.BelongsToField); ok {
 					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
 						fkColumn := bt.GormRelationConfig.ForeignKey
 						if !mg.hasIndex(tableName, fkColumn) {
@@ -84,7 +84,7 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 
 			// BelongsToMany için pivot tablo
 			if relField.GetRelationshipType() == "belongsToMany" {
-				if btm, ok := relField.(*fields.BelongsToMany); ok {
+				if btm, ok := relField.(*fields.BelongsToManyField); ok {
 					if err := mg.createPivotTable(btm); err != nil {
 						return err
 					}
@@ -214,7 +214,7 @@ func (mg *MigrationGenerator) createIndex(table, column string, unique bool) err
 }
 
 // createPivotTable, BelongsToMany ilişkileri için pivot tablo oluşturur.
-func (mg *MigrationGenerator) createPivotTable(btm *fields.BelongsToMany) error {
+func (mg *MigrationGenerator) createPivotTable(btm *fields.BelongsToManyField) error {
 	// Pivot tablo zaten var mı kontrol et
 	var count int64
 	mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", btm.PivotTableName).Scan(&count)
@@ -363,7 +363,7 @@ func (mg *MigrationGenerator) buildRelationshipFieldInfo(relField fields.Relatio
 	switch relField.GetRelationshipType() {
 	case "belongsTo":
 		// BelongsTo için foreign key field'ı gerekir
-		if bt, ok := relField.(*fields.BelongsTo); ok {
+		if bt, ok := relField.(*fields.BelongsToField); ok {
 			if bt.GormRelationConfig != nil {
 				info.ForeignKey = bt.GormRelationConfig.ForeignKey
 				info.RelationGormTag = bt.GormRelationConfig.ToGormTag()
@@ -377,7 +377,7 @@ func (mg *MigrationGenerator) buildRelationshipFieldInfo(relField fields.Relatio
 		}
 	case "belongsToMany":
 		// BelongsToMany için pivot tablo gerekir
-		if btm, ok := relField.(*fields.BelongsToMany); ok {
+		if btm, ok := relField.(*fields.BelongsToManyField); ok {
 			info.PivotTable = btm.PivotTableName
 			if btm.GormRelationConfig != nil {
 				info.RelationGormTag = btm.GormRelationConfig.ToGormTag()
@@ -391,7 +391,7 @@ func (mg *MigrationGenerator) buildRelationshipFieldInfo(relField fields.Relatio
 		}
 	case "hasOne":
 		// HasOne için GORM tag gerekir
-		if ho, ok := relField.(*fields.HasOne); ok {
+		if ho, ok := relField.(*fields.HasOneField); ok {
 			if ho.GormRelationConfig != nil {
 				info.ForeignKey = ho.GormRelationConfig.ForeignKey
 				info.RelationGormTag = ho.GormRelationConfig.ToGormTag()
@@ -405,7 +405,7 @@ func (mg *MigrationGenerator) buildRelationshipFieldInfo(relField fields.Relatio
 		}
 	case "hasMany":
 		// HasMany için GORM tag gerekir
-		if hm, ok := relField.(*fields.HasMany); ok {
+		if hm, ok := relField.(*fields.HasManyField); ok {
 			if hm.GormRelationConfig != nil {
 				info.ForeignKey = hm.GormRelationConfig.ForeignKey
 				info.RelationGormTag = hm.GormRelationConfig.ToGormTag()
