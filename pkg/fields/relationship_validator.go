@@ -140,7 +140,7 @@ func (rv *RelationshipValidatorImpl) ValidateHasOne(ctx context.Context, value i
 }
 
 // ValidateBelongsToMany validates BelongsToMany relationships
-func (rv *RelationshipValidatorImpl) ValidateBelongsToMany(ctx context.Context, value interface{}, field *BelongsToFieldMany) error {
+func (rv *RelationshipValidatorImpl) ValidateBelongsToMany(ctx context.Context, value interface{}, field *BelongsToManyField) error {
 	if value == nil {
 		return nil
 	}
