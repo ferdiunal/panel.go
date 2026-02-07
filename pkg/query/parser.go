@@ -9,22 +9,83 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Sort represents a sort configuration
+// Bu yapı, bir kaynağın sıralama (sort) konfigürasyonunu temsil eder.
+//
+// Kullanım Senaryosu:
+// - Veritabanı sorgularında sıralama düzeni belirtmek için kullanılır
+// - Birden fazla sütuna göre sıralama yapılabilir
+//
+// Örnek:
+//   Sort{Column: "created_at", Direction: "desc"}
+//   Sort{Column: "name", Direction: "asc"}
+//
+// Önemli Notlar:
+// - Direction değeri "asc" (artan) veya "desc" (azalan) olmalıdır
+// - Geçersiz direction değerleri otomatik olarak "asc" olarak ayarlanır
 type Sort struct {
-	Column    string `json:"column"`
-	Direction string `json:"direction"`
+	Column    string `json:"column"`    // Sıralanacak sütun adı (örn: "id", "created_at", "name")
+	Direction string `json:"direction"` // Sıralama yönü: "asc" (artan) veya "desc" (azalan)
 }
 
-// ResourceQueryParams represents parsed query params for a resource
+// Bu yapı, bir kaynağın (resource) sorgu parametrelerini temsil eder.
+//
+// Kullanım Senaryosu:
+// - HTTP GET isteklerinden gelen sorgu parametrelerini parse etmek için kullanılır
+// - Arama, filtreleme, sıralama ve sayfalama işlemlerini yönetir
+// - Hem yeni nested format hem de eski legacy format'ı destekler
+//
+// Desteklenen Format Örnekleri:
+//   Nested Format:
+//     users[search]=john
+//     users[page]=2
+//     users[per_page]=20
+//     users[sort][created_at]=desc
+//     users[filters][status][eq]=active
+//
+//   Legacy Format:
+//     search=john
+//     page=2
+//     per_page=20
+//     sort_column=created_at
+//     sort_direction=desc
+//     filters[status]=active
+//
+// Önemli Notlar:
+// - Page değeri 1'den başlar (0 geçersizdir)
+// - PerPage maksimum 100 olabilir
+// - Filters ve Sorts dinamik olarak eklenir
 type ResourceQueryParams struct {
-	Search  string   // resource[search]=...
-	Sorts   []Sort   // resource[sort][column]=direction
-	Filters []Filter // resource[filters][field][op]=value
-	Page    int      // resource[page]=...
-	PerPage int      // resource[per_page]=...
+	Search  string   // Arama sorgusu (örn: "john" -> tüm aranabilir alanlarda arama yapar)
+	Sorts   []Sort   // Sıralama konfigürasyonları (birden fazla sütuna göre sıralama desteklenir)
+	Filters []Filter // Filtreleme koşulları (alan, operatör ve değer kombinasyonları)
+	Page    int      // Sayfa numarası (1'den başlar, varsayılan: 1)
+	PerPage int      // Sayfa başına kayıt sayısı (varsayılan: 15, maksimum: 100)
 }
 
-// DefaultParams returns default query params
+// Bu fonksiyon, varsayılan sorgu parametrelerini oluşturur ve döndürür.
+//
+// Kullanım Senaryosu:
+// - Yeni bir ResourceQueryParams nesnesi oluşturmak için kullanılır
+// - Tüm alanlar varsayılan değerlerle başlatılır
+//
+// Parametreler: Yok
+//
+// Dönüş Değeri:
+// - *ResourceQueryParams: Varsayılan değerlerle yapılandırılmış pointer'ı
+//   - Page: 1 (ilk sayfa)
+//   - PerPage: 15 (sayfa başına 15 kayıt)
+//   - Filters: Boş slice
+//   - Sorts: Boş slice
+//   - Search: Boş string
+//
+// Örnek Kullanım:
+//   params := DefaultParams()
+//   params.Search = "john"
+//   params.Page = 2
+//
+// Önemli Notlar:
+// - Her çağrıda yeni bir pointer döndürülür
+// - Slice'lar 0 kapasitesiyle başlatılır (dinamik büyüme için)
 func DefaultParams() *ResourceQueryParams {
 	return &ResourceQueryParams{
 		Page:    1,
@@ -34,21 +95,59 @@ func DefaultParams() *ResourceQueryParams {
 	}
 }
 
-// ParseResourceQuery parses nested query params like resource[search]=...
-// Falls back to legacy format if nested format not found
+// Bu fonksiyon, HTTP GET isteklerinden gelen sorgu parametrelerini parse eder.
 //
-// Supported formats:
-//   - Nested: users[search]=query, users[sort][id]=asc, users[filters][status][eq]=active
-//   - Legacy: search=query, sort_column=id, sort_direction=asc
+// Kullanım Senaryosu:
+// - REST API endpoint'lerinde sorgu parametrelerini işlemek için kullanılır
+// - Arama, filtreleme, sıralama ve sayfalama parametrelerini otomatik olarak ayıklar
+// - Hem yeni nested format hem de eski legacy format'ı destekler (geriye uyumlu)
+//
+// Parametreler:
+// - c *fiber.Ctx: Fiber HTTP context nesnesi (istek bilgilerini içerir)
+// - resourceName string: Kaynağın adı (örn: "users", "products", "orders")
+//
+// Dönüş Değeri:
+// - *ResourceQueryParams: Parse edilmiş sorgu parametrelerini içeren yapılandırılmış pointer'ı
+//
+// Desteklenen Format Örnekleri:
+//
+// Nested Format (Yeni - Önerilen):
+//   GET /api/users?users[search]=john&users[page]=2&users[per_page]=20
+//   GET /api/users?users[sort][created_at]=desc&users[sort][name]=asc
+//   GET /api/users?users[filters][status][eq]=active&users[filters][age][gt]=18
+//
+// Legacy Format (Eski - Geriye Uyumlu):
+//   GET /api/users?search=john&page=2&per_page=20
+//   GET /api/users?sort_column=created_at&sort_direction=desc
+//   GET /api/users?filters[status]=active
+//
+// Örnek Kullanım:
+//   func GetUsers(c *fiber.Ctx) error {
+//       params := ParseResourceQuery(c, "users")
+//       if params.HasSearch() {
+//           // Arama yapılacak
+//       }
+//       if params.HasFilters() {
+//           // Filtreleme yapılacak
+//       }
+//       // Veritabanı sorgusunu oluştur
+//       return c.JSON(users)
+//   }
+//
+// Önemli Notlar:
+// - Nested format bulunursa legacy format kontrol edilmez (performans için)
+// - Geçersiz sayfa numaraları varsayılan değer (1) olarak ayarlanır
+// - PerPage maksimum 100 olabilir (güvenlik için)
+// - Direction değerleri otomatik olarak "asc" veya "desc" olarak normalize edilir
 func ParseResourceQuery(c *fiber.Ctx, resourceName string) *ResourceQueryParams {
 	params := DefaultParams()
 
-	// Get raw query string and decode it
+	// Ham sorgu dizesini al ve decode et
 	rawQuery := string(c.Request().URI().QueryString())
 
 	fmt.Printf("[PARSER] Resource: %s, RawQuery: %s\n", resourceName, rawQuery)
 
-	// Try nested format first using decoded query string
+	// Önce nested format'ı dene (decode edilmiş sorgu dizesi kullanarak)
 	if parseNestedFormat(rawQuery, resourceName, params) {
 		fmt.Printf("[PARSER] Nested format parsed: Search=%q, Page=%d, PerPage=%d\n", params.Search, params.Page, params.PerPage)
 		return params
@@ -56,19 +155,54 @@ func ParseResourceQuery(c *fiber.Ctx, resourceName string) *ResourceQueryParams 
 
 	fmt.Printf("[PARSER] Nested format not found, trying legacy\n")
 
-	// Fallback to legacy format
+	// Legacy format'a geri dön (geriye uyumluluk için)
 	parseLegacyFormat(c, params)
 	return params
 }
 
-// parseNestedFormat parses the new nested format: resource[key]=value
+// Bu fonksiyon, yeni nested format'ı parse eder: resource[key]=value
+//
+// Kullanım Senaryosu:
+// - Modern API'lerde nested sorgu parametrelerini işlemek için kullanılır
+// - URL-encoded sorgu dizesini decode ederek parse eder
+// - Arama, sayfalama, sıralama ve filtreleme parametrelerini ayıklar
+//
+// Parametreler:
+// - rawQuery string: Ham sorgu dizesi (örn: "users[search]=john&users[page]=2")
+// - resource string: Kaynağın adı (örn: "users", "products")
+// - params *ResourceQueryParams: Parse edilen parametreleri depolamak için pointer
+//
+// Dönüş Değeri:
+// - bool: Nested format bulunup parse edilirse true, aksi takdirde false
+//
+// Desteklenen Parametreler:
+// - resource[search]=value -> Arama sorgusu
+// - resource[page]=number -> Sayfa numarası
+// - resource[per_page]=number -> Sayfa başına kayıt sayısı
+// - resource[sort][column]=direction -> Sıralama (asc/desc)
+// - resource[filters][field][operator]=value -> Filtreleme
+//
+// Örnek Kullanım:
+//   rawQuery := "users[search]=john&users[page]=2&users[sort][created_at]=desc"
+//   params := DefaultParams()
+//   found := parseNestedFormat(rawQuery, "users", params)
+//   if found {
+//       fmt.Println("Nested format bulundu:", params.Search)
+//   }
+//
+// Önemli Notlar:
+// - URL decode işlemi otomatik olarak yapılır
+// - Geçersiz sayfa numaraları göz ardı edilir
+// - PerPage maksimum 100 olabilir
+// - Direction değerleri otomatik olarak normalize edilir
+// - Hata durumunda false döndürülür
 func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryParams) bool {
 	if rawQuery == "" {
 		fmt.Printf("[NESTED] Empty rawQuery\n")
 		return false
 	}
 
-	// URL decode the query string first
+	// Sorgu dizesini önce URL decode et
 	decodedQuery, err := url.QueryUnescape(rawQuery)
 	if err != nil {
 		decodedQuery = rawQuery
@@ -76,7 +210,7 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 
 	fmt.Printf("[NESTED] Decoded query: %s\n", decodedQuery)
 
-	// Parse the decoded query string
+	// Decode edilmiş sorgu dizesini parse et
 	values, err := url.ParseQuery(decodedQuery)
 	if err != nil {
 		fmt.Printf("[NESTED] Parse error: %v\n", err)
@@ -94,14 +228,14 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 		if len(vals) == 0 {
 			continue
 		}
-		value := vals[0] // Take first value
+		value := vals[0] // İlk değeri al
 
 		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
 		found = true
 
-		// Remove resource prefix and trailing bracket
+		// Kaynak prefix'ini ve sondaki bracket'ı kaldır
 		// users[search] -> search
 		// users[sort][id] -> sort][id
 		// users[filters][status][eq] -> filters][status][eq
@@ -144,32 +278,64 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 	return found
 }
 
-// parseFilterParam handles both simple and advanced filter formats
+// Bu fonksiyon, basit ve gelişmiş filtreleme formatlarını işler.
 //
-// Simple format (defaults to eq operator):
+// Kullanım Senaryosu:
+// - Nested format'tan çıkarılan filtreleme parametrelerini parse etmek için kullanılır
+// - Hem basit (varsayılan eq operatörü) hem de gelişmiş (özel operatör) formatları destekler
+// - Operatöre göre değeri uygun şekilde parse eder (string, array, boolean vb.)
 //
-//	filters][status = "active" -> {field: status, op: eq, value: active}
+// Parametreler:
+// - inner string: Filtreleme parametresinin iç kısmı (örn: "status" veya "status][eq")
+// - value string: Filtreleme değeri (örn: "active" veya "active,pending")
+// - params *ResourceQueryParams: Parse edilen filtreleri depolamak için pointer
 //
-// Advanced format:
+// Desteklenen Format Örnekleri:
 //
-//	filters][status][eq = "active" -> {field: status, op: eq, value: active}
-//	filters][age][gt = "18" -> {field: age, op: gt, value: 18}
-//	filters][status][in = "active,pending" -> {field: status, op: in, value: [active, pending]}
+// Basit Format (varsayılan eq operatörü):
+//   filters][status = "active" -> {field: status, op: eq, value: active}
+//   filters][name = "john" -> {field: name, op: eq, value: john}
+//
+// Gelişmiş Format (özel operatör):
+//   filters][status][eq = "active" -> {field: status, op: eq, value: active}
+//   filters][age][gt = "18" -> {field: age, op: gt, value: 18}
+//   filters][status][in = "active,pending" -> {field: status, op: in, value: [active, pending]}
+//   filters][created_at][between = "2024-01-01,2024-12-31" -> {field: created_at, op: between, value: [2024-01-01, 2024-12-31]}
+//   filters][deleted_at][is_null = "true" -> {field: deleted_at, op: is_null, value: true}
+//
+// Desteklenen Operatörler:
+// - eq (eşit), neq (eşit değil), gt (büyük), gte (büyük eşit)
+// - lt (küçük), lte (küçük eşit), like (benzer), nlike (benzer değil)
+// - in (içinde), not_in (içinde değil), between (arasında)
+// - is_null (boş), is_not_null (boş değil)
+//
+// Örnek Kullanım:
+//   parseFilterParam("status", "active", params)
+//   parseFilterParam("status][eq", "active", params)
+//   parseFilterParam("age][gt", "18", params)
+//   parseFilterParam("status][in", "active,pending", params)
+//
+// Önemli Notlar:
+// - Operatör geçersizse varsayılan olarak "eq" kullanılır
+// - in/not_in operatörleri virgülle ayrılmış değerleri array'e dönüştürür
+// - between operatörü tam olarak 2 değer gerektirir (virgülle ayrılmış)
+// - is_null/is_not_null operatörleri boolean değerlere dönüştürülür
+// - Geçersiz format'lar göz ardı edilir (return yapılır)
 func parseFilterParam(inner, value string, params *ResourceQueryParams) {
-	// Remove "filters][" prefix
+	// "filters][" prefix'ini kaldır
 	rest := strings.TrimPrefix(inner, "filters][")
 
-	// Split by "][" to get parts
+	// "][" ile bölerek parçaları al
 	parts := strings.Split(rest, "][")
 
 	var field string
-	var operator FilterOperator = OpEqual // default operator
+	var operator FilterOperator = OpEqual // varsayılan operatör
 
 	if len(parts) == 1 {
-		// Simple format: filters][status = "active"
+		// Basit format: filters][status = "active"
 		field = parts[0]
 	} else if len(parts) >= 2 {
-		// Advanced format: filters][status][eq = "active"
+		// Gelişmiş format: filters][status][eq = "active"
 		field = parts[0]
 		if IsValidOperator(parts[1]) {
 			operator = FilterOperator(parts[1])
@@ -180,30 +346,30 @@ func parseFilterParam(inner, value string, params *ResourceQueryParams) {
 		return
 	}
 
-	// Parse value based on operator type
+	// Operatöre göre değeri parse et
 	var parsedValue interface{}
 
 	switch operator {
 	case OpIn, OpNotIn:
-		// Comma-separated values -> []string
+		// Virgülle ayrılmış değerler -> []string
 		parsedValue = strings.Split(value, ",")
 
 	case OpBetween:
-		// Two comma-separated values -> []string
+		// İki virgülle ayrılmış değer -> []string
 		betweenParts := strings.Split(value, ",")
 		if len(betweenParts) == 2 {
 			parsedValue = betweenParts
 		} else {
-			// Invalid between format, skip
+			// Geçersiz between format, atla
 			return
 		}
 
 	case OpIsNull, OpIsNotNull:
-		// Boolean value
+		// Boolean değer
 		parsedValue = value == "true" || value == "1"
 
 	default:
-		// String value for eq, neq, gt, gte, lt, lte, like, nlike
+		// String değer (eq, neq, gt, gte, lt, lte, like, nlike için)
 		parsedValue = value
 	}
 
@@ -214,24 +380,52 @@ func parseFilterParam(inner, value string, params *ResourceQueryParams) {
 	})
 }
 
-// parseLegacyFormat parses the old flat format for backward compatibility
+// Bu fonksiyon, eski flat format'ı parse eder (geriye uyumluluk için).
+//
+// Kullanım Senaryosu:
+// - Eski API'lerde veya legacy sistemlerde sorgu parametrelerini işlemek için kullanılır
+// - Nested format bulunmadığında otomatik olarak çağrılır
+// - Basit ve düz sorgu parametrelerini destekler
+//
+// Parametreler:
+// - c *fiber.Ctx: Fiber HTTP context nesnesi
+// - params *ResourceQueryParams: Parse edilen parametreleri depolamak için pointer
+//
+// Desteklenen Legacy Parametreler:
+// - page: Sayfa numarası (varsayılan: 1)
+// - per_page: Sayfa başına kayıt sayısı (varsayılan: 15, maksimum: 100)
+// - search: Arama sorgusu
+// - sort_column: Sıralanacak sütun adı
+// - sort_direction: Sıralama yönü (asc/desc, varsayılan: asc)
+// - filters[field]: Filtreleme değeri (basit format, operatör: eq)
+//
+// Örnek Kullanım:
+//   GET /api/users?page=2&per_page=20&search=john&sort_column=created_at&sort_direction=desc
+//   GET /api/users?filters[status]=active&filters[role]=admin
+//
+// Önemli Notlar:
+// - Geçersiz sayfa numaraları varsayılan değer (1) olarak ayarlanır
+// - PerPage maksimum 100 olabilir (güvenlik için)
+// - Direction değerleri otomatik olarak normalize edilir
+// - Filters basit format'ta (operatör: eq) parse edilir
+// - Bu fonksiyon nested format bulunmadığında fallback olarak kullanılır
 func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
-	// Page
+	// Sayfa
 	if p, err := strconv.Atoi(c.Query("page", "1")); err == nil && p > 0 {
 		params.Page = p
 	}
 
-	// Per page
+	// Sayfa başına kayıt sayısı
 	if pp, err := strconv.Atoi(c.Query("per_page", "15")); err == nil && pp > 0 && pp <= 100 {
 		params.PerPage = pp
 	}
 
-	// Search
+	// Arama
 	if search := c.Query("search"); search != "" {
 		params.Search = search
 	}
 
-	// Sort (legacy format: sort_column + sort_direction)
+	// Sıralama (legacy format: sort_column + sort_direction)
 	if col := c.Query("sort_column"); col != "" {
 		dir := strings.ToLower(c.Query("sort_direction", "asc"))
 		if dir != "asc" && dir != "desc" {
@@ -243,7 +437,7 @@ func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
 		})
 	}
 
-	// Legacy filter format using QueryParser for map
+	// Legacy filtreleme format'ı (QueryParser kullanarak map'e dönüştür)
 	type LegacyFilters struct {
 		Filters map[string]string `query:"filters"`
 	}
@@ -259,17 +453,95 @@ func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
 	}
 }
 
-// HasSearch returns true if search query is set
+// Bu metod, arama sorgusu ayarlanıp ayarlanmadığını kontrol eder.
+//
+// Kullanım Senaryosu:
+// - Arama işleminin yapılması gerekip gerekmediğini belirlemek için kullanılır
+// - Koşullu arama mantığı uygulamak için faydalıdır
+//
+// Parametreler: Yok
+//
+// Dönüş Değeri:
+// - bool: Arama sorgusu boş değilse true, aksi takdirde false
+//
+// Örnek Kullanım:
+//   params := ParseResourceQuery(c, "users")
+//   if params.HasSearch() {
+//       // Arama yapılacak
+//       results := db.Where("name LIKE ?", "%"+params.Search+"%").Find(&users)
+//   } else {
+//       // Arama yapılmayacak
+//       results := db.Find(&users)
+//   }
+//
+// Önemli Notlar:
+// - Boş string ("") false döndürür
+// - Sadece whitespace içeren string'ler true döndürür (trim yapılmaz)
 func (p *ResourceQueryParams) HasSearch() bool {
 	return p.Search != ""
 }
 
-// HasSorts returns true if any sorts are defined
+// Bu metod, sıralama konfigürasyonunun ayarlanıp ayarlanmadığını kontrol eder.
+//
+// Kullanım Senaryosu:
+// - Sıralama işleminin yapılması gerekip gerekmediğini belirlemek için kullanılır
+// - Dinamik sıralama mantığı uygulamak için faydalıdır
+//
+// Parametreler: Yok
+//
+// Dönüş Değeri:
+// - bool: En az bir sıralama konfigürasyonu varsa true, aksi takdirde false
+//
+// Örnek Kullanım:
+//   params := ParseResourceQuery(c, "users")
+//   if params.HasSorts() {
+//       // Sıralama yapılacak
+//       query := db
+//       for _, sort := range params.Sorts {
+//           query = query.Order(sort.Column + " " + sort.Direction)
+//       }
+//       results := query.Find(&users)
+//   } else {
+//       // Varsayılan sıralama
+//       results := db.Order("id DESC").Find(&users)
+//   }
+//
+// Önemli Notlar:
+// - Sorts slice'ı boşsa false döndürür
+// - Birden fazla sıralama konfigürasyonu olabilir
 func (p *ResourceQueryParams) HasSorts() bool {
 	return len(p.Sorts) > 0
 }
 
-// HasFilters returns true if any filters are defined
+// Bu metod, filtreleme koşulunun ayarlanıp ayarlanmadığını kontrol eder.
+//
+// Kullanım Senaryosu:
+// - Filtreleme işleminin yapılması gerekip gerekmediğini belirlemek için kullanılır
+// - Dinamik filtreleme mantığı uygulamak için faydalıdır
+//
+// Parametreler: Yok
+//
+// Dönüş Değeri:
+// - bool: En az bir filtreleme koşulu varsa true, aksi takdirde false
+//
+// Örnek Kullanım:
+//   params := ParseResourceQuery(c, "users")
+//   if params.HasFilters() {
+//       // Filtreleme yapılacak
+//       query := db
+//       for _, filter := range params.Filters {
+//           query = applyFilter(query, filter)
+//       }
+//       results := query.Find(&users)
+//   } else {
+//       // Filtreleme yapılmayacak
+//       results := db.Find(&users)
+//   }
+//
+// Önemli Notlar:
+// - Filters slice'ı boşsa false döndürür
+// - Birden fazla filtreleme koşulu olabilir
+// - Her filtreleme koşulu farklı operatörleri destekler (eq, gt, in, vb.)
 func (p *ResourceQueryParams) HasFilters() bool {
 	return len(p.Filters) > 0
 }
