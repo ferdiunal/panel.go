@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
@@ -228,13 +230,30 @@ func HandleResourceEdit(h *FieldHandler, c *context.Context) error {
 			continue
 		}
 
+		// Context string'i space-separated olabilir (örn: "hide_on_create hide_on_update")
+		// Bu yüzden string'i parse edip her bir context'i kontrol etmeliyiz
 		ctxStr := element.GetContext()
-		if ctxStr != fields.HIDE_ON_UPDATE &&
-			ctxStr != fields.ONLY_ON_LIST &&
-			ctxStr != fields.ONLY_ON_DETAIL &&
-			ctxStr != fields.ONLY_ON_CREATE {
-			updateElements = append(updateElements, element)
+		if ctxStr != "" {
+			contexts := strings.Fields(string(ctxStr))
+			shouldSkip := false
+
+			for _, ctx := range contexts {
+				// Güncelleme formunda gösterilmemesi gereken alanları filtrele
+				if ctx == string(fields.HIDE_ON_UPDATE) ||
+					ctx == string(fields.ONLY_ON_LIST) ||
+					ctx == string(fields.ONLY_ON_DETAIL) ||
+					ctx == string(fields.ONLY_ON_CREATE) {
+					shouldSkip = true
+					break
+				}
+			}
+
+			if shouldSkip {
+				continue
+			}
 		}
+
+		updateElements = append(updateElements, element)
 	}
 
 	// Resolve fields with values
