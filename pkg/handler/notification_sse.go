@@ -47,7 +47,7 @@ func (h *NotificationSSEHandler) HandleNotificationStream(c *context.Context) er
 	if len(notifications) > 0 {
 		data, _ := json.Marshal(notifications)
 		fmt.Fprintf(c, "data: %s\n\n", data)
-		c.Context().Flush()
+		c.Flush()
 	}
 
 	// Poll for new notifications every 2 seconds
@@ -69,7 +69,7 @@ func (h *NotificationSSEHandler) HandleNotificationStream(c *context.Context) er
 			if len(newNotifications) > 0 {
 				data, _ := json.Marshal(newNotifications)
 				fmt.Fprintf(c, "data: %s\n\n", data)
-				c.Context().Flush()
+				c.Flush()
 				lastCheck = time.Now()
 			}
 
