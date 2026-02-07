@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/ferdiunal/panel.go/pkg/action"
 	"github.com/ferdiunal/panel.go/pkg/context"
@@ -101,8 +102,7 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	// Load models
-	models := make([]interface{}, 0, len(body.IDs))
+	// Load models in parallel using async fan-out/fan-in pattern
 	modelType := reflect.TypeOf(h.Resource.Model())
 
 	// Handle pointer types
@@ -110,14 +110,55 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		modelType = modelType.Elem()
 	}
 
+	// Result struct for goroutine communication
+	type modelResult struct {
+		model interface{}
+		err   error
+		id    string
+	}
+
+	// Create buffered channel for results (non-blocking sends)
+	results := make(chan modelResult, len(body.IDs))
+
+	// WaitGroup to track goroutine completion
+	var wg sync.WaitGroup
+	wg.Add(len(body.IDs))
+
+	// Fan-out: Launch goroutines asynchronously
 	for _, id := range body.IDs {
-		model := reflect.New(modelType).Interface()
-		if err := h.DB.First(model, "id = ?", id).Error; err != nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": fmt.Sprintf("Model with ID %s not found", id),
-			})
+		go func(id string) {
+			defer wg.Done() // Mark goroutine as done when finished
+
+			model := reflect.New(modelType).Interface()
+			err := h.DB.First(model, "id = ?", id).Error
+
+			// Send result to channel
+			results <- modelResult{model: model, err: err, id: id}
+		}(id)
+	}
+
+	// Close channel when all goroutines complete (async closer)
+	go func() {
+		wg.Wait()      // Wait for all goroutines to finish
+		close(results) // Close channel to signal completion
+	}()
+
+	// Fan-in: Collect results from channel
+	models := make([]interface{}, 0, len(body.IDs))
+	var firstError error
+
+	for result := range results {
+		if result.err != nil && firstError == nil {
+			firstError = result.err
+		} else if result.err == nil {
+			models = append(models, result.model)
 		}
-		models = append(models, model)
+	}
+
+	if firstError != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": firstError.Error(),
+		})
 	}
 
 	// Store fields and DB in context locals for action execution

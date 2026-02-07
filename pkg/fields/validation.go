@@ -64,9 +64,20 @@ type ValidationResult struct {
 	Errors  map[string][]string // Alan adı -> hata mesajları
 }
 
-// Built-in validators
+// Built-in validators (Yerleşik doğrulayıcılar)
 
-// Required returns a validation rule for required fields
+// Required, zorunlu alanlar için doğrulama kuralı döndürür.
+//
+// Bu kural, alanın boş olmamasını zorunlu kılar.
+// Boş string, nil, boş slice gibi değerler geçersiz sayılır.
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.Required())
+//	// Alan boş bırakılamaz
+//
+// Döndürür:
+//   - ValidationRule: "This field is required" hata mesajı ile
 func Required() ValidationRule {
 	return ValidationRule{
 		Name:    "required",
@@ -74,7 +85,18 @@ func Required() ValidationRule {
 	}
 }
 
-// EmailRule returns a validation rule for email format
+// EmailRule, e-posta formatı için doğrulama kuralı döndürür.
+//
+// Bu kural, alanın geçerli bir e-posta adresi formatında olmasını zorunlu kılar.
+// RFC 5322 standardına uygun e-posta adresleri kabul edilir.
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.EmailRule())
+//	// Geçerli e-posta formatı: user@example.com
+//
+// Döndürür:
+//   - ValidationRule: "This field must be a valid email address" hata mesajı ile
 func EmailRule() ValidationRule {
 	return ValidationRule{
 		Name:    "email",
@@ -82,7 +104,18 @@ func EmailRule() ValidationRule {
 	}
 }
 
-// URL returns a validation rule for URL format
+// URL, URL formatı için doğrulama kuralı döndürür.
+//
+// Bu kural, alanın geçerli bir URL formatında olmasını zorunlu kılar.
+// HTTP, HTTPS gibi protokoller desteklenir.
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.URL())
+//	// Geçerli URL formatı: https://example.com
+//
+// Döndürür:
+//   - ValidationRule: "This field must be a valid URL" hata mesajı ile
 func URL() ValidationRule {
 	return ValidationRule{
 		Name:    "url",
@@ -90,7 +123,21 @@ func URL() ValidationRule {
 	}
 }
 
-// Min returns a validation rule for minimum value
+// Min, minimum değer için doğrulama kuralı döndürür.
+//
+// Bu kural, sayısal alanların belirtilen minimum değerden büyük veya eşit olmasını zorunlu kılar.
+//
+// # Parametreler
+//
+// - **min**: Minimum değer (int, float, vb.)
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.Min(18))
+//	// Değer en az 18 olmalıdır
+//
+// Döndürür:
+//   - ValidationRule: "This field must be at least {min}" hata mesajı ile
 func Min(min interface{}) ValidationRule {
 	return ValidationRule{
 		Name:       "min",
@@ -99,7 +146,21 @@ func Min(min interface{}) ValidationRule {
 	}
 }
 
-// Max returns a validation rule for maximum value
+// Max, maksimum değer için doğrulama kuralı döndürür.
+//
+// Bu kural, sayısal alanların belirtilen maksimum değerden küçük veya eşit olmasını zorunlu kılar.
+//
+// # Parametreler
+//
+// - **max**: Maksimum değer (int, float, vb.)
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.Max(100))
+//	// Değer en fazla 100 olmalıdır
+//
+// Döndürür:
+//   - ValidationRule: "This field must be at most {max}" hata mesajı ile
 func Max(max interface{}) ValidationRule {
 	return ValidationRule{
 		Name:       "max",
@@ -108,7 +169,21 @@ func Max(max interface{}) ValidationRule {
 	}
 }
 
-// MinLength returns a validation rule for minimum string length
+// MinLength, minimum string uzunluğu için doğrulama kuralı döndürür.
+//
+// Bu kural, string alanların belirtilen minimum karakter sayısından uzun veya eşit olmasını zorunlu kılar.
+//
+// # Parametreler
+//
+// - **length**: Minimum karakter sayısı
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.MinLength(5))
+//	// String en az 5 karakter olmalıdır
+//
+// Döndürür:
+//   - ValidationRule: "This field must be at least {length} characters" hata mesajı ile
 func MinLength(length int) ValidationRule {
 	return ValidationRule{
 		Name:       "minLength",
@@ -117,7 +192,21 @@ func MinLength(length int) ValidationRule {
 	}
 }
 
-// MaxLength returns a validation rule for maximum string length
+// MaxLength, maksimum string uzunluğu için doğrulama kuralı döndürür.
+//
+// Bu kural, string alanların belirtilen maksimum karakter sayısından kısa veya eşit olmasını zorunlu kılar.
+//
+// # Parametreler
+//
+// - **length**: Maksimum karakter sayısı
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.MaxLength(255))
+//	// String en fazla 255 karakter olmalıdır
+//
+// Döndürür:
+//   - ValidationRule: "This field must be at most {length} characters" hata mesajı ile
 func MaxLength(length int) ValidationRule {
 	return ValidationRule{
 		Name:       "maxLength",
@@ -126,7 +215,21 @@ func MaxLength(length int) ValidationRule {
 	}
 }
 
-// Pattern returns a validation rule for regex pattern matching
+// Pattern, regex pattern eşleştirme için doğrulama kuralı döndürür.
+//
+// Bu kural, alanın belirtilen regex pattern'ine uygun olmasını zorunlu kılar.
+//
+// # Parametreler
+//
+// - **pattern**: Regex pattern (örn. "^[A-Z][a-z]+$")
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.Pattern("^[0-9]{5}$"))
+//	// 5 haneli sayı formatı (örn. 12345)
+//
+// Döndürür:
+//   - ValidationRule: "This field format is invalid" hata mesajı ile
 func Pattern(pattern string) ValidationRule {
 	return ValidationRule{
 		Name:       "pattern",
@@ -135,7 +238,23 @@ func Pattern(pattern string) ValidationRule {
 	}
 }
 
-// Unique returns a validation rule for database uniqueness
+// Unique, veritabanı benzersizliği için doğrulama kuralı döndürür.
+//
+// Bu kural, alanın veritabanında benzersiz olmasını zorunlu kılar.
+// Aynı değere sahip başka bir kayıt varsa doğrulama başarısız olur.
+//
+// # Parametreler
+//
+// - **table**: Tablo adı
+// - **column**: Sütun adı
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.Unique("users", "email"))
+//	// E-posta adresi users tablosunda benzersiz olmalıdır
+//
+// Döndürür:
+//   - ValidationRule: "This value already exists" hata mesajı ile
 func Unique(table, column string) ValidationRule {
 	return ValidationRule{
 		Name:       "unique",
@@ -144,7 +263,23 @@ func Unique(table, column string) ValidationRule {
 	}
 }
 
-// Exists returns a validation rule for database existence
+// Exists, veritabanı varlığı için doğrulama kuralı döndürür.
+//
+// Bu kural, alanın veritabanında mevcut olmasını zorunlu kılar.
+// Belirtilen değere sahip bir kayıt yoksa doğrulama başarısız olur.
+//
+// # Parametreler
+//
+// - **table**: Tablo adı
+// - **column**: Sütun adı
+//
+// # Kullanım Örneği
+//
+//	field.Rules(fields.Exists("categories", "id"))
+//	// Kategori ID'si categories tablosunda mevcut olmalıdır
+//
+// Döndürür:
+//   - ValidationRule: "This value does not exist" hata mesajı ile
 func Exists(table, column string) ValidationRule {
 	return ValidationRule{
 		Name:       "exists",
@@ -153,7 +288,31 @@ func Exists(table, column string) ValidationRule {
 	}
 }
 
-// ValidateRequired validates that a value is not empty
+// ValidateRequired, bir değerin boş olmadığını doğrular.
+//
+// Bu fonksiyon, değerin nil, boş string, boş slice olmadığını kontrol eder.
+// Farklı veri tipleri için farklı boşluk kontrolleri yapar.
+//
+// # Parametreler
+//
+// - **value**: Doğrulanacak değer (interface{})
+//
+// # Desteklenen Tipler
+//
+// - **nil**: Hata döndürür
+// - **string**: Boşluk karakterleri temizlendikten sonra boş string kontrolü
+// - **[]interface{}**: Boş slice kontrolü
+// - **[]string**: Boş string slice kontrolü
+//
+// # Kullanım Örneği
+//
+//	err := fields.ValidateRequired("test")  // nil
+//	err := fields.ValidateRequired("")      // error: "value is required"
+//	err := fields.ValidateRequired(nil)     // error: "value is required"
+//
+// Döndürür:
+//   - nil: Değer geçerli
+//   - error: Değer boş
 func ValidateRequired(value interface{}) error {
 	if value == nil {
 		return fmt.Errorf("value is required")
@@ -177,7 +336,24 @@ func ValidateRequired(value interface{}) error {
 	return nil
 }
 
-// ValidateEmail validates email format
+// ValidateEmail, e-posta formatını doğrular.
+//
+// Bu fonksiyon, RFC 5322 standardına uygun e-posta adresi formatını kontrol eder.
+// Boş string geçerli sayılır (zorunluluk için Required() kullanın).
+//
+// # Parametreler
+//
+// - **value**: Doğrulanacak değer (string olmalı)
+//
+// # Kullanım Örneği
+//
+//	err := fields.ValidateEmail("user@example.com")  // nil
+//	err := fields.ValidateEmail("invalid-email")     // error: "invalid email format"
+//	err := fields.ValidateEmail("")                  // nil (boş geçerli)
+//
+// Döndürür:
+//   - nil: E-posta formatı geçerli veya boş
+//   - error: E-posta formatı geçersiz veya tip uyumsuz
 func ValidateEmail(value interface{}) error {
 	str, ok := value.(string)
 	if !ok {
