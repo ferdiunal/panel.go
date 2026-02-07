@@ -2,11 +2,18 @@ package {{.PackageName}}
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type {{.ModelName}} struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:uuid"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	Name      string         `json:"name" gorm:"size:255;not null;index"`
+	CreatedAt time.Time      `json:"created_at" gorm:"index"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+}
+
+func (m *{{.ModelName}}) TableName() string {
+	return "{{.TableName}}"
 }

@@ -1,41 +1,19 @@
 package {{.PackageName}}
 
 import (
-	"context"
-
 	"gorm.io/gorm"
+
 	"github.com/ferdiunal/panel.go/pkg/data"
-	sharedUuid "panel.go/shared/uuid"
 )
 
 type {{.ResourceName}}Repository struct {
 	*data.GormDataProvider
+	db *gorm.DB
 }
 
+func New{{.ResourceName}}Repository(db *gorm.DB) *{{.ResourceName}}Repository {
 	return &{{.ResourceName}}Repository{
 		GormDataProvider: data.NewGormDataProvider(db, &{{.ModelName}}{}),
+		db:               db,
 	}
-}
-
-func (r *{{.ResourceName}}Repository) Create(ctx context.Context, data map[string]interface{}) (interface{}, error) {
-    if _, ok := data["id"]; !ok || data["id"] == "" {
-        data["id"] = sharedUuid.NewUUID().String()
-    }
-	return r.GormDataProvider.Create(ctx, data)
-}
-
-func (r *{{.ResourceName}}Repository) Update(ctx context.Context, id string, data map[string]interface{}) (interface{}, error) {
-	return r.GormDataProvider.Update(ctx, id, data)
-}
-
-func (r *{{.ResourceName}}Repository) Delete(ctx context.Context, id string) error {
-	return r.GormDataProvider.Delete(ctx, id)
-}
-
-func (r *{{.ResourceName}}Repository) Index(ctx context.Context, req data.QueryRequest) (*data.QueryResponse, error) {
-	return r.GormDataProvider.Index(ctx, req)
-}
-
-func (r *{{.ResourceName}}Repository) Show(ctx context.Context, id string) (interface{}, error) {
-	return r.GormDataProvider.Show(ctx, id)
 }

@@ -517,6 +517,53 @@ type ServerConfig struct {
 	Host string
 }
 
+/// # ShardingConfig - Veritabanı Sharding Yapılandırması
+///
+/// GORM Sharding plugin için yapılandırma ayarlarını tutar.
+/// Büyük tablolar için horizontal partitioning (sharding) desteği sağlar.
+///
+/// ## Kullanım Senaryoları
+/// - Büyük veri setlerini birden fazla tabloya bölme
+/// - Performans optimizasyonu için veri dağıtımı
+/// - Yüksek trafikli uygulamalarda ölçeklenebilirlik
+///
+/// ## Örnek Kullanım
+/// ```go
+/// shardingConfig := ShardingConfig{
+///     Enabled:             true,
+///     ShardingKey:         "user_id",
+///     NumberOfShards:      4,
+///     PrimaryKeyGenerator: "snowflake",
+/// }
+/// ```
+///
+/// ## Önemli Notlar
+/// - ShardingKey, veri dağıtımı için kullanılan kolon adıdır
+/// - NumberOfShards, oluşturulacak shard sayısını belirtir
+/// - PrimaryKeyGenerator: "snowflake", "postgresql", "mysql" veya "custom"
+/// - Sharding etkinleştirildiğinde migration stratejisi değişir
+///
+/// ## Güvenlik ve Performans
+/// - Sharding key dikkatli seçilmelidir (değişmez olmalı)
+/// - Shard sayısı başlangıçta iyi planlanmalıdır (sonradan değiştirmek zor)
+/// - Cross-shard query'ler performansı etkileyebilir
+type ShardingConfig struct {
+	/// Enabled, sharding özelliğinin aktif olup olmadığını belirtir
+	Enabled bool
+
+	/// ShardingKey, veri dağıtımı için kullanılan kolon adı
+	/// Örnek: "user_id", "tenant_id", "organization_id"
+	ShardingKey string
+
+	/// NumberOfShards, oluşturulacak shard (tablo bölümü) sayısı
+	/// Örnek: 4, 8, 16 (genellikle 2'nin katları kullanılır)
+	NumberOfShards uint
+
+	/// PrimaryKeyGenerator, primary key üretim stratejisi
+	/// Değerler: "snowflake", "postgresql", "mysql", "custom"
+	PrimaryKeyGenerator string
+}
+
 /// # DatabaseConfig - Veritabanı Bağlantı Yapılandırması
 ///
 /// Veritabanı bağlantı bilgilerini tutar.
@@ -531,6 +578,7 @@ type ServerConfig struct {
 /// - Veritabanı bağlantısı kurma
 /// - Farklı ortamlar için farklı veritabanları
 /// - Mevcut GORM bağlantısını kullanma
+/// - Sharding ile horizontal partitioning
 ///
 /// ## Örnek Kullanım
 /// ```go
@@ -556,18 +604,32 @@ type ServerConfig struct {
 /// dbConfig := DatabaseConfig{
 ///     Instance: existingDB,
 /// }
+///
+/// // Sharding ile kullanım
+/// dbConfig := DatabaseConfig{
+///     DSN:    "host=localhost user=postgres password=secret dbname=panel port=5432",
+///     Driver: "postgres",
+///     Sharding: ShardingConfig{
+///         Enabled:             true,
+///         ShardingKey:         "user_id",
+///         NumberOfShards:      4,
+///         PrimaryKeyGenerator: "snowflake",
+///     },
+/// }
 /// ```
 ///
 /// ## Avantajlar
 /// - Çoklu veritabanı desteği
 /// - Mevcut bağlantıyı yeniden kullanma
 /// - GORM ile entegrasyon
+/// - Sharding desteği ile ölçeklenebilirlik
 ///
 /// ## Önemli Notlar
 /// - DSN formatı veritabanı türüne göre değişir
 /// - Instance nil ise DSN ve Driver kullanılır
 /// - Bağlantı havuzu ayarları DSN'de yapılabilir
 /// - Zaman dilimi ayarlarını DSN'ye ekleyin
+/// - Sharding etkinleştirildiğinde performans ve migration stratejisi değişir
 ///
 /// ## Güvenlik Uyarıları
 /// - Veritabanı şifrelerini kaynak kodunda saklamayın
@@ -591,4 +653,9 @@ type DatabaseConfig struct {
 	/// Eğer Instance nil değilse, DSN ve Driver yoksayılır.
 	/// Kullanım: Mevcut bir veritabanı bağlantısını yeniden kullanmak
 	Instance *gorm.DB
+
+	/// Sharding, veritabanı sharding yapılandırmasıdır (Opsiyonel).
+	/// Büyük tablolar için horizontal partitioning desteği sağlar.
+	/// Kullanım: Yüksek trafikli uygulamalarda performans optimizasyonu
+	Sharding ShardingConfig
 }
