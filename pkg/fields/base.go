@@ -94,8 +94,11 @@ type Schema struct {
 	ResolveHandleValue     string                   `json:"resolve_handle"`
 
 	// Dependencies (Kategori 3)
-	DependsOnFields []string               `json:"depends_on"`
-	DependencyRules map[string]interface{} `json:"dependency_rules"`
+	DependsOnFields            []string               `json:"depends_on"`
+	DependencyRules            map[string]interface{} `json:"dependency_rules"`
+	DependencyCallback         DependencyCallbackFunc `json:"-"`
+	DependencyCallbackOnCreate DependencyCallbackFunc `json:"-"`
+	DependencyCallbackOnUpdate DependencyCallbackFunc `json:"-"`
 
 	// Suggestions (Kategori 4)
 	SuggestionsCallback       func(string) []interface{} `json:"-"`
@@ -710,6 +713,39 @@ func (s *Schema) When(field string, operator string, value interface{}) core.Ele
 		"value":    value,
 	}
 	return s
+}
+
+// OnDependencyChange sets callback for when dependent fields change
+func (s *Schema) OnDependencyChange(fn DependencyCallbackFunc) core.Element {
+	s.DependencyCallback = fn
+	return s
+}
+
+// OnDependencyChangeCreating sets callback for create context only
+func (s *Schema) OnDependencyChangeCreating(fn DependencyCallbackFunc) core.Element {
+	s.DependencyCallbackOnCreate = fn
+	return s
+}
+
+// OnDependencyChangeUpdating sets callback for update context only
+func (s *Schema) OnDependencyChangeUpdating(fn DependencyCallbackFunc) core.Element {
+	s.DependencyCallbackOnUpdate = fn
+	return s
+}
+
+// GetDependencyCallback returns appropriate callback based on context
+func (s *Schema) GetDependencyCallback(context string) DependencyCallbackFunc {
+	switch context {
+	case "create":
+		if s.DependencyCallbackOnCreate != nil {
+			return s.DependencyCallbackOnCreate
+		}
+	case "update":
+		if s.DependencyCallbackOnUpdate != nil {
+			return s.DependencyCallbackOnUpdate
+		}
+	}
+	return s.DependencyCallback
 }
 
 // Suggestion Fluent API Methods
