@@ -215,6 +215,121 @@ Resource kaydedildikten sonra (örneğin `"users"` slug'ı ile), aşağıdaki en
 | `PUT` | `/api/resource/users/:id` | Kayıt güncelleme |
 | `DELETE` | `/api/resource/users/:id` | Kayıt silme |
 
+## 🎨 Panel Sistemi
+
+Panel.go, field'ları card-based panellere gruplamanıza olanak tanır. Bu sayede formlarınızı daha organize, okunabilir ve kullanıcı dostu hale getirebilirsiniz.
+
+### Temel Kullanım
+
+```go
+fields.Panel("Basic Information",
+    fields.Text("Name", "name").Required(),
+    fields.Email("Email", "email").Required(),
+    fields.Number("Age", "age"),
+)
+```
+
+### Grid Layout (1-4 Columns)
+
+Panel içindeki field'ları responsive grid layout ile düzenleyebilirsiniz:
+
+```go
+// 2 sütunlu grid
+fields.Panel("User Details",
+    fields.Text("First Name", "first_name"),
+    fields.Text("Last Name", "last_name"),
+    fields.Email("Email", "email"),
+    fields.Text("Phone", "phone"),
+).WithColumns(2)
+
+// 3 sütunlu grid
+fields.Panel("Address",
+    fields.Text("Street", "street"),
+    fields.Text("City", "city"),
+    fields.Text("State", "state"),
+).WithColumns(3)
+
+// 4 sütunlu grid
+fields.Panel("Metadata",
+    fields.DateTime("Created At", "created_at"),
+    fields.DateTime("Updated At", "updated_at"),
+    fields.Text("Created By", "created_by"),
+    fields.Text("Updated By", "updated_by"),
+).WithColumns(4)
+```
+
+**Responsive Davranış:**
+- 1 sütun: Tüm ekran boyutlarında 1 sütun
+- 2 sütun: Mobile'da 1, tablet ve üstünde 2 sütun
+- 3 sütun: Mobile'da 1, tablet'te 2, desktop'ta 3 sütun
+- 4 sütun: Mobile'da 1, tablet'te 2, desktop'ta 4 sütun
+
+### Panel Özellikleri
+
+#### Açıklama Ekleme
+
+```go
+fields.Panel("Contact Information",
+    fields.Email("Email", "email"),
+    fields.Text("Phone", "phone"),
+).WithDescription("User contact details")
+```
+
+#### Collapsible Panel
+
+```go
+fields.Panel("Advanced Settings",
+    fields.Boolean("Is Active", "is_active"),
+    fields.Select("Status", "status"),
+).Collapsible()  // Açılır/kapanır panel
+```
+
+#### Varsayılan Kapalı Panel
+
+```go
+fields.Panel("Metadata",
+    fields.DateTime("Created At", "created_at").ReadOnly(),
+    fields.DateTime("Updated At", "updated_at").ReadOnly(),
+).Collapsible().DefaultCollapsed()  // Varsayılan olarak kapalı
+```
+
+### Tam Örnek
+
+```go
+func (r *ProductFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
+    return []core.Element{
+        fields.ID("ID").Sortable(),
+
+        // Basic Information Panel - 2 sütunlu grid
+        fields.Panel("Basic Information",
+            fields.Text("Name", "name").Required().Sortable().Searchable(),
+            fields.Number("Price", "price").Required(),
+            fields.Number("Stock", "stock"),
+        ).WithDescription("Product basic details").WithColumns(2),
+
+        // Description Panel - Collapsible
+        fields.Panel("Description",
+            fields.Textarea("Short Description", "description").Searchable(),
+            fields.RichText("Full Details", "details"),
+        ).WithDescription("Product descriptions and details").Collapsible(),
+
+        // Metadata Panel - Varsayılan kapalı
+        fields.Panel("Metadata",
+            fields.DateTime("Created At", "created_at").ReadOnly(),
+            fields.DateTime("Updated At", "updated_at").ReadOnly(),
+        ).WithDescription("System information").WithColumns(2).DefaultCollapsed(),
+    }
+}
+```
+
+**Özellikler:**
+- ✅ Card-based UI (Shadcn UI Card component)
+- ✅ Responsive grid layout (1-4 columns)
+- ✅ Collapsible panels (açılır/kapanır)
+- ✅ Varsayılan kapalı paneller
+- ✅ Panel açıklamaları
+- ✅ Tailwind CSS ile styling
+
 ## 🛠 Gelişmiş Kullanım
 
 ### Custom Repository Kullanımı
