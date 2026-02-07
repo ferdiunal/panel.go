@@ -11,7 +11,50 @@ import (
 )
 
 // Schema, bir alanın temel yapılandırmasını ve durumunu tutan yapıdır.
-// JSON serileştirme ve veri taşıma için kullanılır.
+//
+// Schema, Go Panel API'nin alan sisteminin temel yapı taşıdır. Her alan, bir Schema
+// örneği olarak temsil edilir ve frontend ile backend arasında veri taşımak için kullanılır.
+//
+// # Temel Özellikler
+//
+// - **JSON Serileştirme**: Tüm alanlar JSON formatında serileştirilebilir
+// - **Veri Çıkarma**: Reflection kullanarak model'lerden veri çıkarır
+// - **Görünürlük Kontrolü**: Farklı bağlamlarda (list, detail, form) görünürlük kontrolü
+// - **Callback Desteği**: Extract, Modify, Resolve, Storage callback'leri
+// - **Fluent API**: Zincirleme metod çağrıları ile kolay yapılandırma
+//
+// # Kategoriler
+//
+// Schema, 10 ana kategoride özellik içerir:
+//
+// 1. **Temel Özellikler**: Name, Key, View, Data, Type, Context
+// 2. **Durum Özellikleri**: IsReadOnly, IsDisabled, IsImmutable, IsRequired, IsNullable
+// 3. **UI Özellikleri**: PlaceholderText, LabelText, HelpTextContent, IsStacked, TextAlign
+// 4. **Arama/Filtreleme**: IsFilterable, IsSortable, GlobalSearch
+// 5. **Callback'ler**: ExtractCallback, VisibilityCallback, StorageCallback, ModifyCallback
+// 6. **Doğrulama**: ValidationRules, CustomValidators
+// 7. **Görüntüleme**: DisplayCallback, DisplayedAs, DisplayUsingLabelsFlag
+// 8. **Bağımlılıklar**: DependsOnFields, DependencyRules
+// 9. **Öneriler**: SuggestionsCallback, AutoCompleteURL, MinCharsForSuggestionsVal
+// 10. **Dosya Yükleme**: AcceptedMimeTypes, MaxFileSize, StorageDisk, StoragePath
+//
+// # Kullanım Örneği
+//
+//	schema := &fields.Schema{
+//	    Key:   "email",
+//	    Name:  "E-posta",
+//	    View:  "email-field",
+//	    Type:  core.TYPE_EMAIL,
+//	    Props: make(map[string]interface{}),
+//	}
+//	schema.OnList().OnDetail().OnForm().Required().Searchable()
+//
+// # Mixin Desteği
+//
+// Schema, mixin pattern'ini desteklemez (çünkü kendisi bir veri yapısıdır),
+// ancak mixin özelliklerini (Searchable, Sortable, vb.) field'lar aracılığıyla kullanabilir.
+//
+// Daha fazla bilgi için docs/Fields.md ve .docs/ARCHITECTURE.md dosyalarına bakın.
 type Schema struct {
 	Name               string                                                              `json:"name"`      // Görünen Ad
 	Key                string                                                              `json:"key"`       // Veri Anahtarı
@@ -89,21 +132,63 @@ type Schema struct {
 	GormConfiguration *GormConfig `json:"-"`
 }
 
-// Compile-time check to ensure Schema implements core.Element interface
+// Derleme zamanı kontrolü: Schema'nın core.Element interface'ini implement ettiğinden emin olur
 var _ core.Element = (*Schema)(nil)
 
+// GetKey, alanın benzersiz tanımlayıcısını döndürür.
+// Key, alanı resource model'indeki bir field'a eşlemek için kullanılır.
+//
+// Döndürür:
+//   - Alanın benzersiz tanımlayıcısı (key)
 func (s *Schema) GetKey() string {
 	return s.Key
 }
 
+// GetView, alanın görünüm tipini döndürür.
+// View tipi, alanın UI'da nasıl render edileceğini belirler.
+//
+// Döndürür:
+//   - Görünüm tipi (örn. "text-field", "email-field", "select-field")
 func (s *Schema) GetView() string {
 	return s.View
 }
 
+// GetContext, alanın görüntülendiği bağlamı döndürür.
+// Bağlam, alanın nerede gösterilmesi gerektiğini belirtir (form, list, detail).
+//
+// Döndürür:
+//   - Görüntüleme bağlamı (ElementContext)
 func (s *Schema) GetContext() ElementContext {
 	return s.Context
 }
 
+// Extract, verilen resource'dan veri çıkarır ve alanı doldurur.
+//
+// Bu metod, reflection kullanarak resource'dan alan değerini çıkarır.
+// Resource bir struct veya map olabilir. Struct için, alan adı veya JSON tag'i
+// kullanılarak field bulunur. Map için, key kullanılarak değer alınır.
+//
+// # Özel Durumlar
+//
+// - **ID Suffix Uyumsuzluğu**: "author_id" gibi bir key için, önce "AuthorId" aranır,
+//   bulunamazsa "AuthorID" aranır (Go naming convention)
+// - **JSON Tag Desteği**: Struct field'ları JSON tag'leri ile de eşleştirilebilir
+// - **Nil Güvenliği**: Resource nil ise hiçbir işlem yapılmaz
+//
+// Parametreler:
+//   - resource: Veri çıkarılacak kaynak (struct veya map)
+//
+// Örnek:
+//
+//	type User struct {
+//	    Name  string `json:"name"`
+//	    Email string `json:"email"`
+//	}
+//
+//	user := &User{Name: "John", Email: "john@example.com"}
+//	schema := &Schema{Key: "name"}
+//	schema.Extract(user)
+//	// schema.Data artık "John" değerini içerir
 func (s *Schema) Extract(resource interface{}) {
 	if resource == nil {
 		return
@@ -157,6 +242,42 @@ func (s *Schema) Extract(resource interface{}) {
 	s.Data = value
 }
 
+// JsonSerialize, alanı JSON uyumlu bir map'e serileştirir.
+//
+// Bu metod, alanın tüm özelliklerini JSON encoding için hazır bir map'e dönüştürür.
+// Frontend'e gönderilmek üzere alanın durumunu temsil eder.
+//
+// # Serileştirilen Özellikler
+//
+// - **view**: Görünüm tipi (frontend bileşeni)
+// - **type**: Veri tipi (ElementType)
+// - **key**: Benzersiz tanımlayıcı
+// - **name**: Görünen ad
+// - **data**: Alan değeri
+// - **props**: Ekstra özellikler
+// - **context**: Görüntüleme bağlamı
+// - **placeholder**: Yer tutucu metni
+// - **label**: Etiket metni
+// - **help_text**: Yardım metni
+// - **read_only**: Salt okunur durumu
+// - **disabled**: Devre dışı durumu
+// - **required**: Zorunlu durumu
+// - **nullable**: Boş bırakılabilir durumu
+// - **sortable**: Sıralanabilir durumu
+// - **filterable**: Filtrelenebilir durumu
+// - **stacked**: Yığılmış (tam genişlik) durumu
+// - **text_align**: Metin hizalama
+//
+// Döndürür:
+//   - JSON encoding için hazır map[string]any
+//
+// Örnek:
+//
+//	schema := &Schema{Key: "email", Name: "E-posta", View: "email-field"}
+//	json := schema.JsonSerialize()
+//	// json["key"] == "email"
+//	// json["name"] == "E-posta"
+//	// json["view"] == "email-field"
 func (s *Schema) JsonSerialize() map[string]interface{} {
 	return map[string]interface{}{
 		"view":        s.View,

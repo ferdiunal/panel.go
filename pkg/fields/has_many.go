@@ -1,6 +1,37 @@
 package fields
 
-// HasMany represents a one-to-many relationship (e.g., Author -> Posts)
+// HasManyField, one-to-many ilişkiyi temsil eder (örn. Author -> Posts).
+//
+// HasMany ilişkisi, bir kaydın birden fazla ilişkili kayda sahip olduğunu belirtir.
+// Bu, veritabanında ilişkili tabloda foreign key ile temsil edilir.
+//
+// # Kullanım Senaryoları
+//
+// - **Author -> Posts**: Bir yazar birden fazla yazıya sahiptir
+// - **Category -> Products**: Bir kategori birden fazla ürüne sahiptir
+// - **User -> Comments**: Bir kullanıcı birden fazla yoruma sahiptir
+//
+// # Özellikler
+//
+// - **Tip Güvenliği**: Resource instance veya string slug kullanılabilir
+// - **Foreign Key Özelleştirme**: İlişkili tablodaki foreign key sütunu özelleştirilebilir
+// - **Owner Key Özelleştirme**: Ana tablodaki referans sütunu özelleştirilebilir
+// - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
+// - **GORM Yapılandırması**: Foreign key ve references özelleştirme
+//
+// # Kullanım Örneği
+//
+//	// String slug ile
+//	field := fields.HasMany("Posts", "posts", "posts").
+//	    ForeignKey("author_id").
+//	    WithEagerLoad()
+//
+//	// Resource instance ile (tip güvenli)
+//	field := fields.HasMany("Posts", "posts", blog.NewPostResource()).
+//	    ForeignKey("author_id").
+//	    WithEagerLoad()
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type HasManyField struct {
 	Schema
 	RelatedResourceSlug string
@@ -12,15 +43,53 @@ type HasManyField struct {
 	GormRelationConfig  *RelationshipGormConfig
 }
 
-// NewHasMany creates a new HasMany relationship field.
-// Accepts either a string (resource slug) or a resource instance.
+// HasMany, yeni bir HasMany ilişki alanı oluşturur.
 //
-// Örnek kullanım:
-//   // String ile:
-//   fields.NewHasMany("Posts", "posts", "posts")
+// Bu fonksiyon, hem string slug hem de resource instance kabul eder.
+// Resource instance kullanımı tip güvenliği sağlar ve refactoring'i kolaylaştırır.
 //
-//   // Resource instance ile:
-//   fields.NewHasMany("Posts", "posts", blog.NewPostResource())
+// # Parametreler
+//
+// - **name**: Alanın görünen adı (örn. "Posts", "Yazılar")
+// - **key**: İlişki key'i (örn. "posts")
+// - **relatedResource**: İlgili resource (string slug veya resource instance)
+//
+// # String Slug Kullanımı
+//
+//	field := fields.HasMany("Posts", "posts", "posts")
+//
+// **Avantajlar:**
+// - Basit ve hızlı
+// - Circular import sorunu yok
+//
+// **Dezavantajlar:**
+// - Tip güvenliği yok
+// - Refactoring zor
+// - IDE desteği sınırlı
+//
+// # Resource Instance Kullanımı (Önerilen)
+//
+//	field := fields.HasMany("Posts", "posts", blog.NewPostResource())
+//
+// **Avantajlar:**
+// - ✅ Tip güvenliği (derleme zamanı kontrolü)
+// - ✅ Refactoring desteği (resource adı değişirse otomatik güncellenir)
+// - ✅ IDE desteği (autocomplete, go-to-definition)
+// - ✅ Tablo adı otomatik alınır (resource.Slug())
+//
+// **Dezavantajlar:**
+// - Circular import'a dikkat edilmeli
+//
+// # Varsayılan Değerler
+//
+// - **ForeignKeyColumn**: slug + "_id" (örn. "posts_id")
+// - **OwnerKeyColumn**: "id" (ana tablonun primary key'i)
+// - **LoadingStrategy**: EAGER_LOADING (N+1 sorgu problemini önler)
+//
+// Döndürür:
+//   - Yapılandırılmış HasManyField pointer'ı
+//
+// Daha fazla bilgi için docs/Relationships.md ve .docs/RESOURCE_BASED_RELATIONSHIPS.md dosyalarına bakın.
 func HasMany(name, key string, relatedResource interface{}) *HasManyField {
 	// Resource interface'inden slug'ı al
 	type resourceSlugger interface {
@@ -66,13 +135,58 @@ func HasMany(name, key string, relatedResource interface{}) *HasManyField {
 	return h
 }
 
-// ForeignKey sets the foreign key column name
+// ForeignKey, foreign key sütun adını ayarlar.
+//
+// Bu metod, ilişkili tablodaki foreign key sütununun adını özelleştirir.
+// Varsayılan olarak slug + "_id" kullanılır.
+//
+// # Parametreler
+//
+// - **key**: Foreign key sütun adı (örn. "author_id", "user_id", "category_id")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasMany("Posts", "posts", "posts").
+//	    ForeignKey("author_id")
+//	// Posts tablosunda "author_id" sütunu foreign key olarak kullanılır
+//
+// # Önemli Notlar
+//
+// - Foreign key sütunu, ilişkili tabloda mevcut olmalıdır
+// - Genellikle "parent_table_id" formatında olur (örn. "author_id", "category_id")
+// - GORM tarafından otomatik olarak ilişki kurulumu için kullanılır
+//
+// Döndürür:
+//   - HasManyField pointer'ı (method chaining için)
 func (h *HasManyField) ForeignKey(key string) *HasManyField {
 	h.ForeignKeyColumn = key
 	return h
 }
 
-// OwnerKey sets the owner key column name
+// OwnerKey, owner key sütun adını ayarlar.
+//
+// Bu metod, ana tablodaki referans sütununun adını özelleştirir.
+// Varsayılan olarak "id" (primary key) kullanılır.
+//
+// # Parametreler
+//
+// - **key**: Owner key sütun adı (örn. "id", "uuid", "author_id")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasMany("Posts", "posts", "posts").
+//	    ForeignKey("author_id").
+//	    OwnerKey("id")
+//	// Authors tablosundaki "id" sütunu ile Posts tablosundaki "author_id" sütunu eşleştirilir
+//
+// # Önemli Notlar
+//
+// - Owner key sütunu, ana tabloda mevcut olmalıdır
+// - Genellikle primary key kullanılır ("id")
+// - Özel durumlar için farklı sütunlar kullanılabilir (örn. "uuid")
+//
+// Döndürür:
+//   - HasManyField pointer'ı (method chaining için)
 func (h *HasManyField) OwnerKey(key string) *HasManyField {
 	h.OwnerKeyColumn = key
 	return h

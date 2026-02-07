@@ -7,15 +7,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// Result represents a date-value pair from database queries
+type Result struct {
+	Date  string `json:"date"`
+	Value int64  `json:"value"`
+}
+
 // CountByDateRange counts records grouped by date within a date range
 func CountByDateRange(db *gorm.DB, model interface{}, dateColumn string, days int) ([]TrendPoint, error) {
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -days)
-
-	type Result struct {
-		Date  string `json:"date"`
-		Value int64  `json:"value"`
-	}
 
 	var results []Result
 
@@ -41,11 +42,6 @@ func CountByDateRange(db *gorm.DB, model interface{}, dateColumn string, days in
 func SumByDateRange(db *gorm.DB, model interface{}, dateColumn, sumColumn string, days int) ([]TrendPoint, error) {
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -days)
-
-	type Result struct {
-		Date  string `json:"date"`
-		Value int64  `json:"value"`
-	}
 
 	var results []Result
 
@@ -117,10 +113,7 @@ func SumWhere(db *gorm.DB, model interface{}, column, condition string, args ...
 }
 
 // fillDateGaps fills missing dates with zero values
-func fillDateGaps(results []struct {
-	Date  string `json:"date"`
-	Value int64  `json:"value"`
-}, days int) []TrendPoint {
+func fillDateGaps(results []Result, days int) []TrendPoint {
 	now := time.Now()
 	dateMap := make(map[string]int64)
 
@@ -156,11 +149,6 @@ func fillDateGaps(results []struct {
 func AverageByDateRange(db *gorm.DB, model interface{}, dateColumn, avgColumn string, days int) ([]TrendPoint, error) {
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -days)
-
-	type Result struct {
-		Date  string `json:"date"`
-		Value int64  `json:"value"`
-	}
 
 	var results []Result
 

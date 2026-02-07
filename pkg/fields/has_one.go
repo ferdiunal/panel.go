@@ -4,7 +4,38 @@ import (
 	"reflect"
 )
 
-// HasOne represents a one-to-one relationship (e.g., User -> Profile)
+// HasOneField, one-to-one ilişkiyi temsil eder (örn. User -> Profile).
+//
+// HasOne ilişkisi, bir kaydın tek bir ilişkili kayda sahip olduğunu belirtir.
+// Bu, veritabanında ilişkili tabloda foreign key ile temsil edilir.
+//
+// # Kullanım Senaryoları
+//
+// - **User -> Profile**: Bir kullanıcının bir profili vardır
+// - **Country -> Capital**: Bir ülkenin bir başkenti vardır
+// - **Order -> Invoice**: Bir siparişin bir faturası vardır
+//
+// # Özellikler
+//
+// - **Tip Güvenliği**: Resource instance veya string slug kullanılabilir
+// - **Foreign Key Özelleştirme**: İlişkili tablodaki foreign key sütunu özelleştirilebilir
+// - **Owner Key Özelleştirme**: Ana tablodaki referans sütunu özelleştirilebilir
+// - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
+// - **GORM Yapılandırması**: Foreign key ve references özelleştirme
+//
+// # Kullanım Örneği
+//
+//	// String slug ile
+//	field := fields.HasOne("Profile", "profile", "profiles").
+//	    ForeignKey("user_id").
+//	    WithEagerLoad()
+//
+//	// Resource instance ile (tip güvenli)
+//	field := fields.HasOne("Profile", "profile", user.NewProfileResource()).
+//	    ForeignKey("user_id").
+//	    WithEagerLoad()
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type HasOneField struct {
 	Schema
 	RelatedResourceSlug string
@@ -16,15 +47,38 @@ type HasOneField struct {
 	GormRelationConfig  *RelationshipGormConfig
 }
 
-// NewHasOne creates a new HasOne relationship field.
-// Accepts either a string (resource slug) or a resource instance.
+// HasOne, yeni bir HasOne ilişki alanı oluşturur.
 //
-// Örnek kullanım:
-//   // String ile:
-//   fields.NewHasOne("Profile", "profile", "profiles")
+// Bu fonksiyon, hem string slug hem de resource instance kabul eder.
+// Resource instance kullanımı tip güvenliği sağlar ve refactoring'i kolaylaştırır.
 //
-//   // Resource instance ile:
-//   fields.NewHasOne("Profile", "profile", blog.NewProfileResource())
+// # Parametreler
+//
+// - **name**: Alanın görünen adı (örn. "Profile", "Profil")
+// - **key**: İlişki key'i (örn. "profile")
+// - **relatedResource**: İlgili resource (string slug veya resource instance)
+//
+// # String Slug Kullanımı
+//
+//	field := fields.HasOne("Profile", "profile", "profiles")
+//
+// # Resource Instance Kullanımı (Önerilen)
+//
+//	field := fields.HasOne("Profile", "profile", user.NewProfileResource())
+//
+// **Avantajlar:**
+// - ✅ Tip güvenliği (derleme zamanı kontrolü)
+// - ✅ Refactoring desteği
+// - ✅ IDE desteği (autocomplete, go-to-definition)
+//
+// # Varsayılan Değerler
+//
+// - **ForeignKeyColumn**: slug + "_id" (örn. "profiles_id")
+// - **OwnerKeyColumn**: "id" (ana tablonun primary key'i)
+// - **LoadingStrategy**: EAGER_LOADING (N+1 sorgu problemini önler)
+//
+// Döndürür:
+//   - Yapılandırılmış HasOneField pointer'ı
 func HasOne(name, key string, relatedResource interface{}) *HasOneField {
 	// Resource interface'inden slug'ı al
 	type resourceSlugger interface {

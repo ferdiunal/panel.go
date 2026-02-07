@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/core"
+	"gorm.io/gorm"
 )
 
 // Action defines the interface for resource actions.
@@ -43,8 +45,8 @@ type Action interface {
 	// GetFields returns the fields required for this action
 	GetFields() []core.Element
 
-	// Execute performs the action on the given context
-	Execute(ctx *ActionContext) error
+	// Execute performs the action on the given context and items
+	Execute(ctx *context.Context, items []any) error
 
 	// CanRun determines if the action can be executed in the given context
 	CanRun(ctx *ActionContext) bool
@@ -124,20 +126,20 @@ func (a *BaseAction) Destructive() *BaseAction {
 	return a
 }
 
-// OnlyOnIndex marks the action as only available on index view
-func (a *BaseAction) OnlyOnIndex() *BaseAction {
+// ShowOnlyOnIndex marks the action as only available on index view
+func (a *BaseAction) ShowOnlyOnIndex() *BaseAction {
 	a.OnlyOnIndexFlag = true
 	return a
 }
 
-// OnlyOnDetail marks the action as only available on detail view
-func (a *BaseAction) OnlyOnDetail() *BaseAction {
+// ShowOnlyOnDetail marks the action as only available on detail view
+func (a *BaseAction) ShowOnlyOnDetail() *BaseAction {
 	a.OnlyOnDetailFlag = true
 	return a
 }
 
-// ShowInline marks the action to be shown inline
-func (a *BaseAction) ShowInline() *BaseAction {
+// ShowInlineAction marks the action to be shown inline
+func (a *BaseAction) ShowInlineAction() *BaseAction {
 	a.ShowInlineFlag = true
 	return a
 }
@@ -154,8 +156,8 @@ func (a *BaseAction) Handle(fn func(ctx *ActionContext) error) *BaseAction {
 	return a
 }
 
-// CanRun sets the function to determine if the action can be executed
-func (a *BaseAction) CanRun(fn func(ctx *ActionContext) bool) *BaseAction {
+// AuthorizeUsing sets the function to determine if the action can be executed
+func (a *BaseAction) AuthorizeUsing(fn func(ctx *ActionContext) bool) *BaseAction {
 	a.CanRunFunc = fn
 	return a
 }
@@ -217,12 +219,39 @@ func (a *BaseAction) GetFields() []core.Element {
 	return a.Fields
 }
 
-// Execute performs the action on the given context
-func (a *BaseAction) Execute(ctx *ActionContext) error {
+// Execute performs the action on the given context and items
+func (a *BaseAction) Execute(ctx *context.Context, items []any) error {
 	if a.HandleFunc == nil {
 		return fmt.Errorf("action handler not defined")
 	}
-	return a.HandleFunc(ctx)
+
+	// Get fields from context locals (set by handler)
+	fields := make(map[string]interface{})
+	if actionFields := ctx.Locals("action_fields"); actionFields != nil {
+		if f, ok := actionFields.(map[string]interface{}); ok {
+			fields = f
+		}
+	}
+
+	// Get DB from context locals (set by handler)
+	var db *gorm.DB
+	if dbVal := ctx.Locals("db"); dbVal != nil {
+		if d, ok := dbVal.(*gorm.DB); ok {
+			db = d
+		}
+	}
+
+	// Create ActionContext from context.Context and items
+	actionCtx := &ActionContext{
+		Models:   items,
+		Fields:   fields,
+		User:     ctx.Locals("user"),
+		Resource: ctx.Params("resource"),
+		DB:       db,
+		Ctx:      ctx.Ctx,
+	}
+
+	return a.HandleFunc(actionCtx)
 }
 
 // CanRun determines if the action can be executed in the given context

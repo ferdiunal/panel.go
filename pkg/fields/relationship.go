@@ -1,3 +1,35 @@
+// Package fields, veritabanı ilişkilerini alan sisteminde temsil eden yapıları sağlar.
+//
+// Bu dosya, ilişki alanlarının (BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo)
+// temel interface'lerini ve tiplerini tanımlar.
+//
+// # İlişki Türleri
+//
+// - **BelongsTo**: Ters one-to-one veya one-to-many ilişki (bir Post bir Author'a aittir)
+// - **HasMany**: One-to-many ilişki (bir Author birden fazla Post'a sahiptir)
+// - **HasOne**: One-to-one ilişki (bir User bir Profile'a sahiptir)
+// - **BelongsToMany**: Many-to-many ilişki (bir User birden fazla Role'e sahiptir)
+// - **MorphTo**: Polimorfik ilişki (bir Comment farklı tiplere ait olabilir)
+//
+// # Yükleme Stratejileri
+//
+// - **Eager Loading**: N+1 sorgu problemini önler, ilişkili verileri önceden yükler
+// - **Lazy Loading**: İhtiyaç anında yükler, bellek tasarrufu sağlar
+//
+// # Kullanım Örneği
+//
+//	// BelongsTo ilişkisi
+//	field := fields.NewBelongsTo("Author", "author_id", "authors").
+//	    DisplayUsing("name").
+//	    WithSearchableColumns("name", "email").
+//	    WithEagerLoad()
+//
+//	// HasMany ilişkisi
+//	field := fields.NewHasMany("Posts", "posts", "posts").
+//	    ForeignKey("author_id").
+//	    WithEagerLoad()
+//
+// Daha fazla bilgi için docs/Relationships.md ve .docs/RESOURCE_BASED_RELATIONSHIPS.md dosyalarına bakın.
 package fields
 
 import (
@@ -5,47 +37,137 @@ import (
 	"fmt"
 )
 
-// LoadingStrategy defines how relationships are loaded
+// LoadingStrategy, ilişkilerin nasıl yükleneceğini tanımlar.
+//
+// İki ana strateji vardır:
+// - EAGER_LOADING: İlişkili verileri önceden yükler (N+1 sorgu problemini önler)
+// - LAZY_LOADING: İlişkili verileri ihtiyaç anında yükler (bellek tasarrufu)
 type LoadingStrategy string
 
 const (
+	// EAGER_LOADING, ilişkili verileri önceden yükler.
+	// N+1 sorgu problemini önlemek için önerilir.
 	EAGER_LOADING LoadingStrategy = "eager"
+
+	// LAZY_LOADING, ilişkili verileri ihtiyaç anında yükler.
+	// Bellek tasarrufu sağlar ancak N+1 sorgu problemine neden olabilir.
 	LAZY_LOADING  LoadingStrategy = "lazy"
 )
 
-// RelationshipField represents a database relationship in the field system
+// RelationshipField, alan sisteminde bir veritabanı ilişkisini temsil eder.
+//
+// Bu interface, tüm ilişki türleri (BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo)
+// için ortak metodları tanımlar.
+//
+// # Temel Özellikler
+//
+// - **Tip Bilgisi**: İlişki türünü ve ilgili resource'u belirtir
+// - **Çözümleme**: İlişkili verileri yükler ve çözümler
+// - **Sorgu Özelleştirme**: İlişki sorgularını özelleştirme callback'leri
+// - **Yükleme Stratejisi**: Eager veya lazy loading seçimi
+// - **Doğrulama**: İlişki verilerini doğrulama
+// - **Görüntüleme**: İlişkili verilerin nasıl gösterileceğini kontrol eder
+//
+// # Kullanım
+//
+// RelationshipField interface'i doğrudan kullanılmaz, bunun yerine
+// BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo gibi somut tipler kullanılır.
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipField interface {
 	Element
 
-	// Relationship Type Methods
-	GetRelationshipType() string // "belongsTo", "hasMany", "hasOne", "belongsToMany", "morphTo"
-	GetRelatedResource() string  // Related resource slug
-	GetRelationshipName() string // Relationship name
+	// İlişki Türü Metodları
 
-	// Relationship Resolution
+	// GetRelationshipType, ilişki türünü döndürür.
+	// Döndürür: "belongsTo", "hasMany", "hasOne", "belongsToMany", "morphTo"
+	GetRelationshipType() string
+
+	// GetRelatedResource, ilgili resource'un slug'ını döndürür.
+	// Döndürür: İlgili resource'un benzersiz tanımlayıcısı
+	GetRelatedResource() string
+
+	// GetRelationshipName, ilişkinin adını döndürür.
+	// Döndürür: İlişkinin adı (örn. "author", "posts", "roles")
+	GetRelationshipName() string
+
+	// İlişki Çözümleme
+
+	// ResolveRelationship, verilen item için ilişkili verileri çözümler.
+	// Parametreler:
+	//   - item: İlişkili verileri çözümlenecek kaynak
+	// Döndürür:
+	//   - İlişkili veriler (tek kayıt veya kayıt listesi)
+	//   - Hata (çözümleme başarısız olursa)
 	ResolveRelationship(item interface{}) (interface{}, error)
 
-	// Query Customization
+	// Sorgu Özelleştirme
+
+	// GetQueryCallback, sorgu özelleştirme callback'ini döndürür.
+	// Döndürür: Sorguyu özelleştiren callback fonksiyonu
 	GetQueryCallback() func(interface{}) interface{}
 
-	// Loading Strategy
+	// Yükleme Stratejisi
+
+	// GetLoadingStrategy, yükleme stratejisini döndürür.
+	// Döndürür: EAGER_LOADING veya LAZY_LOADING
 	GetLoadingStrategy() LoadingStrategy
 
-	// Relationship Validation
+	// İlişki Doğrulama
+
+	// ValidateRelationship, ilişki değerini doğrular.
+	// Parametreler:
+	//   - value: Doğrulanacak değer
+	// Döndürür:
+	//   - Hata (doğrulama başarısız olursa)
 	ValidateRelationship(value interface{}) error
 
-	// Relationship Display
-	GetDisplayKey() string          // Key to display for BelongsTo
-	GetSearchableColumns() []string // Searchable columns for BelongsTo
+	// İlişki Görüntüleme
 
-	// Required check
+	// GetDisplayKey, BelongsTo için görüntülenecek key'i döndürür.
+	// Döndürür: Görüntüleme için kullanılacak alan adı (örn. "name", "title")
+	GetDisplayKey() string
+
+	// GetSearchableColumns, BelongsTo için aranabilir sütunları döndürür.
+	// Döndürür: Aranabilir sütun adlarının listesi
+	GetSearchableColumns() []string
+
+	// Zorunluluk Kontrolü
+
+	// IsRequired, ilişkinin zorunlu olup olmadığını döndürür.
+	// Döndürür: true ise ilişki zorunludur
 	IsRequired() bool
 
-	// Get types for MorphTo
+	// MorphTo için Tipler
+
+	// GetTypes, MorphTo için kullanılabilir tipleri döndürür.
+	// Döndürür: Tip adı -> resource slug eşlemesi
 	GetTypes() map[string]string
 }
 
-// RelationshipError represents an error that occurred during relationship operations
+// RelationshipError, ilişki işlemleri sırasında oluşan bir hatayı temsil eder.
+//
+// Bu hata tipi, ilişki işlemlerinde oluşan hataları daha iyi anlamak ve
+// debug etmek için ek bağlam bilgisi sağlar.
+//
+// # Özellikler
+//
+// - **FieldName**: Hatanın oluştuğu alan adı
+// - **RelationshipType**: İlişki türü (belongsTo, hasMany, vb.)
+// - **Message**: Hata mesajı
+// - **Context**: Ek bağlam bilgisi (map formatında)
+//
+// # Kullanım Örneği
+//
+//	err := &RelationshipError{
+//	    FieldName: "author",
+//	    RelationshipType: "belongsTo",
+//	    Message: "related resource not found",
+//	    Context: map[string]interface{}{
+//	        "author_id": 123,
+//	        "resource": "authors",
+//	    },
+//	}
 type RelationshipError struct {
 	FieldName        string
 	RelationshipType string
@@ -53,7 +175,11 @@ type RelationshipError struct {
 	Context          map[string]interface{}
 }
 
-// Error implements the error interface
+// Error, error interface'ini implement eder.
+// Formatlanmış hata mesajı döndürür.
+//
+// Döndürür:
+//   - Formatlanmış hata mesajı (alan adı, ilişki türü ve mesaj içerir)
 func (e *RelationshipError) Error() string {
 	return fmt.Sprintf("relationship error in field '%s' (%s): %s", e.FieldName, e.RelationshipType, e.Message)
 }
