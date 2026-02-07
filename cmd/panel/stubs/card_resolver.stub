@@ -1,0 +1,14 @@
+package {{.PackageName}}
+
+import (
+	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/widget"
+)
+
+type {{.ResourceName}}CardResolver struct{}
+
+func (r *{{.ResourceName}}CardResolver) ResolveCards(ctx *context.Context) []widget.Card {
+	return []widget.Card{
+		// Add dashboard cards here
+	}
+}

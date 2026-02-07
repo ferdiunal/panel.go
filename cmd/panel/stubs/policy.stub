@@ -1,28 +1,46 @@
 package {{.PackageName}}
 
 import (
+	"github.com/ferdiunal/panel.go/pkg/auth"
 	appContext "github.com/ferdiunal/panel.go/pkg/context"
 )
 
 // {{.ResourceName}}Policy defines authorization rules for the resource
 type {{.ResourceName}}Policy struct{}
 
-func (p {{.ResourceName}}Policy) ViewAny(ctx *appContext.Context) bool {
-	return ctx.HasPermission("{{.Identifier}}.view_any")
+var _ auth.Policy = (*{{.ResourceName}}Policy)(nil)
+
+func (p *{{.ResourceName}}Policy) ViewAny(ctx *appContext.Context) bool {
+	if ctx == nil || ctx.User() == nil {
+		return false
+	}
+	return ctx.User().HasPermission("{{.Identifier}}.view_any")
 }
 
-func (p {{.ResourceName}}Policy) View(ctx *appContext.Context, model interface{}) bool {
-	return ctx.HasPermission("{{.Identifier}}.view")
+func (p *{{.ResourceName}}Policy) View(ctx *appContext.Context, model interface{}) bool {
+	if ctx == nil || ctx.User() == nil {
+		return false
+	}
+	return ctx.User().HasPermission("{{.Identifier}}.view")
 }
 
-func (p {{.ResourceName}}Policy) Create(ctx *appContext.Context) bool {
-	return ctx.HasPermission("{{.Identifier}}.create")
+func (p *{{.ResourceName}}Policy) Create(ctx *appContext.Context) bool {
+	if ctx == nil || ctx.User() == nil {
+		return false
+	}
+	return ctx.User().HasPermission("{{.Identifier}}.create")
 }
 
-func (p {{.ResourceName}}Policy) Update(ctx *appContext.Context, model interface{}) bool {
-	return ctx.HasPermission("{{.Identifier}}.update")
+func (p *{{.ResourceName}}Policy) Update(ctx *appContext.Context, model interface{}) bool {
+	if ctx == nil || ctx.User() == nil {
+		return false
+	}
+	return ctx.User().HasPermission("{{.Identifier}}.update")
 }
 
-func (p {{.ResourceName}}Policy) Delete(ctx *appContext.Context, model interface{}) bool {
-	return ctx.HasPermission("{{.Identifier}}.delete")
+func (p *{{.ResourceName}}Policy) Delete(ctx *appContext.Context, model interface{}) bool {
+	if ctx == nil || ctx.User() == nil {
+		return false
+	}
+	return ctx.User().HasPermission("{{.Identifier}}.delete")
 }

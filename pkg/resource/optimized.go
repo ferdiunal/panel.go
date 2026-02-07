@@ -1416,6 +1416,11 @@ func (b *OptimizedBase) SetRepository(r data.DataProvider) {
 /// Bu metod, OptimizedResource interface'inin bir parçasıdır ve
 /// veritabanı işlemleri için repository sağlar.
 ///
+/// GORM Optimizasyonları:
+/// - Otomatik olarak With() metodundan eager loading ilişkilerini yükler
+/// - N+1 query problemini önler
+/// - Her çağrıda yeni bir provider instance'ı oluşturur (thread-safe)
+///
 /// Parametreler:
 /// - db: GORM database instance
 ///
@@ -1425,8 +1430,19 @@ func (b *OptimizedBase) SetRepository(r data.DataProvider) {
 /// Örnek:
 ///   repo := r.Repository(db)
 ///   items, err := repo.List(ctx, query)
+///
+/// Detaylı ilişki örnekleri için bkz: [Relationships.md](../../docs/Relationships.md)
 func (b *OptimizedBase) Repository(db *gorm.DB) data.DataProvider {
-	return b.repository
+	// Create new GormDataProvider instance
+	provider := data.NewGormDataProvider(db, b.Model())
+
+	// Automatically configure eager loading from With() method
+	// This prevents N+1 query problems
+	if relationships := b.With(); len(relationships) > 0 {
+		provider.SetWith(relationships)
+	}
+
+	return provider
 }
 
 /// SetCards, dashboard widget'larını ayarlar.

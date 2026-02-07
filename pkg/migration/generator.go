@@ -803,12 +803,10 @@ func (mg *MigrationGenerator) createIndexWithModel(model interface{}, column str
 		return mg.db.Exec(sql).Error
 	}
 
-	// Normal index için GORM Migrator kullan
+	// Normal index için manuel SQL kullan (GORM Migrator'da sorun var)
 	indexName := fmt.Sprintf("idx_%s_%s", tableName, column)
-
-	// GORM Migrator'ın CreateIndex metodu field adı veya index adı alabilir
-	// Biz index adını kullanıyoruz
-	return mg.db.Migrator().CreateIndex(model, indexName)
+	sql := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s(%s)", indexName, tableName, column)
+	return mg.db.Exec(sql).Error
 }
 
 /// # getTableNameFromModel

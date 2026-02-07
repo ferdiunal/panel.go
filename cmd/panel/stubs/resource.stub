@@ -2,45 +2,30 @@ package {{.PackageName}}
 
 import (
 	"gorm.io/gorm"
+
 	"github.com/ferdiunal/panel.go/pkg/data"
-	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 )
 
-// {{.ResourceName}}ResourceWrapper embeds GenericResource to override Repository
-type {{.ResourceName}}ResourceWrapper struct {
-	resource.Base
+type {{.ResourceName}}Resource struct {
+	resource.OptimizedBase
 }
 
-func (r {{.ResourceName}}ResourceWrapper) Repository(db *gorm.DB) data.DataProvider {
+func New{{.ResourceName}}Resource() *{{.ResourceName}}Resource {
+	r := &{{.ResourceName}}Resource{}
+	r.Model = &{{.ModelName}}{}
+	r.Slug = "{{.Identifier}}"
+	r.Title = "{{.Label}}"
+	r.Icon = "{{.Icon}}"
+	r.Group = "{{.Group}}"
+	r.NavigationOrder = 1
+	r.Visible = true
+	r.SetPolicy(&{{.ResourceName}}Policy{})
+	r.SetFieldResolver(&{{.ResourceName}}FieldResolver{})
+	r.SetCardResolver(&{{.ResourceName}}CardResolver{})
+	return r
+}
+
+func (r *{{.ResourceName}}Resource) Repository(db *gorm.DB) data.DataProvider {
 	return New{{.ResourceName}}Repository(db)
-}
-
-// Get{{.ResourceName}}Resource returns the resource configuration
-func Get{{.ResourceName}}Resource() resource.Resource {
-	return {{.ResourceName}}ResourceWrapper{
-		Base: resource.Base{
-			DataModel:  &{{.ModelName}}{},
-			Label:      "{{.Label}}",
-			Identifier: "{{.Identifier}}",
-			IconName:   "{{.Icon}}",
-			GroupName:  "{{.Group}}",
-			DialogType: resource.DialogTypeSheet,
-			FieldsVal: []fields.Element{
-				fields.ID(),
-				// Add fields here
-				// fields.Text("Name", "name"),
-			},
-			Seed: resource.SettingsSeed{
-				// Optional: Seed for settings
-			},
-			Sortable: []resource.Sortable{
-				{
-					Column:    "created_at",
-					Direction: "desc",
-				},
-			},
-			PolicyVal: {{.ResourceName}}Policy{},
-		},
-	}
 }
