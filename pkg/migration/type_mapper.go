@@ -16,11 +16,25 @@ type GoType struct {
 }
 
 // TypeMapper, Field tiplerini Go ve SQL tiplerine eşler.
-type TypeMapper struct{}
+type TypeMapper struct {
+	dialect string // Database dialect (postgres, mysql, sqlite)
+}
 
 // NewTypeMapper, yeni bir TypeMapper oluşturur.
 func NewTypeMapper() *TypeMapper {
 	return &TypeMapper{}
+}
+
+// NewTypeMapperWithDialect, dialect belirtilerek TypeMapper oluşturur.
+func NewTypeMapperWithDialect(dialect string) *TypeMapper {
+	return &TypeMapper{
+		dialect: dialect,
+	}
+}
+
+// SetDialect, database dialect'ini ayarlar.
+func (tm *TypeMapper) SetDialect(dialect string) {
+	tm.dialect = dialect
 }
 
 // MapFieldTypeToGo, field tipini Go tipine dönüştürür.
@@ -93,7 +107,13 @@ func (tm *TypeMapper) MapFieldTypeToGo(fieldType fields.ElementType, nullable bo
 }
 
 // MapFieldTypeToSQL, field tipini SQL tipine dönüştürür.
+// Database dialect'ine göre uygun SQL type döner.
 func (tm *TypeMapper) MapFieldTypeToSQL(fieldType fields.ElementType, size int) string {
+	dialect := tm.dialect
+	if dialect == "" {
+		dialect = "postgres" // Default to postgres
+	}
+
 	switch fieldType {
 	// Metin Tipleri
 	case fields.TYPE_TEXT, fields.TYPE_EMAIL, fields.TYPE_TEL, fields.TYPE_PASSWORD:
@@ -108,17 +128,44 @@ func (tm *TypeMapper) MapFieldTypeToSQL(fieldType fields.ElementType, size int) 
 
 	// Sayısal Tipler
 	case fields.TYPE_NUMBER:
-		return "bigint"
+		switch dialect {
+		case "postgres":
+			return "bigint"
+		case "mysql":
+			return "bigint"
+		case "sqlite":
+			return "integer"
+		default:
+			return "bigint"
+		}
 
 	// Boolean
 	case fields.TYPE_BOOLEAN:
-		return "boolean"
+		switch dialect {
+		case "postgres":
+			return "boolean"
+		case "mysql":
+			return "tinyint(1)"
+		case "sqlite":
+			return "integer" // SQLite stores boolean as 0/1
+		default:
+			return "boolean"
+		}
 
 	// Tarih/Saat Tipleri
 	case fields.TYPE_DATE:
 		return "date"
 	case fields.TYPE_DATETIME:
-		return "datetime"
+		switch dialect {
+		case "postgres":
+			return "timestamp"
+		case "mysql":
+			return "datetime"
+		case "sqlite":
+			return "datetime"
+		default:
+			return "timestamp"
+		}
 
 	// Dosya Tipleri (URL saklanır)
 	case fields.TYPE_FILE, fields.TYPE_VIDEO, fields.TYPE_AUDIO:
@@ -130,11 +177,29 @@ func (tm *TypeMapper) MapFieldTypeToSQL(fieldType fields.ElementType, size int) 
 
 	// Key-Value
 	case fields.TYPE_KEY_VALUE:
-		return "json"
+		switch dialect {
+		case "postgres":
+			return "jsonb"
+		case "mysql":
+			return "json"
+		case "sqlite":
+			return "text" // SQLite stores JSON as text
+		default:
+			return "jsonb"
+		}
 
 	// İlişki Tipleri (Foreign Key)
 	case fields.TYPE_LINK:
-		return "bigint unsigned"
+		switch dialect {
+		case "postgres":
+			return "bigint"
+		case "mysql":
+			return "bigint unsigned"
+		case "sqlite":
+			return "integer"
+		default:
+			return "bigint"
+		}
 
 	default:
 		return "varchar(255)"

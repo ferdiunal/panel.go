@@ -15,7 +15,8 @@ type ProductFieldResolver struct{}
 
 func NewProductResource() *ProductResource {
 	r := &ProductResource{}
-	// Model yok - field-based migration kullanılacak
+	// Model ile migration - GORM AutoMigrate kullanılacak
+	r.SetModel(&Product{})
 	r.SetSlug("products")
 	r.SetTitle("Products")
 	r.SetIcon("dashboard")
