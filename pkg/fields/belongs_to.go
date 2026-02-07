@@ -5,7 +5,42 @@ import (
 	"reflect"
 )
 
-// BelongsTo represents a one-to-one inverse relationship (e.g., Post -> Author)
+// BelongsToField, ters one-to-one ilişkiyi temsil eder (örn. Post -> Author).
+//
+// BelongsTo ilişkisi, bir kaydın başka bir kayda ait olduğunu belirtir.
+// Bu, veritabanında foreign key ile temsil edilir.
+//
+// # Kullanım Senaryoları
+//
+// - **Post -> Author**: Bir yazı bir yazara aittir
+// - **Comment -> User**: Bir yorum bir kullanıcıya aittir
+// - **Order -> Customer**: Bir sipariş bir müşteriye aittir
+//
+// # Özellikler
+//
+// - **Tip Güvenliği**: Resource instance veya string slug kullanılabilir
+// - **Otomatik Seçenekler**: AutoOptions ile veritabanından otomatik seçenek yükleme
+// - **Arama Desteği**: İlişkili kayıtlarda arama yapabilme
+// - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
+// - **GORM Yapılandırması**: Foreign key ve references özelleştirme
+//
+// # Kullanım Örneği
+//
+//	// String slug ile
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    DisplayUsing("name").
+//	    WithSearchableColumns("name", "email").
+//	    AutoOptions("name").
+//	    WithEagerLoad()
+//
+//	// Resource instance ile (tip güvenli)
+//	field := fields.BelongsTo("Author", "author_id", blog.NewAuthorResource()).
+//	    DisplayUsing("name").
+//	    WithSearchableColumns("name", "email").
+//	    AutoOptions("name").
+//	    WithEagerLoad()
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type BelongsToField struct {
 	Schema
 	RelatedResourceSlug string
@@ -17,15 +52,55 @@ type BelongsToField struct {
 	GormRelationConfig  *RelationshipGormConfig
 }
 
-// NewBelongsTo creates a new BelongsTo relationship field.
-// Accepts either a string (resource slug) or a resource instance.
+// BelongsTo, yeni bir BelongsTo ilişki alanı oluşturur.
 //
-// Örnek kullanım:
-//   // String ile:
-//   fields.NewBelongsTo("Author", "author_id", "authors")
+// Bu fonksiyon, hem string slug hem de resource instance kabul eder.
+// Resource instance kullanımı tip güvenliği sağlar ve refactoring'i kolaylaştırır.
 //
-//   // Resource instance ile:
-//   fields.NewBelongsTo("Author", "author_id", blog.NewAuthorResource())
+// # Parametreler
+//
+// - **name**: Alanın görünen adı (örn. "Author", "Yazar")
+// - **key**: Foreign key sütun adı (örn. "author_id")
+// - **relatedResource**: İlgili resource (string slug veya resource instance)
+//
+// # String Slug Kullanımı
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors")
+//
+// **Avantajlar:**
+// - Basit ve hızlı
+// - Circular import sorunu yok
+//
+// **Dezavantajlar:**
+// - Tip güvenliği yok
+// - Refactoring zor
+// - IDE desteği sınırlı
+//
+// # Resource Instance Kullanımı (Önerilen)
+//
+//	field := fields.BelongsTo("Author", "author_id", blog.NewAuthorResource())
+//
+// **Avantajlar:**
+// - ✅ Tip güvenliği (derleme zamanı kontrolü)
+// - ✅ Refactoring desteği (resource adı değişirse otomatik güncellenir)
+// - ✅ IDE desteği (autocomplete, go-to-definition)
+// - ✅ Tablo adı otomatik alınır (resource.Slug())
+//
+// **Dezavantajlar:**
+// - Circular import'a dikkat edilmeli
+//
+// # Varsayılan Değerler
+//
+// - **DisplayKey**: "name" (görüntüleme için kullanılacak alan)
+// - **SearchableColumns**: ["name"] (aranabilir sütunlar)
+// - **LoadingStrategy**: EAGER_LOADING (N+1 sorgu problemini önler)
+// - **Foreign Key**: key parametresi (örn. "author_id")
+// - **References**: "id" (ilgili tablonun primary key'i)
+//
+// Döndürür:
+//   - Yapılandırılmış BelongsToField pointer'ı
+//
+// Daha fazla bilgi için docs/Relationships.md ve .docs/RESOURCE_BASED_RELATIONSHIPS.md dosyalarına bakın.
 func BelongsTo(name, key string, relatedResource interface{}) *BelongsToField {
 	// Resource interface'inden slug'ı al
 	type resourceSlugger interface {
@@ -72,27 +147,115 @@ func BelongsTo(name, key string, relatedResource interface{}) *BelongsToField {
 	return b
 }
 
-// AutoOptions enables automatic options generation from the related table.
-// displayField is the column name to use for the option label.
+// AutoOptions, ilgili tablodan otomatik seçenek oluşturmayı etkinleştirir.
+//
+// Bu metod, backend'in veritabanından otomatik olarak tüm kayıtları çekip
+// form elemanları (Combobox/Select) için seçenekler oluşturmasını sağlar.
+// Manuel olarak Options callback'i tanımlamaya gerek kalmaz.
+//
+// # Parametreler
+//
+// - **displayField**: Seçenek etiketi için kullanılacak sütun adı (örn. "name", "title", "email")
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    AutoOptions("name")
+//	// Backend otomatik olarak authors tablosundan tüm kayıtları çeker
+//	// ve "name" sütununu etiket olarak kullanır
+//
+// # Önemli Notlar
+//
+// - AutoOptions kullanıldığında, backend otomatik olarak ilgili tablodan tüm kayıtları çeker
+// - Büyük tablolar için performans sorunu olabilir, bu durumda Query() ile filtreleme yapılmalıdır
+// - displayField, ilgili tabloda mevcut bir sütun olmalıdır
+//
+// Döndürür:
+//   - BelongsToField pointer'ı (method chaining için)
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 func (b *BelongsToField) AutoOptions(displayField string) *BelongsToField {
 	b.Schema.AutoOptions(displayField)
 	return b
 }
 
-// DisplayUsing sets the display key for showing related resource
-
+// DisplayUsing, ilişkili resource'u göstermek için kullanılacak key'i ayarlar.
+//
+// Bu metod, ilişkili kaydın hangi field'ının görüntüleneceğini belirler.
+// Varsayılan olarak "name" field'ı kullanılır.
+//
+// # Parametreler
+//
+// - **key**: Görüntüleme için kullanılacak field adı (örn. "name", "title", "email", "username")
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    DisplayUsing("email")
+//	// Author'un email'i görüntülenir
+//
+// # Yaygın Kullanım Senaryoları
+//
+// - **name**: Genel amaçlı görüntüleme (varsayılan)
+// - **title**: Başlık alanları için
+// - **email**: E-posta adresi görüntüleme
+// - **username**: Kullanıcı adı görüntüleme
+// - **full_name**: Tam ad görüntüleme
+//
+// Döndürür:
+//   - BelongsToField pointer'ı (method chaining için)
 func (b *BelongsToField) DisplayUsing(key string) *BelongsToField {
 	b.DisplayKey = key
 	return b
 }
 
-// WithSearchableColumns sets the searchable columns for BelongsTo
+// WithSearchableColumns, BelongsTo için aranabilir sütunları ayarlar.
+//
+// Bu metod, ilişkili kayıtlarda arama yapılabilecek sütunları belirler.
+// Bu sütunlar, combobox'ta arama yaparken kullanılır.
+//
+// # Parametreler
+//
+// - **columns**: Aranabilir sütun adlarının listesi (örn. "name", "email", "username")
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    WithSearchableColumns("name", "email", "username")
+//	// Kullanıcı combobox'ta arama yaptığında name, email ve username sütunlarında arama yapılır
+//
+// # Önemli Notlar
+//
+// - Aranabilir sütunlar, ilgili tabloda mevcut olmalıdır
+// - Çok fazla sütun eklemek performans sorunlarına neden olabilir
+// - Genellikle 2-4 sütun yeterlidir
+//
+// Döndürür:
+//   - BelongsToField pointer'ı (method chaining için)
 func (b *BelongsToField) WithSearchableColumns(columns ...string) *BelongsToField {
 	b.SearchableColumns = columns
 	return b
 }
 
-// Searchable marks the element as searchable (implements Element interface)
+// Searchable, alanı aranabilir olarak işaretler (Element interface'ini implement eder).
+//
+// Bu metod, alanın global arama işlemlerine dahil edilmesini sağlar.
+// Global arama yapıldığında, bu alan da arama sonuçlarına dahil edilir.
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    Searchable()
+//	// Bu alan global arama işlemlerine dahil edilir
+//
+// # Önemli Notlar
+//
+// - Global arama, tüm aranabilir alanlarda arama yapar
+// - WithSearchableColumns() ile birlikte kullanılmalıdır
+// - Performans için dikkatli kullanılmalıdır
+//
+// Döndürür:
+//   - Element interface'i (method chaining için)
 func (b *BelongsToField) Searchable() Element {
 	b.GlobalSearch = true
 	return b

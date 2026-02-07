@@ -7,7 +7,7 @@ import (
 
 // handlePages returns a list of all registered pages.
 // GET /api/pages
-func (p *PanelField) handlePages(c *context.Context) error {
+func (p *Panel) handlePages(c *context.Context) error {
 	type PageItem struct {
 		Slug        string `json:"slug"`
 		Title       string `json:"title"`
@@ -41,7 +41,7 @@ func (p *PanelField) handlePages(c *context.Context) error {
 
 // handlePageDetail returns the details of a specific page, including widgets.
 // GET /api/pages/:slug
-func (p *PanelField) handlePageDetail(c *context.Context) error {
+func (p *Panel) handlePageDetail(c *context.Context) error {
 	slug := c.Params("slug")
 
 	pg, ok := p.pages[slug]
@@ -115,7 +115,7 @@ func (p *PanelField) handlePageDetail(c *context.Context) error {
 }
 
 // POST /api/pages/:slug
-func (p *PanelField) handlePageSave(c *context.Context) error {
+func (p *Panel) handlePageSave(c *context.Context) error {
 	slug := c.Params("slug")
 
 	pg, ok := p.pages[slug]

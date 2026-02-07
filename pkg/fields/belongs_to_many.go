@@ -4,7 +4,54 @@ import (
 	"strings"
 )
 
-// BelongsToMany represents a many-to-many relationship (e.g., User -> Roles)
+// BelongsToManyField, many-to-many ilişkiyi temsil eder (örn. User -> Roles).
+//
+// BelongsToMany ilişkisi, bir kaydın birden fazla ilişkili kayda sahip olduğunu
+// ve ilişkili kayıtların da birden fazla kayda sahip olabileceğini belirtir.
+// Bu, veritabanında pivot (ara) tablo ile temsil edilir.
+//
+// # Kullanım Senaryoları
+//
+// - **User -> Roles**: Bir kullanıcının birden fazla rolü vardır, bir rol birden fazla kullanıcıya atanabilir
+// - **Post -> Tags**: Bir yazının birden fazla etiketi vardır, bir etiket birden fazla yazıda kullanılabilir
+// - **Student -> Courses**: Bir öğrenci birden fazla kursa kayıtlıdır, bir kursta birden fazla öğrenci vardır
+//
+// # Özellikler
+//
+// - **Tip Güvenliği**: Resource instance veya string slug kullanılabilir
+// - **Pivot Tablo**: Ara tablo adı otomatik oluşturulur veya özelleştirilebilir
+// - **Foreign Key Özelleştirme**: Ana tablodaki foreign key sütunu özelleştirilebilir
+// - **Related Key Özelleştirme**: İlişkili tablodaki foreign key sütunu özelleştirilebilir
+// - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
+// - **GORM Yapılandırması**: Pivot tablo ve key'ler özelleştirilebilir
+//
+// # Kullanım Örneği
+//
+//	// String slug ile
+//	field := fields.BelongsToMany("Roles", "roles", "roles").
+//	    PivotTable("user_roles").
+//	    ForeignKey("user_id").
+//	    RelatedKey("role_id").
+//	    WithEagerLoad()
+//
+//	// Resource instance ile (tip güvenli)
+//	field := fields.BelongsToMany("Roles", "roles", user.NewRoleResource()).
+//	    PivotTable("user_roles").
+//	    ForeignKey("user_id").
+//	    RelatedKey("role_id").
+//	    WithEagerLoad()
+//
+// # Pivot Tablo Yapısı
+//
+// Pivot tablo genellikle şu yapıya sahiptir:
+//
+//	CREATE TABLE user_roles (
+//	    user_id INT,
+//	    role_id INT,
+//	    PRIMARY KEY (user_id, role_id)
+//	);
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type BelongsToManyField struct {
 	Schema
 	RelatedResourceSlug string
@@ -17,15 +64,39 @@ type BelongsToManyField struct {
 	GormRelationConfig  *RelationshipGormConfig
 }
 
-// NewBelongsToMany creates a new BelongsToMany relationship field.
-// Accepts either a string (resource slug) or a resource instance.
+// BelongsToMany, yeni bir BelongsToMany ilişki alanı oluşturur.
 //
-// Örnek kullanım:
-//   // String ile:
-//   fields.NewBelongsToMany("Tags", "tags", "tags")
+// Bu fonksiyon, hem string slug hem de resource instance kabul eder.
+// Resource instance kullanımı tip güvenliği sağlar ve refactoring'i kolaylaştırır.
 //
-//   // Resource instance ile:
-//   fields.NewBelongsToMany("Tags", "tags", blog.NewTagResource())
+// # Parametreler
+//
+// - **name**: Alanın görünen adı (örn. "Roles", "Roller")
+// - **key**: İlişki key'i (örn. "roles")
+// - **relatedResource**: İlgili resource (string slug veya resource instance)
+//
+// # String Slug Kullanımı
+//
+//	field := fields.BelongsToMany("Tags", "tags", "tags")
+//
+// # Resource Instance Kullanımı (Önerilen)
+//
+//	field := fields.BelongsToMany("Tags", "tags", blog.NewTagResource())
+//
+// **Avantajlar:**
+// - ✅ Tip güvenliği (derleme zamanı kontrolü)
+// - ✅ Refactoring desteği
+// - ✅ IDE desteği (autocomplete, go-to-definition)
+//
+// # Varsayılan Değerler
+//
+// - **PivotTableName**: Otomatik oluşturulur (örn. "post_tag", "user_role")
+// - **ForeignKeyColumn**: "user_id" (ana tablonun foreign key'i)
+// - **RelatedKeyColumn**: slug + "_id" (örn. "role_id", "tag_id")
+// - **LoadingStrategy**: EAGER_LOADING (N+1 sorgu problemini önler)
+//
+// Döndürür:
+//   - Yapılandırılmış BelongsToManyField pointer'ı
 func BelongsToMany(name, key string, relatedResource interface{}) *BelongsToManyField {
 	// Resource interface'inden slug'ı al
 	type resourceSlugger interface {

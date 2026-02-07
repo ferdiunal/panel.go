@@ -136,12 +136,12 @@ func NewPostResource() *PostResource {
 		action.ExportCSV("posts.csv"),
 
 		// 6. Delete Action - Built-in destructive action
-		action.Delete().OnlyOnIndex(),
+		action.Delete().ShowOnlyOnIndex(),
 
 		// 7. Conditional Action - Only runs if conditions are met
 		action.New("Feature Post").
 			SetIcon("star").
-			CanRun(func(ctx *action.ActionContext) bool {
+			AuthorizeUsing(func(ctx *action.ActionContext) bool {
 				// Only allow featuring published posts
 				for _, model := range ctx.Models {
 					post := model.(*Post)

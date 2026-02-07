@@ -5,13 +5,14 @@ import (
 	"reflect"
 
 	"github.com/ferdiunal/panel.go/pkg/action"
+	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/gofiber/fiber/v2"
 )
 
 // HandleActionList returns the list of available actions for a resource.
 // It serializes action metadata including name, slug, icon, confirmation settings,
 // visibility flags, and field definitions.
-func HandleActionList(h *FieldHandler, c *fiber.Ctx) error {
+func HandleActionList(h *FieldHandler, c *context.Context) error {
 	// Policy check - user must have view permission
 	if h.Policy != nil && !h.Policy.ViewAny(c) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
@@ -56,11 +57,11 @@ func HandleActionList(h *FieldHandler, c *fiber.Ctx) error {
 // HandleActionExecute executes an action on selected resources.
 // It validates permissions, loads models, checks action eligibility,
 // and executes the action with proper error handling.
-func HandleActionExecute(h *FieldHandler, c *fiber.Ctx) error {
+func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 	actionSlug := c.Params("action")
 
 	// Policy check - user must have update permission
-	if h.Policy != nil && !h.Policy.Update(c) {
+	if h.Policy != nil && !h.Policy.Update(c, nil) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -119,14 +120,18 @@ func HandleActionExecute(h *FieldHandler, c *fiber.Ctx) error {
 		models = append(models, model)
 	}
 
-	// Create action context
+	// Store fields and DB in context locals for action execution
+	c.Locals("action_fields", body.Fields)
+	c.Locals("db", h.DB)
+
+	// Create action context for CanRun check
 	ctx := &action.ActionContext{
 		Models:   models,
 		Fields:   body.Fields,
 		User:     c.Locals("user"),
 		Resource: h.Resource.Slug(),
 		DB:       h.DB,
-		Ctx:      c,
+		Ctx:      c.Ctx,
 	}
 
 	// Check if action can run
@@ -136,8 +141,8 @@ func HandleActionExecute(h *FieldHandler, c *fiber.Ctx) error {
 		})
 	}
 
-	// Execute action
-	if err := targetAction.Execute(ctx); err != nil {
+	// Execute action with new signature
+	if err := targetAction.Execute(c, models); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
