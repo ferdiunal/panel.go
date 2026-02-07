@@ -5,7 +5,19 @@ import (
 	"fmt"
 )
 
-// RelationshipQueryImpl implements the RelationshipQuery interface
+// RelationshipQueryImpl, RelationshipQuery interface'ini implement eder.
+//
+// Bu yapı, ilişki sorguları için query builder sağlar.
+// WHERE, ORDER BY, LIMIT, OFFSET gibi SQL clause'larını destekler.
+//
+// # Kullanım Örneği
+//
+//	query := fields.NewRelationshipQuery().
+//	    Where("status", "=", "active").
+//	    OrderBy("created_at", "DESC").
+//	    Limit(10)
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipQueryImpl struct {
 	// Query builder state
 	whereConditions []map[string]interface{}
@@ -14,7 +26,17 @@ type RelationshipQueryImpl struct {
 	offsetValue     int
 }
 
-// NewRelationshipQuery creates a new relationship query
+// NewRelationshipQuery, yeni bir relationship query oluşturur.
+//
+// Bu fonksiyon, ilişki sorguları için boş bir query builder döndürür.
+// Query builder, method chaining ile sorgu oluşturmayı destekler.
+//
+// # Kullanım Örneği
+//
+//	query := fields.NewRelationshipQuery()
+//
+// Döndürür:
+//   - Yapılandırılmış RelationshipQueryImpl pointer'ı
 func NewRelationshipQuery() *RelationshipQueryImpl {
 	return &RelationshipQueryImpl{
 		whereConditions: []map[string]interface{}{},
