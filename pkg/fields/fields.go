@@ -244,3 +244,38 @@ func Select(name string, attribute ...string) *Schema {
 	f.Type = TYPE_SELECT
 	return f
 }
+
+// Badge, badge/status gösterim alanı oluşturur.
+// Genellikle durum göstermek için kullanılır (örn: "Active", "Pending", "Completed").
+func Badge(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "badge-field"
+	f.Type = TYPE_BADGE
+	return f
+}
+
+// Code, kod editörü alanı oluşturur.
+// Monaco Editor ile syntax highlighting destekler.
+func Code(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "code-field"
+	f.Type = TYPE_CODE
+	return f
+}
+
+// Color, renk seçici alanı oluşturur.
+// Hex, RGB, HSL format desteği sağlar.
+func Color(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "color-field"
+	f.Type = TYPE_COLOR
+	return f
+}
+
+// BooleanGroup, birden fazla boolean seçeneği checkbox group olarak gösterir.
+func BooleanGroup(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "boolean-group-field"
+	f.Type = TYPE_BOOLEAN_GROUP
+	return f
+}
