@@ -271,6 +271,7 @@ func New(config Config) *Panel {
 	api.Get("/resource/:resource/:id/detail", context.Wrap(p.handleResourceDetail))
 	api.Get("/resource/:resource/:id/edit", context.Wrap(p.handleResourceEdit))
 	api.Post("/resource/:resource/:id/fields/:field/resolve", context.Wrap(p.handleFieldResolve)) // Field resolver endpoint
+	api.Post("/resource/:resource/fields/resolve-dependencies", context.Wrap(p.handleResolveDependencies)) // Dependency resolver endpoint
 	api.Put("/resource/:resource/:id", context.Wrap(p.handleResourceUpdate))
 	api.Delete("/resource/:resource/:id", context.Wrap(p.handleResourceDestroy))
 	api.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
@@ -421,6 +422,12 @@ func (p *Panel) handleResourceEdit(c *context.Context) error {
 func (p *Panel) handleFieldResolve(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleFieldResolve(h, c)
+	})
+}
+
+func (p *Panel) handleResolveDependencies(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleResolveDependencies(h, c)
 	})
 }
 
