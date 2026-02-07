@@ -37,7 +37,7 @@ func (r *AuthorFieldResolver) ResolveFields(ctx *context.Context) []core.Element
 		fields.Email("Email", "email").Sortable().Required(),
 
 		// HasOne Relationship: Author -> Profile
-		fields.NewHasOne("Profile", "profile", "profiles").
+		fields.HasOne("Profile", "profile", "profiles").
 			ForeignKey("author_id").
 			AutoOptions("bio"),
 		fields.DateTime("Created At", "createdAt").ReadOnly().OnList(),

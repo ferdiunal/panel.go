@@ -6,7 +6,7 @@ import (
 )
 
 // BelongsTo represents a one-to-one inverse relationship (e.g., Post -> Author)
-type BelongsTo struct {
+type BelongsToField struct {
 	Schema
 	RelatedResourceSlug string
 	RelatedResource     interface{} // resource.Resource interface (interface{} to avoid circular import)
@@ -17,48 +17,38 @@ type BelongsTo struct {
 	GormRelationConfig  *RelationshipGormConfig
 }
 
-// NewBelongsTo creates a new BelongsTo relationship field
-func NewBelongsTo(name, key, relatedResource string) *BelongsTo {
-	b := &BelongsTo{
-		Schema: Schema{
-			Name:  name,
-			Key:   key,
-			View:  "belongs-to-field",
-			Type:  TYPE_RELATIONSHIP,
-			Props: make(map[string]interface{}),
-		},
-		RelatedResourceSlug: relatedResource,
-		DisplayKey:          "name",
-		SearchableColumns:   []string{"name"},
-		LoadingStrategy:     EAGER_LOADING,
-		GormRelationConfig: NewRelationshipGormConfig().
-			WithForeignKey(key). // Don't add "_id" suffix - key should already include it
-			WithReferences("id"),
-	}
-	b.WithProps("related_resource", relatedResource)
-	return b
-}
-
-// NewBelongsToResource, resource instance kullanarak BelongsTo ilişkisi oluşturur.
-// Bu metod, resource referansı kullanarak tip güvenli ilişki tanımlaması sağlar.
+// NewBelongsTo creates a new BelongsTo relationship field.
+// Accepts either a string (resource slug) or a resource instance.
 //
 // Örnek kullanım:
-//   fields.NewBelongsToResource("Author", "author_id", blog.NewAuthorResource())
-func NewBelongsToResource(name, key string, relatedResource interface{}) *BelongsTo {
+//   // String ile:
+//   fields.NewBelongsTo("Author", "author_id", "authors")
+//
+//   // Resource instance ile:
+//   fields.NewBelongsTo("Author", "author_id", blog.NewAuthorResource())
+func BelongsTo(name, key string, relatedResource interface{}) *BelongsToField {
 	// Resource interface'inden slug'ı al
 	type resourceSlugger interface {
 		Slug() string
 	}
 
 	var slug string
-	if res, ok := relatedResource.(resourceSlugger); ok {
+	var resourceInstance interface{}
+
+	// Check if relatedResource is a string or a resource instance
+	if slugStr, ok := relatedResource.(string); ok {
+		// String slug provided
+		slug = slugStr
+	} else if res, ok := relatedResource.(resourceSlugger); ok {
+		// Resource instance provided
 		slug = res.Slug()
+		resourceInstance = relatedResource
 	} else {
-		// Fallback: boş slug
+		// Fallback: empty slug
 		slug = ""
 	}
 
-	b := &BelongsTo{
+	b := &BelongsToField{
 		Schema: Schema{
 			Name:  name,
 			Key:   key,
@@ -67,80 +57,82 @@ func NewBelongsToResource(name, key string, relatedResource interface{}) *Belong
 			Props: make(map[string]interface{}),
 		},
 		RelatedResourceSlug: slug,
-		RelatedResource:     relatedResource,
+		RelatedResource:     resourceInstance,
 		DisplayKey:          "name",
 		SearchableColumns:   []string{"name"},
 		LoadingStrategy:     EAGER_LOADING,
 		GormRelationConfig: NewRelationshipGormConfig().
-			WithForeignKey(key).
+			WithForeignKey(key). // Don't add "_id" suffix - key should already include it
 			WithReferences("id"),
 	}
 	b.WithProps("related_resource", slug)
-	b.WithProps("related_resource_instance", relatedResource)
+	if resourceInstance != nil {
+		b.WithProps("related_resource_instance", resourceInstance)
+	}
 	return b
 }
 
 // AutoOptions enables automatic options generation from the related table.
 // displayField is the column name to use for the option label.
-func (b *BelongsTo) AutoOptions(displayField string) *BelongsTo {
+func (b *BelongsToField) AutoOptions(displayField string) *BelongsToField {
 	b.Schema.AutoOptions(displayField)
 	return b
 }
 
 // DisplayUsing sets the display key for showing related resource
 
-func (b *BelongsTo) DisplayUsing(key string) *BelongsTo {
+func (b *BelongsToField) DisplayUsing(key string) *BelongsToField {
 	b.DisplayKey = key
 	return b
 }
 
 // WithSearchableColumns sets the searchable columns for BelongsTo
-func (b *BelongsTo) WithSearchableColumns(columns ...string) *BelongsTo {
+func (b *BelongsToField) WithSearchableColumns(columns ...string) *BelongsToField {
 	b.SearchableColumns = columns
 	return b
 }
 
 // Searchable marks the element as searchable (implements Element interface)
-func (b *BelongsTo) Searchable() Element {
+func (b *BelongsToField) Searchable() Element {
 	b.GlobalSearch = true
 	return b
 }
 
 // Query sets the query callback for customizing relationship query
-func (b *BelongsTo) Query(fn func(interface{}) interface{}) *BelongsTo {
+func (b *BelongsToField) Query(fn func(interface{}) interface{}) *BelongsToField {
 	b.QueryCallback = fn
 	return b
 }
 
 // WithEagerLoad sets the loading strategy to eager loading
-func (b *BelongsTo) WithEagerLoad() *BelongsTo {
+func (b *BelongsToField) WithEagerLoad() *BelongsToField {
 	b.LoadingStrategy = EAGER_LOADING
 	return b
 }
 
 // WithLazyLoad sets the loading strategy to lazy loading
-func (b *BelongsTo) WithLazyLoad() *BelongsTo {
+func (b *BelongsToField) WithLazyLoad() *BelongsToField {
 	b.LoadingStrategy = LAZY_LOADING
 	return b
 }
 
 // GetRelationshipType returns the relationship type
-func (b *BelongsTo) GetRelationshipType() string {
+func (b *BelongsToField) GetRelationshipType() string {
 	return "belongsTo"
 }
 
 // GetRelatedResource returns the related resource slug
-func (b *BelongsTo) GetRelatedResource() string {
+func (b *BelongsToField) GetRelatedResource() string {
 	return b.RelatedResourceSlug
 }
 
 // GetRelationshipName returns the relationship name
-func (b *BelongsTo) GetRelationshipName() string {
+func (b *BelongsToField) GetRelationshipName() string {
 	return b.Name
 }
 
 // ResolveRelationship resolves the relationship value using reflection
-func (b *BelongsTo) ResolveRelationship(item interface{}) (interface{}, error) {
+func (b *BelongsToField) ResolveRelationship(item interface{}) (interface{}, error) {
 	if item == nil {
 		if b.Schema.IsRequired {
 			return nil, &RelationshipError{
@@ -172,7 +164,7 @@ func (b *BelongsTo) ResolveRelationship(item interface{}) (interface{}, error) {
 }
 
 // ValidateRelationship validates the relationship
-func (b *BelongsTo) ValidateRelationship(value interface{}) error {
+func (b *BelongsToField) ValidateRelationship(value interface{}) error {
 	if value == nil {
 		if b.Schema.IsRequired {
 			return &RelationshipError{
@@ -192,7 +184,7 @@ func (b *BelongsTo) ValidateRelationship(value interface{}) error {
 }
 
 // GetDisplayKey returns the display key
-func (b *BelongsTo) GetDisplayKey() string {
+func (b *BelongsToField) GetDisplayKey() string {
 	if b.DisplayKey == "" {
 		return "name"
 	}
@@ -200,7 +192,7 @@ func (b *BelongsTo) GetDisplayKey() string {
 }
 
 // GetSearchableColumns returns the searchable columns
-func (b *BelongsTo) GetSearchableColumns() []string {
+func (b *BelongsToField) GetSearchableColumns() []string {
 	if b.SearchableColumns == nil {
 		return []string{}
 	}
@@ -208,7 +200,7 @@ func (b *BelongsTo) GetSearchableColumns() []string {
 }
 
 // GetQueryCallback returns the query callback
-func (b *BelongsTo) GetQueryCallback() func(interface{}) interface{} {
+func (b *BelongsToField) GetQueryCallback() func(interface{}) interface{} {
 	if b.QueryCallback == nil {
 		return func(q interface{}) interface{} { return q }
 	}
@@ -216,7 +208,7 @@ func (b *BelongsTo) GetQueryCallback() func(interface{}) interface{} {
 }
 
 // GetLoadingStrategy returns the loading strategy
-func (b *BelongsTo) GetLoadingStrategy() LoadingStrategy {
+func (b *BelongsToField) GetLoadingStrategy() LoadingStrategy {
 	if b.LoadingStrategy == "" {
 		return EAGER_LOADING
 	}
@@ -224,11 +216,11 @@ func (b *BelongsTo) GetLoadingStrategy() LoadingStrategy {
 }
 
 // IsRequired returns whether the field is required
-func (b *BelongsTo) IsRequired() bool {
+func (b *BelongsToField) IsRequired() bool {
 	return b.Schema.IsRequired
 }
 
 // GetTypes returns the type mappings (not used for BelongsTo)
-func (b *BelongsTo) GetTypes() map[string]string {
+func (b *BelongsToField) GetTypes() map[string]string {
 	return make(map[string]string)
 }

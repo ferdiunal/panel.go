@@ -37,10 +37,10 @@ func (r *PostFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
 		fields.Text("Content", "content").HideOnList(),
 
 		// BelongsTo Relationship: Post -> Author
-		fields.NewBelongsTo("Author", "author_id", "authors").AutoOptions("name").Required(),
+		fields.BelongsTo("Author", "author_id", "authors").AutoOptions("name").Required(),
 
 		// BelongsToMany Relationship: Post <-> Tag
-		fields.NewBelongsToMany("Tags", "tags", "tags").AutoOptions("name"),
+		fields.BelongsToMany("Tags", "tags", "tags").AutoOptions("name"),
 
 		fields.DateTime("Created At", "createdAt").ReadOnly().OnList(),
 	}

@@ -8,9 +8,13 @@ Go'nun performansına ve tip güvenliğine uygun olarak tasarlanan bu yapı, ver
 
 - **Resource Abstraction**: Model ve UI mantığını tek bir yapıda toplayın.
 - **Fluent Field API**: Zincirleme metodlarla (`Text("Ad").Sortable().Required()`) kolayca alan tanımlayın.
+- **Panel System**: Field'ları card-based panellere gruplayın, responsive grid layout (1-4 columns).
+- **Rich Text Editor**: Tiptap tabanlı WYSIWYG editor (Bold, Italic, Lists, Links, etc.).
+- **Textarea Support**: Çok satırlı metin girişi için textarea field.
 - **Relationship Fields**: BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo ilişkilerini destekler.
 - **Otomatik CRUD**: Oluşturduğunuz her resource için Create, Read, Update, Delete ve Show endpointleri hazır gelir.
 - **Smart Data Provider**: GORM entegrasyonu ile sayfalama, sıralama ve filtreleme otomatik halledilir.
+- **Model-Only Migration**: GORM AutoMigrate ile database-agnostic migration (PostgreSQL, MySQL, SQLite).
 - **Central App Config**: Tek bir `Panel` instance'ı ile tüm servisi yönetin.
 - **Genişletilebilir Mimari**: Kendi özel servislerinizi ve rotalarınızı kolayca entegre edin.
 - **Embedded Frontend**: Frontend dosyaları binary içine gömülerek tek bir çalıştırılabilir dosya olarak dağıtılabilir.
