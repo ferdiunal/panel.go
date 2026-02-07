@@ -39,16 +39,20 @@ func (mg *MigrationGenerator) RegisterResources(resources ...resource.Resource) 
 }
 
 // AutoMigrate, kayıtlı tüm resource'ların modellerini migrate eder.
+// Model yoksa field-based migration kullanır.
 func (mg *MigrationGenerator) AutoMigrate() error {
 	for _, r := range mg.resources {
 		model := r.Model()
 		if model == nil {
-			continue
-		}
-
-		// GORM AutoMigrate
-		if err := mg.db.AutoMigrate(model); err != nil {
-			return fmt.Errorf("migration failed for %s: %w", r.Slug(), err)
+			// Model yoksa field-based migration kullan
+			if err := mg.createTableFromFields(r); err != nil {
+				return fmt.Errorf("field-based migration failed for %s: %w", r.Slug(), err)
+			}
+		} else {
+			// GORM AutoMigrate
+			if err := mg.db.AutoMigrate(model); err != nil {
+				return fmt.Errorf("migration failed for %s: %w", r.Slug(), err)
+			}
 		}
 
 		// Field constraint'lerini uygula
@@ -64,6 +68,35 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 	tableName := mg.getTableName(r)
 
 	for _, field := range r.Fields() {
+		// İlişkisel field'ları kontrol et
+		if relField, ok := fields.IsRelationshipField(field); ok {
+			// BelongsTo için foreign key index'i
+			if relField.GetRelationshipType() == "belongsTo" {
+				if bt, ok := relField.(*fields.BelongsTo); ok {
+					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
+						fkColumn := bt.GormRelationConfig.ForeignKey
+						if !mg.hasIndex(tableName, fkColumn) {
+							if err := mg.createIndex(tableName, fkColumn, false); err != nil {
+								return err
+							}
+						}
+					}
+				}
+			}
+
+			// BelongsToMany için pivot tablo
+			if relField.GetRelationshipType() == "belongsToMany" {
+				if btm, ok := relField.(*fields.BelongsToMany); ok {
+					if err := mg.createPivotTable(btm); err != nil {
+						return err
+					}
+				}
+			}
+
+			continue
+		}
+
+		// Normal field'lar için mevcut logic
 		schema, ok := field.(*fields.Schema)
 		if !ok {
 			continue
@@ -126,9 +159,24 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 
 // getTableName, resource'dan tablo adını çıkarır.
 func (mg *MigrationGenerator) getTableName(r resource.Resource) string {
-	// GORM naming convention: slug'dan tablo adı türet
-	slug := r.Slug()
-	return strcase.ToSnake(slug)
+	// GORM'dan gerçek tablo adını al
+	model := r.Model()
+	if model == nil {
+		// Fallback: slug'dan tablo adı türet
+		slug := r.Slug()
+		return strcase.ToSnake(slug)
+	}
+
+	// GORM'un NamingStrategy'sini kullanarak tablo adını al
+	stmt := &gorm.Statement{DB: mg.db}
+	err := stmt.Parse(model)
+	if err != nil {
+		// Fallback: slug'dan tablo adı türet
+		slug := r.Slug()
+		return strcase.ToSnake(slug)
+	}
+
+	return stmt.Table
 }
 
 // hasIndex, tabloda index var mı kontrol eder.
@@ -167,6 +215,39 @@ func (mg *MigrationGenerator) createIndex(table, column string, unique bool) err
 	return mg.db.Exec(sql).Error
 }
 
+// createPivotTable, BelongsToMany ilişkileri için pivot tablo oluşturur.
+func (mg *MigrationGenerator) createPivotTable(btm *fields.BelongsToMany) error {
+	// Pivot tablo zaten var mı kontrol et
+	var count int64
+	mg.db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", btm.PivotTableName).Scan(&count)
+	if count > 0 {
+		return nil // Tablo zaten var
+	}
+
+	// Pivot tablo oluştur
+	sql := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			%s INTEGER NOT NULL,
+			%s INTEGER NOT NULL,
+			PRIMARY KEY (%s, %s)
+		)
+	`, btm.PivotTableName, btm.ForeignKeyColumn, btm.RelatedKeyColumn, btm.ForeignKeyColumn, btm.RelatedKeyColumn)
+
+	if err := mg.db.Exec(sql).Error; err != nil {
+		return fmt.Errorf("failed to create pivot table %s: %w", btm.PivotTableName, err)
+	}
+
+	// Index'ler ekle
+	if err := mg.createIndex(btm.PivotTableName, btm.ForeignKeyColumn, false); err != nil {
+		return err
+	}
+	if err := mg.createIndex(btm.PivotTableName, btm.RelatedKeyColumn, false); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // FieldInfo, alan bilgilerini içerir.
 type FieldInfo struct {
 	Name         string
@@ -181,6 +262,12 @@ type FieldInfo struct {
 	IsFilterable bool
 	IsRelation   bool
 	RelationType string
+
+	// İlişki Bilgileri
+	RelatedResource  string // İlişkili resource slug'ı
+	ForeignKey       string // Foreign key sütunu
+	PivotTable       string // Pivot tablo adı (BelongsToMany için)
+	RelationGormTag  string // İlişki için GORM tag'i
 }
 
 // GetFieldInfos, resource'un tüm alanlarının bilgilerini döner.
@@ -188,6 +275,14 @@ func (mg *MigrationGenerator) GetFieldInfos(r resource.Resource) []FieldInfo {
 	var infos []FieldInfo
 
 	for _, field := range r.Fields() {
+		// İlişkisel field'ları kontrol et
+		if relField, ok := fields.IsRelationshipField(field); ok {
+			info := mg.buildRelationshipFieldInfo(relField)
+			infos = append(infos, info)
+			continue
+		}
+
+		// Normal field'lar
 		schema, ok := field.(*fields.Schema)
 		if !ok {
 			continue
@@ -256,8 +351,82 @@ func (mg *MigrationGenerator) buildGormTag(schema *fields.Schema) string {
 	return strings.Join(parts, ";")
 }
 
+// buildRelationshipFieldInfo, ilişkisel field'dan FieldInfo oluşturur.
+func (mg *MigrationGenerator) buildRelationshipFieldInfo(relField fields.RelationshipField) FieldInfo {
+	info := FieldInfo{
+		Name:            relField.GetRelationshipName(),
+		Key:             relField.GetKey(),
+		IsRelation:      true,
+		RelationType:    relField.GetRelationshipType(),
+		RelatedResource: relField.GetRelatedResource(),
+	}
+
+	// İlişki tipine göre bilgileri ayarla
+	switch relField.GetRelationshipType() {
+	case "belongsTo":
+		// BelongsTo için foreign key field'ı gerekir
+		if bt, ok := relField.(*fields.BelongsTo); ok {
+			if bt.GormRelationConfig != nil {
+				info.ForeignKey = bt.GormRelationConfig.ForeignKey
+				info.RelationGormTag = bt.GormRelationConfig.ToGormTag()
+				// Go type: pointer to related struct
+				relatedType := strcase.ToCamel(info.RelatedResource)
+				if strings.HasSuffix(relatedType, "s") {
+					relatedType = strings.TrimSuffix(relatedType, "s")
+				}
+				info.GoType = "*" + relatedType
+			}
+		}
+	case "belongsToMany":
+		// BelongsToMany için pivot tablo gerekir
+		if btm, ok := relField.(*fields.BelongsToMany); ok {
+			info.PivotTable = btm.PivotTableName
+			if btm.GormRelationConfig != nil {
+				info.RelationGormTag = btm.GormRelationConfig.ToGormTag()
+			}
+			// Go type: slice of pointers to related struct
+			relatedType := strcase.ToCamel(info.RelatedResource)
+			if strings.HasSuffix(relatedType, "s") {
+				relatedType = strings.TrimSuffix(relatedType, "s")
+			}
+			info.GoType = "[]*" + relatedType
+		}
+	case "hasOne":
+		// HasOne için GORM tag gerekir
+		if ho, ok := relField.(*fields.HasOne); ok {
+			if ho.GormRelationConfig != nil {
+				info.ForeignKey = ho.GormRelationConfig.ForeignKey
+				info.RelationGormTag = ho.GormRelationConfig.ToGormTag()
+			}
+			// Go type: pointer to related struct
+			relatedType := strcase.ToCamel(info.RelatedResource)
+			if strings.HasSuffix(relatedType, "s") {
+				relatedType = strings.TrimSuffix(relatedType, "s")
+			}
+			info.GoType = "*" + relatedType
+		}
+	case "hasMany":
+		// HasMany için GORM tag gerekir
+		if hm, ok := relField.(*fields.HasMany); ok {
+			if hm.GormRelationConfig != nil {
+				info.ForeignKey = hm.GormRelationConfig.ForeignKey
+				info.RelationGormTag = hm.GormRelationConfig.ToGormTag()
+			}
+			// Go type: slice of related struct
+			relatedType := strcase.ToCamel(info.RelatedResource)
+			if strings.HasSuffix(relatedType, "s") {
+				relatedType = strings.TrimSuffix(relatedType, "s")
+			}
+			info.GoType = "[]" + relatedType
+		}
+	}
+
+	return info
+}
+
 // GenerateModelStub, resource'dan Go model stub'ı oluşturur.
 // Bu stub, manuel model oluşturmak için referans olarak kullanılabilir.
+// İlişkisel field'ları da otomatik olarak ekler.
 func (mg *MigrationGenerator) GenerateModelStub(r resource.Resource) string {
 	var sb strings.Builder
 
@@ -278,6 +447,45 @@ func (mg *MigrationGenerator) GenerateModelStub(r resource.Resource) string {
 			continue // ID zaten eklendi
 		}
 
+		// İlişkisel field'lar için özel işlem
+		if info.IsRelation {
+			// BelongsTo için foreign key field'ı ekle
+			if info.RelationType == "belongsTo" && info.ForeignKey != "" {
+				fkFieldName := strcase.ToCamel(info.ForeignKey)
+				// Foreign key için basit GORM tag
+				fkGormTag := "index"
+				sb.WriteString(fmt.Sprintf("\t%s uint `json:\"%s\" gorm:\"%s\"`\n",
+					fkFieldName, info.ForeignKey, fkGormTag))
+			}
+
+			// İlişki field'ı ekle
+			relationFieldName := strcase.ToCamel(info.Key)
+			goType := info.GoType
+			if goType == "" {
+				// Fallback: related resource'dan tip oluştur
+				relatedType := strcase.ToCamel(info.RelatedResource)
+				if strings.HasSuffix(relatedType, "s") {
+					relatedType = strings.TrimSuffix(relatedType, "s")
+				}
+				switch info.RelationType {
+				case "belongsTo", "hasOne":
+					goType = "*" + relatedType
+				case "hasMany":
+					goType = "[]" + relatedType
+				case "belongsToMany":
+					goType = "[]*" + relatedType
+				}
+			}
+
+			gormTag := info.RelationGormTag
+			jsonTag := info.Key
+
+			sb.WriteString(fmt.Sprintf("\t%s %s `json:\"%s\" gorm:\"%s\"`\n",
+				relationFieldName, goType, jsonTag, gormTag))
+			continue
+		}
+
+		// Normal field'lar
 		fieldName := strcase.ToCamel(info.Key)
 		goType := info.GoType
 		if goType == "" {
@@ -298,4 +506,189 @@ func (mg *MigrationGenerator) GenerateModelStub(r resource.Resource) string {
 	sb.WriteString("}\n")
 
 	return sb.String()
+}
+
+// createTableFromFields, resource'un field tanımlarından tablo oluşturur.
+// Model olmayan resource'lar için kullanılır.
+func (mg *MigrationGenerator) createTableFromFields(r resource.Resource) error {
+	tableName := mg.getTableName(r)
+
+	// Tablo zaten var mı kontrol et
+	if mg.db.Migrator().HasTable(tableName) {
+		// Tablo var, mevcut yapıyı güncelle (ALTER TABLE)
+		return mg.updateTableFromFields(r, tableName)
+	}
+
+	// Field'lardan SQL column tanımları oluştur
+	var columns []string
+
+	// ID column (primary key)
+	columns = append(columns, "id INTEGER PRIMARY KEY AUTOINCREMENT")
+
+	// Timestamp field'larını takip et
+	hasCreatedAt := false
+	hasUpdatedAt := false
+	hasDeletedAt := false
+
+	// Field'lardan column'lar
+	for _, field := range r.Fields() {
+		// İlişkisel field'ları kontrol et
+		if relField, ok := fields.IsRelationshipField(field); ok {
+			// BelongsTo için foreign key column'u ekle
+			if relField.GetRelationshipType() == "belongsTo" {
+				if bt, ok := relField.(*fields.BelongsTo); ok {
+					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
+						fkColumn := bt.GormRelationConfig.ForeignKey
+						// Foreign key column
+						columns = append(columns, fmt.Sprintf("%s INTEGER", fkColumn))
+					}
+				}
+			}
+			// Diğer ilişki tipleri için column ekleme (HasOne, HasMany, BelongsToMany için column yok)
+			continue
+		}
+
+		// Normal field'lar
+		schema, ok := field.(*fields.Schema)
+		if !ok {
+			continue
+		}
+
+		if schema.Key == "id" {
+			continue // ID zaten eklendi
+		}
+
+		// Timestamp field'larını takip et
+		if schema.Key == "created_at" {
+			hasCreatedAt = true
+		} else if schema.Key == "updated_at" {
+			hasUpdatedAt = true
+		} else if schema.Key == "deleted_at" {
+			hasDeletedAt = true
+		}
+
+		// SQL type
+		sqlType := mg.typeMapper.MapFieldTypeToSQL(schema.Type, 0)
+
+		// Column definition
+		columnDef := fmt.Sprintf("%s %s", schema.Key, sqlType)
+
+		// NOT NULL
+		if schema.IsRequired && !schema.IsNullable {
+			columnDef += " NOT NULL"
+		}
+
+		// Default value
+		if schema.HasGormConfig() {
+			config := schema.GetGormConfig()
+			if config.Default != "" {
+				columnDef += fmt.Sprintf(" DEFAULT %s", config.Default)
+			}
+		}
+
+		columns = append(columns, columnDef)
+	}
+
+	// Timestamp columns (sadece field'larda tanımlanmamışsa ekle)
+	if !hasCreatedAt {
+		columns = append(columns, "created_at DATETIME")
+	}
+	if !hasUpdatedAt {
+		columns = append(columns, "updated_at DATETIME")
+	}
+	if !hasDeletedAt {
+		columns = append(columns, "deleted_at DATETIME") // Soft delete
+	}
+
+	// CREATE TABLE SQL
+	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n\t%s\n)", tableName, strings.Join(columns, ",\n\t"))
+
+	// Execute
+	if err := mg.db.Exec(sql).Error; err != nil {
+		return fmt.Errorf("failed to create table %s: %w", tableName, err)
+	}
+
+	return nil
+}
+
+// updateTableFromFields, mevcut tabloyu field tanımlarına göre günceller.
+// Eksik column'ları ekler, mevcut column'ları değiştirmez (güvenli).
+func (mg *MigrationGenerator) updateTableFromFields(r resource.Resource, tableName string) error {
+	// Mevcut column'ları al
+	type ColumnInfo struct {
+		Name string
+	}
+	var existingColumns []ColumnInfo
+
+	// SQLite için column listesi
+	mg.db.Raw(fmt.Sprintf("PRAGMA table_info(%s)", tableName)).Scan(&existingColumns)
+
+	existingColumnMap := make(map[string]bool)
+	for _, col := range existingColumns {
+		existingColumnMap[col.Name] = true
+	}
+
+	// Eksik column'ları ekle
+	for _, field := range r.Fields() {
+		// İlişkisel field'ları kontrol et
+		if relField, ok := fields.IsRelationshipField(field); ok {
+			// BelongsTo için foreign key column'u
+			if relField.GetRelationshipType() == "belongsTo" {
+				if bt, ok := relField.(*fields.BelongsTo); ok {
+					if bt.GormRelationConfig != nil && bt.GormRelationConfig.ForeignKey != "" {
+						fkColumn := bt.GormRelationConfig.ForeignKey
+						if !existingColumnMap[fkColumn] {
+							// Column ekle
+							sql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s INTEGER", tableName, fkColumn)
+							if err := mg.db.Exec(sql).Error; err != nil {
+								return fmt.Errorf("failed to add column %s: %w", fkColumn, err)
+							}
+						}
+					}
+				}
+			}
+			continue
+		}
+
+		// Normal field'lar
+		schema, ok := field.(*fields.Schema)
+		if !ok {
+			continue
+		}
+
+		if schema.Key == "id" {
+			continue
+		}
+
+		// Column zaten var mı?
+		if existingColumnMap[schema.Key] {
+			continue
+		}
+
+		// SQL type
+		sqlType := mg.typeMapper.MapFieldTypeToSQL(schema.Type, 0)
+
+		// Column definition
+		columnDef := fmt.Sprintf("%s %s", schema.Key, sqlType)
+
+		// NOT NULL (dikkat: mevcut tabloya NOT NULL column eklerken default value gerekir)
+		if schema.IsRequired && !schema.IsNullable {
+			// Mevcut tabloya NOT NULL column eklerken default value ekle
+			if schema.HasGormConfig() {
+				config := schema.GetGormConfig()
+				if config.Default != "" {
+					columnDef += fmt.Sprintf(" DEFAULT %s NOT NULL", config.Default)
+				}
+				// Default value yoksa, NULL'a izin ver (NOT NULL ekleme)
+			}
+		}
+
+		// ALTER TABLE ADD COLUMN
+		sql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", tableName, columnDef)
+		if err := mg.db.Exec(sql).Error; err != nil {
+			return fmt.Errorf("failed to add column %s: %w", schema.Key, err)
+		}
+	}
+
+	return nil
 }

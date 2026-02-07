@@ -8,6 +8,7 @@ import (
 type BelongsToMany struct {
 	Schema
 	RelatedResourceSlug string
+	RelatedResource     interface{} // resource.Resource interface (interface{} to avoid circular import)
 	PivotTableName      string
 	ForeignKeyColumn    string
 	RelatedKeyColumn    string
@@ -38,6 +39,49 @@ func NewBelongsToMany(name, key, relatedResource string) *BelongsToMany {
 			WithPivotTable(pivotTable, "user_id", relatedResource+"_id"),
 	}
 	b.WithProps("related_resource", relatedResource)
+	return b
+}
+
+// NewBelongsToManyResource, resource instance kullanarak BelongsToMany ilişkisi oluşturur.
+// Bu metod, resource referansı kullanarak tip güvenli ilişki tanımlaması sağlar.
+//
+// Örnek kullanım:
+//   fields.NewBelongsToManyResource("Tags", "tags", blog.NewTagResource())
+func NewBelongsToManyResource(name, key string, relatedResource interface{}) *BelongsToMany {
+	// Resource interface'inden slug'ı al
+	type resourceSlugger interface {
+		Slug() string
+	}
+
+	var slug string
+	if res, ok := relatedResource.(resourceSlugger); ok {
+		slug = res.Slug()
+	} else {
+		slug = ""
+	}
+
+	// Generate pivot table name using convention
+	pivotTable := generatePivotTableName(key, slug)
+
+	b := &BelongsToMany{
+		Schema: Schema{
+			Name:  name,
+			Key:   key,
+			View:  "belongs-to-many-field",
+			Type:  TYPE_RELATIONSHIP,
+			Props: make(map[string]interface{}),
+		},
+		RelatedResourceSlug: slug,
+		RelatedResource:     relatedResource,
+		PivotTableName:      pivotTable,
+		ForeignKeyColumn:    "user_id",
+		RelatedKeyColumn:    slug + "_id",
+		LoadingStrategy:     EAGER_LOADING,
+		GormRelationConfig: NewRelationshipGormConfig().
+			WithPivotTable(pivotTable, "user_id", slug+"_id"),
+	}
+	b.WithProps("related_resource", slug)
+	b.WithProps("related_resource_instance", relatedResource)
 	return b
 }
 

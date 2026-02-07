@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data/orm"
@@ -18,6 +19,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/handler"
 	authHandler "github.com/ferdiunal/panel.go/pkg/handler/auth"
+	"github.com/ferdiunal/panel.go/pkg/middleware"
 	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/permission"
 	"github.com/ferdiunal/panel.go/pkg/resource"
@@ -57,29 +59,68 @@ func New(config Config) *Panel {
 	accountRepo := orm.NewAccountRepository(db)
 
 	authService := auth.NewService(userRepo, sessionRepo, accountRepo)
-	authH := authHandler.NewHandler(authService)
+	// SECURITY: Account lockout after 5 failed attempts, 15 minute lockout duration
+	accountLockout := middleware.NewAccountLockout(5, 15*time.Minute)
+	authH := authHandler.NewHandler(authService, accountLockout, config.Environment)
 
 	// Auto Migrate Auth Domains
 	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{})
 
 	// Middleware Registration
 	app.Use(compress.New())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders: "Content-Type,Authorization",
-	}))
-	if config.Environment == "production" {
-		app.Use(csrf.New())
-		// app.Use(circuitbreaker.New(circuitbreaker.Config{
-		// 	FailureThreshold: 3,
-		// }))
+
+	// SECURITY: CORS Configuration - NEVER use "*" in production
+	// Configure allowed origins in your config
+	allowedOrigins := config.CORS.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		// Default to localhost for development
+		allowedOrigins = []string{"http://localhost:3000", "http://localhost:5173"}
 	}
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     strings.Join(allowedOrigins, ","),
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token",
+		AllowCredentials: true,
+		ExposeHeaders:    "Content-Length",
+		MaxAge:           3600,
+	}))
+
+	// SECURITY: CSRF Protection - ALWAYS enabled (except in test environment)
+	if config.Environment != "test" {
+		app.Use(csrf.New(csrf.Config{
+			KeyLookup:      "header:X-CSRF-Token",
+			CookieName:     "__Host-csrf-token",
+			CookieSecure:   config.Environment == "production",
+			CookieHTTPOnly: true,
+			CookieSameSite: "Strict",
+			Expiration:     24 * time.Hour,
+		}))
+	}
+
 	app.Use(earlydata.New())
 	app.Use(etag.New())
+
+	// SECURITY: Enhanced security headers
 	app.Use(helmet.New(helmet.Config{
 		CrossOriginResourcePolicy: "cross-origin",
 	}))
+
+	// SECURITY: Additional security headers (helmet doesn't support all of these)
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';")
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("Referrer-Policy", "no-referrer")
+		c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		return c.Next()
+	})
+
+	// SECURITY: Request size limits to prevent DoS attacks
+	app.Use(middleware.RequestSizeLimit(10 * 1024 * 1024)) // 10MB limit
+
+	// SECURITY: Audit logging for security events
+	auditLogger := &middleware.ConsoleAuditLogger{}
+	app.Use(middleware.AuditMiddleware(auditLogger))
 	// Static file serving
 	useEmbed := config.Environment != "development"
 	assetsFS, err := GetFileSystem(useEmbed)
@@ -184,6 +225,8 @@ func New(config Config) *Panel {
 
 	// Auth Routes
 	authRoutes := api.Group("/auth")
+	// SECURITY: Strict rate limiting for authentication endpoints (10 req/min)
+	authRoutes.Use(middleware.AuthRateLimiter())
 	authRoutes.Post("/sign-in/email", context.Wrap(authH.LoginEmail))
 	authRoutes.Post("/sign-up/email", context.Wrap(authH.RegisterEmail))
 	authRoutes.Post("/sign-out", context.Wrap(authH.SignOut))
@@ -194,6 +237,8 @@ func New(config Config) *Panel {
 
 	// Middleware
 	api.Use(context.Wrap(authH.SessionMiddleware))
+	// SECURITY: Rate limiting for general API endpoints (100 req/min)
+	api.Use(middleware.APIRateLimiter())
 
 	// Page Routes
 	api.Get("/pages", context.Wrap(p.handlePages))

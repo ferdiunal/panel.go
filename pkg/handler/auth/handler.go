@@ -2,16 +2,23 @@ package auth
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/middleware"
 	"github.com/ferdiunal/panel.go/pkg/service/auth"
 	"github.com/gofiber/fiber/v2"
 )
 
 type Handler struct {
-	service *auth.Service
+	service        *auth.Service
+	accountLockout *middleware.AccountLockout
+	environment    string
 }
 
-func NewHandler(service *auth.Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *auth.Service, accountLockout *middleware.AccountLockout, environment string) *Handler {
+	return &Handler{
+		service:        service,
+		accountLockout: accountLockout,
+		environment:    environment,
+	}
 }
 
 type RegisterRequest struct {
@@ -51,6 +58,13 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
+	// SECURITY: Check if account is locked
+	if h.accountLockout != nil && h.accountLockout.IsLocked(req.Email) {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"error": "Account temporarily locked due to too many failed login attempts. Please try again later.",
+		})
+	}
+
 	// Get IP with fallback to X-Forwarded-For
 	ip := c.IP()
 	if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
@@ -59,17 +73,43 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 
 	session, err := h.service.LoginEmail(c.Context(), req.Email, req.Password, ip, c.Get("User-Agent"))
 	if err != nil {
+		// SECURITY: Record failed login attempt
+		if h.accountLockout != nil {
+			h.accountLockout.RecordFailedAttempt(req.Email)
+			remaining := h.accountLockout.GetRemainingAttempts(req.Email)
+			if remaining > 0 {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error":              err.Error(),
+					"remaining_attempts": remaining,
+				})
+			}
+		}
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Set Cookie
+	// SECURITY: Reset failed attempts on successful login
+	if h.accountLockout != nil {
+		h.accountLockout.ResetAttempts(req.Email)
+	}
+
+	// SECURITY: Set secure session cookie
+	// Use __Host- prefix for additional security (requires Secure=true, Path=/, no Domain)
+	// In test environment, use regular cookie name to allow HTTP
+	cookieName := "__Host-session_token"
+	secure := true
+	if h.environment == "test" {
+		cookieName = "session_token"
+		secure = false
+	}
+
 	c.Cookie(&fiber.Cookie{
-		Name:     "session_token",
+		Name:     cookieName,
 		Value:    session.Token,
 		Expires:  session.ExpiresAt,
 		HTTPOnly: true,
-		Secure:   c.Protocol() == "https", // Or config
-		SameSite: "Lax",
+		Secure:   secure,
+		SameSite: "Strict", // Strict for admin panels to prevent CSRF
+		Path:     "/",
 	})
 
 	return c.JSON(fiber.Map{
@@ -82,24 +122,34 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 }
 
 func (h *Handler) SignOut(c *context.Context) error {
-	token := c.Cookies("session_token")
+	cookieName := "__Host-session_token"
+	if h.environment == "test" {
+		cookieName = "session_token"
+	}
+
+	token := c.Cookies(cookieName)
 	if token != "" {
 		h.service.Logout(c.Context(), token)
 	}
 
-	c.ClearCookie("session_token")
+	c.ClearCookie(cookieName)
 	return c.JSON(fiber.Map{"message": "Signed out"})
 }
 
 func (h *Handler) GetSession(c *context.Context) error {
-	token := c.Cookies("session_token")
+	cookieName := "__Host-session_token"
+	if h.environment == "test" {
+		cookieName = "session_token"
+	}
+
+	token := c.Cookies(cookieName)
 	if token == "" {
 		return c.JSON(fiber.Map{"session": nil})
 	}
 
 	session, err := h.service.ValidateSession(c.Context(), token)
 	if err != nil {
-		c.ClearCookie("session_token")
+		c.ClearCookie(cookieName)
 		return c.JSON(fiber.Map{"session": nil})
 	}
 
@@ -113,14 +163,19 @@ func (h *Handler) GetSession(c *context.Context) error {
 }
 
 func (h *Handler) SessionMiddleware(c *context.Context) error {
-	token := c.Cookies("session_token")
+	cookieName := "__Host-session_token"
+	if h.environment == "test" {
+		cookieName = "session_token"
+	}
+
+	token := c.Cookies(cookieName)
 	if token == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	session, err := h.service.ValidateSession(c.Context(), token)
 	if err != nil {
-		c.ClearCookie("session_token")
+		c.ClearCookie(cookieName)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 

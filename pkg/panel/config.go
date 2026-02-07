@@ -31,6 +31,14 @@ func (c GoogleConfig) Enabled() bool {
 	return c.ClientID != "" && c.ClientSecret != ""
 }
 
+// CORSConfig, CORS yapılandırmasını tutar.
+type CORSConfig struct {
+	// AllowedOrigins, izin verilen origin'leri listeler.
+	// Örnek: []string{"https://example.com", "https://app.example.com"}
+	// Geliştirme için: []string{"http://localhost:3000", "http://localhost:5173"}
+	AllowedOrigins []string
+}
+
 // Config, panelin genel yapılandırma yapısıdır.
 type Config struct {
 	Server         ServerConfig
@@ -45,6 +53,7 @@ type Config struct {
 	DashboardPage  *page.Dashboard
 	UserResource   resource.Resource
 	Resources      []resource.Resource // Ek resource'lar
+	CORS           CORSConfig          // CORS yapılandırması
 }
 
 // SettingsConfig, veritabanından gelen dinamik ayarları tutar.

@@ -4,8 +4,9 @@ package fields
 // Bu yapı, alan tanımlarından otomatik migration ve model oluşturma için kullanılır.
 type GormConfig struct {
 	// Anahtar Yapılandırması
-	PrimaryKey    bool `json:"-"` // Birincil anahtar mı?
-	AutoIncrement bool `json:"-"` // Otomatik artış mı?
+	PrimaryKey    bool   `json:"-"` // Birincil anahtar mı?
+	AutoIncrement bool   `json:"-"` // Otomatik artış mı?
+	IDType        string `json:"-"` // ID tipi: "uuid" (shared/uuid), "snowflake" (github.com/bwmarrin/snowflake), "ulid" (github.com/oklog/ulid)
 
 	// Sütun Yapılandırması
 	Column string `json:"-"` // Özel sütun adı (varsayılan: Key'den türetilir)
@@ -17,16 +18,18 @@ type GormConfig struct {
 	Scale     int `json:"-"` // Ondalık ölçek (DECIMAL tipi için)
 
 	// İndeks Yapılandırması
-	Index       bool   `json:"-"` // Normal indeks oluştur
-	UniqueIndex bool   `json:"-"` // Benzersiz indeks oluştur
-	IndexName   string `json:"-"` // Özel indeks adı
+	Index         bool   `json:"-"` // Normal indeks oluştur
+	UniqueIndex   bool   `json:"-"` // Benzersiz indeks oluştur
+	FullTextIndex bool   `json:"-"` // Fulltext indeks oluştur
+	IndexName     string `json:"-"` // Özel indeks adı
 
 	// Varsayılan Değer
 	Default interface{} `json:"-"` // Varsayılan değer
 
 	// Kısıtlamalar
-	NotNull bool   `json:"-"` // NOT NULL kısıtlaması
-	Comment string `json:"-"` // Sütun yorumu
+	NotNull    bool   `json:"-"` // NOT NULL kısıtlaması
+	Comment    string `json:"-"` // Sütun yorumu
+	SoftDelete bool   `json:"-"` // Soft delete desteği (DeletedAt alanı)
 
 	// İlişki Yapılandırması (Foreign Key)
 	ForeignKey       string `json:"-"` // Foreign key alanı (örn: "AuthorID")
@@ -99,6 +102,15 @@ func (g *GormConfig) WithUniqueIndex(name ...string) *GormConfig {
 	return g
 }
 
+// WithFullTextIndex, fulltext indeks oluşturur.
+func (g *GormConfig) WithFullTextIndex(name ...string) *GormConfig {
+	g.FullTextIndex = true
+	if len(name) > 0 {
+		g.IndexName = name[0]
+	}
+	return g
+}
+
 // WithDefault, varsayılan değer belirler.
 func (g *GormConfig) WithDefault(value interface{}) *GormConfig {
 	g.Default = value
@@ -114,6 +126,36 @@ func (g *GormConfig) WithNotNull() *GormConfig {
 // WithComment, sütun yorumu ekler.
 func (g *GormConfig) WithComment(comment string) *GormConfig {
 	g.Comment = comment
+	return g
+}
+
+// WithSoftDelete, soft delete desteği ekler.
+func (g *GormConfig) WithSoftDelete() *GormConfig {
+	g.SoftDelete = true
+	return g
+}
+
+// WithIDType, ID tipini belirler (uuid, snowflake, ulid).
+func (g *GormConfig) WithIDType(idType string) *GormConfig {
+	g.IDType = idType
+	return g
+}
+
+// WithUUID, UUID tipinde ID kullanır.
+func (g *GormConfig) WithUUID() *GormConfig {
+	g.IDType = "uuid"
+	return g
+}
+
+// WithSnowflake, Snowflake tipinde ID kullanır.
+func (g *GormConfig) WithSnowflake() *GormConfig {
+	g.IDType = "snowflake"
+	return g
+}
+
+// WithULID, ULID tipinde ID kullanır.
+func (g *GormConfig) WithULID() *GormConfig {
+	g.IDType = "ulid"
 	return g
 }
 
@@ -181,8 +223,28 @@ func (g *GormConfig) ToGormTag() string {
 			parts = append(parts, "uniqueIndex")
 		}
 	}
+	if g.FullTextIndex {
+		if g.IndexName != "" {
+			parts = append(parts, "index:"+g.IndexName+",class:FULLTEXT")
+		} else {
+			parts = append(parts, "index:,class:FULLTEXT")
+		}
+	}
 	if g.NotNull {
 		parts = append(parts, "not null")
+	}
+	if g.SoftDelete {
+		parts = append(parts, "softDelete:flag")
+	}
+	if g.IDType != "" {
+		switch g.IDType {
+		case "uuid":
+			parts = append(parts, "type:uuid")
+		case "snowflake":
+			parts = append(parts, "type:bigint")
+		case "ulid":
+			parts = append(parts, "type:varchar(26)")
+		}
 	}
 	if g.Default != nil {
 		parts = append(parts, "default:"+formatDefault(g.Default))
