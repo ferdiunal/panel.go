@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
@@ -186,15 +188,30 @@ func HandleResourceCreate(h *FieldHandler, c *context.Context) error {
 		ctxStr := element.GetContext()
 
 		// Adım 3.5: Bağlam Filtreleme
-		// Oluşturma formunda gösterilmemesi gereken alanları filtrele
-		// Sadece CREATE bağlamına uygun alanları listeye ekle
-		if ctxStr != fields.HIDE_ON_CREATE &&      // Oluşturmada gizli değilse
-			ctxStr != fields.ONLY_ON_LIST &&       // Sadece listede gösterilmiyorsa
-			ctxStr != fields.ONLY_ON_DETAIL &&     // Sadece detayda gösterilmiyorsa
-			ctxStr != fields.ONLY_ON_UPDATE {      // Sadece güncellemede gösterilmiyorsa
-			// Alan oluşturma formu için uygun, listeye ekle
-			createFields = append(createFields, serialized)
+		// Context string'i space-separated olabilir (örn: "hide_on_create hide_on_update")
+		// Bu yüzden string'i parse edip her bir context'i kontrol etmeliyiz
+		if ctxStr != "" {
+			contexts := strings.Fields(string(ctxStr))
+			shouldSkip := false
+
+			for _, ctx := range contexts {
+				// Oluşturma formunda gösterilmemesi gereken alanları filtrele
+				if ctx == string(fields.HIDE_ON_CREATE) ||
+					ctx == string(fields.ONLY_ON_LIST) ||
+					ctx == string(fields.ONLY_ON_DETAIL) ||
+					ctx == string(fields.ONLY_ON_UPDATE) {
+					shouldSkip = true
+					break
+				}
+			}
+
+			if shouldSkip {
+				continue
+			}
 		}
+
+		// Alan oluşturma formu için uygun, listeye ekle
+		createFields = append(createFields, serialized)
 	}
 
 	// Adım 4: JSON Yanıtı Döndür
