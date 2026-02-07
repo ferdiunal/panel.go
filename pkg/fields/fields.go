@@ -17,8 +17,9 @@ import "strings"
 //   - *Schema: Yapılandırılmış alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   field := NewField("Kullanıcı Adı")                    // Key: "kullanıcı_adı"
-//   field := NewField("Kullanıcı Adı", "username")        // Key: "username"
+//
+//	field := NewField("Kullanıcı Adı")                    // Key: "kullanıcı_adı"
+//	field := NewField("Kullanıcı Adı", "username")        // Key: "username"
 //
 // Önemli Notlar:
 //   - Döndürülen Schema pointer'ı method chaining için kullanılabilir
@@ -56,8 +57,9 @@ func NewField(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış ID alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   idField := ID()                    // Varsayılan "ID" adı ile
-//   idField := ID("Kayıt Numarası")    // Özel ad ile
+//
+//	idField := ID()                    // Varsayılan "ID" adı ile
+//	idField := ID("Kayıt Numarası")    // Özel ad ile
 //
 // Önemli Notlar:
 //   - Veritabanı anahtarı her zaman "id" olarak ayarlanır
@@ -89,9 +91,10 @@ func ID(name ...string) *Schema {
 //   - *Schema: Yapılandırılmış metin alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   titleField := Text("Başlık")
-//   usernameField := Text("Kullanıcı Adı", "username")
-//   emailField := Text("E-posta", "email_address")
+//
+//	titleField := Text("Başlık")
+//	usernameField := Text("Kullanıcı Adı", "username")
+//	emailField := Text("E-posta", "email_address")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "text-field" olarak ayarlanır
@@ -119,8 +122,9 @@ func Text(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış textarea alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   descField := Textarea("Açıklama")
-//   bioField := Textarea("Biyografi", "biography")
+//
+//	descField := Textarea("Açıklama")
+//	bioField := Textarea("Biyografi", "biography")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "textarea-field" olarak ayarlanır
@@ -148,8 +152,9 @@ func Textarea(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış zengin metin alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   contentField := RichText("İçerik")
-//   descField := RichText("Ürün Açıklaması", "product_description")
+//
+//	contentField := RichText("İçerik")
+//	descField := RichText("Ürün Açıklaması", "product_description")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "richtext-field" olarak ayarlanır
@@ -177,8 +182,9 @@ func RichText(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış şifre alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   passField := Password("Şifre")
-//   newPassField := Password("Yeni Şifre", "new_password")
+//
+//	passField := Password("Şifre")
+//	newPassField := Password("Yeni Şifre", "new_password")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "password-field" olarak ayarlanır
@@ -207,9 +213,10 @@ func Password(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış sayı alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   priceField := Number("Fiyat")
-//   quantityField := Number("Miktar", "quantity")
-//   ageField := Number("Yaş", "age")
+//
+//	priceField := Number("Fiyat")
+//	quantityField := Number("Miktar", "quantity")
+//	ageField := Number("Yaş", "age")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "number-field" olarak ayarlanır
@@ -238,8 +245,9 @@ func Number(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış e-posta alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   emailField := Email("E-posta")
-//   contactField := Email("İletişim E-postası", "contact_email")
+//
+//	emailField := Email("E-posta")
+//	contactField := Email("İletişim E-postası", "contact_email")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "email-field" olarak ayarlanır
@@ -268,8 +276,9 @@ func Email(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış görsel alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   imageField := Image("Ürün Resmi")
-//   avatarField := Image("Profil Fotoğrafı", "avatar")
+//
+//	imageField := Image("Ürün Resmi")
+//	avatarField := Image("Profil Fotoğrafı", "avatar")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "image-field" olarak ayarlanır
@@ -298,8 +307,9 @@ func Image(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış telefon alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   phoneField := Tel("Telefon")
-//   mobileField := Tel("Cep Telefonu", "mobile_phone")
+//
+//	phoneField := Tel("Telefon")
+//	mobileField := Tel("Cep Telefonu", "mobile_phone")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "text-field" olarak ayarlanır (genellikle text input kullanılır)
@@ -328,8 +338,9 @@ func Tel(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış video alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   videoField := Video("Tanıtım Videosu")
-//   demoField := Video("Demo Videosu", "demo_video")
+//
+//	videoField := Video("Tanıtım Videosu")
+//	demoField := Video("Demo Videosu", "demo_video")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "file-field" olarak ayarlanır
@@ -358,8 +369,9 @@ func Video(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış ses alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   audioField := Audio("Ses Dosyası")
-//   podcastField := Audio("Podcast Bölümü", "podcast_episode")
+//
+//	audioField := Audio("Ses Dosyası")
+//	podcastField := Audio("Podcast Bölümü", "podcast_episode")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "file-field" olarak ayarlanır
@@ -388,8 +400,9 @@ func Audio(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış tarih alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   dateField := Date("Doğum Tarihi")
-//   eventField := Date("Etkinlik Tarihi", "event_date")
+//
+//	dateField := Date("Doğum Tarihi")
+//	eventField := Date("Etkinlik Tarihi", "event_date")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "date-field" olarak ayarlanır
@@ -418,8 +431,9 @@ func Date(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış tarih-saat alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   datetimeField := DateTime("Randevu Saati")
-//   eventField := DateTime("Etkinlik Zamanı", "event_datetime")
+//
+//	datetimeField := DateTime("Randevu Saati")
+//	eventField := DateTime("Etkinlik Zamanı", "event_datetime")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "datetime-field" olarak ayarlanır
@@ -448,8 +462,9 @@ func DateTime(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış dosya alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   fileField := File("Dosya")
-//   attachmentField := File("Ek Dosya", "attachment")
+//
+//	fileField := File("Dosya")
+//	attachmentField := File("Ek Dosya", "attachment")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "file-field" olarak ayarlanır
@@ -478,8 +493,9 @@ func File(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış anahtar-değer alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   kvField := KeyValue("Özellikler")
-//   metaField := KeyValue("Meta Veriler", "metadata")
+//
+//	kvField := KeyValue("Özellikler")
+//	metaField := KeyValue("Meta Veriler", "metadata")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "key-value-field" olarak ayarlanır
@@ -513,8 +529,9 @@ func KeyValue(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış bağlantı alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   categoryLink := Link("Kategori", "categories")
-//   authorLink := Link("Yazar", "authors", "author_id")
+//
+//	categoryLink := Link("Kategori", "categories")
+//	authorLink := Link("Yazar", "authors", "author_id")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "link-field" olarak ayarlanır
@@ -545,8 +562,9 @@ func Link(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış detay alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   profileDetail := Detail("Profil", "profiles")
-//   descDetail := Detail("Açıklama", "descriptions", "description_id")
+//
+//	profileDetail := Detail("Profil", "profiles")
+//	descDetail := Detail("Açıklama", "descriptions", "description_id")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "detail-field" olarak ayarlanır
@@ -578,8 +596,9 @@ func Detail(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış koleksiyon alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   commentsCollection := Collection("Yorumlar", "comments")
-//   productsCollection := Collection("Ürünler", "products", "product_ids")
+//
+//	commentsCollection := Collection("Yorumlar", "comments")
+//	productsCollection := Collection("Ürünler", "products", "product_ids")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "collection-field" olarak ayarlanır
@@ -612,8 +631,9 @@ func Collection(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış bağlantı alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   tagsConnect := Connect("Etiketler", "tags")
-//   categoriesConnect := Connect("Kategoriler", "categories", "category_ids")
+//
+//	tagsConnect := Connect("Etiketler", "tags")
+//	categoriesConnect := Connect("Kategoriler", "categories", "category_ids")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "connect-field" olarak ayarlanır
@@ -644,8 +664,9 @@ func Connect(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış polimorfik bağlantı alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   polyLink := PolyLink("Bağlantılı Kaynak")
-//   commentableLink := PolyLink("Yorum Yapılan", "commentable")
+//
+//	polyLink := PolyLink("Bağlantılı Kaynak")
+//	commentableLink := PolyLink("Yorum Yapılan", "commentable")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "poly-link-field" olarak ayarlanır
@@ -674,8 +695,9 @@ func PolyLink(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış polimorfik detay alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   polyDetail := PolyDetail("Açıklama", "descriptions")
-//   summaryDetail := PolyDetail("Özet", "summaries", "summary_id")
+//
+//	polyDetail := PolyDetail("Açıklama", "descriptions")
+//	summaryDetail := PolyDetail("Özet", "summaries", "summary_id")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "poly-detail-field" olarak ayarlanır
@@ -706,8 +728,9 @@ func PolyDetail(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış polimorfik koleksiyon alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   polyCollection := PolyCollection("Açıklamalar", "descriptions")
-//   commentsCollection := PolyCollection("Yorumlar", "comments", "comment_ids")
+//
+//	polyCollection := PolyCollection("Açıklamalar", "descriptions")
+//	commentsCollection := PolyCollection("Yorumlar", "comments", "comment_ids")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "poly-collection-field" olarak ayarlanır
@@ -739,8 +762,9 @@ func PolyCollection(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış polimorfik bağlantı alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   polyConnect := PolyConnect("Kategoriler", "categories")
-//   tagsConnect := PolyConnect("Etiketler", "tags", "tag_ids")
+//
+//	polyConnect := PolyConnect("Kategoriler", "categories")
+//	tagsConnect := PolyConnect("Etiketler", "tags", "tag_ids")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "poly-connect-field" olarak ayarlanır
@@ -775,8 +799,9 @@ func PolyConnect(name string, resource string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış switch alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   activeSwitch := Switch("Aktif")
-//   publishSwitch := Switch("Yayınla", "is_published")
+//
+//	activeSwitch := Switch("Aktif")
+//	publishSwitch := Switch("Yayınla", "is_published")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "switch-field" olarak ayarlanır
@@ -786,6 +811,7 @@ func PolyConnect(name string, resource string, attribute ...string) *Schema {
 func Switch(name string, attribute ...string) *Schema {
 	f := NewField(name, attribute...)
 	f.View = "switch-field"
+	f.LabelText = name
 	f.Type = TYPE_BOOLEAN
 	return f
 }
@@ -805,8 +831,9 @@ func Switch(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış combobox alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   productCombo := Combobox("Ürün")
-//   customerCombo := Combobox("Müşteri", "customer_id")
+//
+//	productCombo := Combobox("Ürün")
+//	customerCombo := Combobox("Müşteri", "customer_id")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "combobox-field" olarak ayarlanır
@@ -835,8 +862,9 @@ func Combobox(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış seçim alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   statusSelect := Select("Durum")
-//   typeSelect := Select("Tür", "type_id")
+//
+//	statusSelect := Select("Durum")
+//	typeSelect := Select("Tür", "type_id")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "select-field" olarak ayarlanır
@@ -865,8 +893,9 @@ func Select(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış badge alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   statusBadge := Badge("Durum")
-//   tagBadge := Badge("Etiket", "tag")
+//
+//	statusBadge := Badge("Durum")
+//	tagBadge := Badge("Etiket", "tag")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "badge-field" olarak ayarlanır
@@ -895,8 +924,9 @@ func Badge(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış kod alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   codeField := Code("Kod")
-//   sqlField := Code("SQL Sorgusu", "sql_query")
+//
+//	codeField := Code("Kod")
+//	sqlField := Code("SQL Sorgusu", "sql_query")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "code-field" olarak ayarlanır
@@ -925,8 +955,9 @@ func Code(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış renk alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   colorField := Color("Renk")
-//   themeColorField := Color("Tema Rengi", "theme_color")
+//
+//	colorField := Color("Renk")
+//	themeColorField := Color("Tema Rengi", "theme_color")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "color-field" olarak ayarlanır
@@ -955,8 +986,9 @@ func Color(name string, attribute ...string) *Schema {
 //   - *Schema: Yapılandırılmış boolean grup alan şeması pointer'ı
 //
 // Örnek Kullanım:
-//   permissionsGroup := BooleanGroup("İzinler")
-//   preferencesGroup := BooleanGroup("Tercihler", "user_preferences")
+//
+//	permissionsGroup := BooleanGroup("İzinler")
+//	preferencesGroup := BooleanGroup("Tercihler", "user_preferences")
 //
 // Önemli Notlar:
 //   - Frontend bileşeni "boolean-group-field" olarak ayarlanır
@@ -969,4 +1001,3 @@ func BooleanGroup(name string, attribute ...string) *Schema {
 	f.Type = TYPE_BOOLEAN_GROUP
 	return f
 }
-

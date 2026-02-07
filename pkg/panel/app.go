@@ -446,9 +446,9 @@ func New(config Config) *Panel {
 		// Default Settings Page
 		p.RegisterPage(&page.Settings{
 			Elements: []fields.Element{
-				fields.Text("Site Name").Default("Panel.go"),
-				fields.Switch("Register").Default(true),
-				fields.Switch("Forgot Password").Default(false),
+				fields.Text("Site Name").Label("Site Name").Placeholder("Site Name").Default("Panel.go"),
+				fields.Switch("Register Enable").Default(true),
+				fields.Switch("Forgot Password Enable").Default(false),
 			},
 		})
 	}

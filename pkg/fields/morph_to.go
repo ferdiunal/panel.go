@@ -99,7 +99,7 @@ type MorphTo struct {
 //
 // Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 func NewMorphTo(name, key string) *MorphTo {
-	return &MorphTo{
+	m := &MorphTo{
 		Schema: Schema{
 			Name: name,
 			Key:  key,
@@ -116,6 +116,11 @@ func NewMorphTo(name, key string) *MorphTo {
 		GormRelationConfig: NewRelationshipGormConfig().
 			WithPolymorphic(key+"_type", key+"_id"),
 	}
+	// MorphTo fields should not be shown in create/update forms
+	// They should be managed in separate interfaces
+	m.HideOnCreate()
+	m.HideOnUpdate()
+	return m
 }
 
 // Types, polimorfik ilişki için tip eşlemelerini ayarlar.

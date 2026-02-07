@@ -143,6 +143,10 @@ func BelongsToMany(name, key string, relatedResource interface{}) *BelongsToMany
 	if resourceInstance != nil {
 		b.WithProps("related_resource_instance", resourceInstance)
 	}
+	// BelongsToMany fields should not be shown in create/update forms
+	// They should be managed in separate interfaces
+	b.HideOnCreate()
+	b.HideOnUpdate()
 	return b
 }
 
