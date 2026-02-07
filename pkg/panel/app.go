@@ -150,15 +150,35 @@ func New(config Config) *Panel {
 		}
 
 		// Development mode: Serve UI from pkg/panel/ui instead of web/dist
-		// This allows the project to work without needing the web directory
-		app.Static("/", "./pkg/panel/ui")
-		app.Get("*", func(c *fiber.Ctx) error {
-			// Skip API routes
-			if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
-				return c.Next()
-			}
-			return c.SendFile("./pkg/panel/ui/index.html")
-		})
+		// Check if UI files exist before serving (SDK users may not have UI files)
+		uiPath := "./pkg/panel/ui"
+		indexPath := "./pkg/panel/ui/index.html"
+
+		if _, err := os.Stat(indexPath); err == nil {
+			// UI files exist, serve them
+			app.Static("/", uiPath)
+			app.Get("*", func(c *fiber.Ctx) error {
+				// Skip API routes
+				if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
+					return c.Next()
+				}
+				return c.SendFile(indexPath)
+			})
+		} else {
+			// UI files not found - this is OK for SDK users
+			// Just serve a simple message for non-API routes
+			app.Get("*", func(c *fiber.Ctx) error {
+				// Skip API routes
+				if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
+					return c.Next()
+				}
+				// Return a simple message for SDK users
+				return c.Status(fiber.StatusOK).JSON(fiber.Map{
+					"message": "Panel.go API is running",
+					"version": "1.0.0",
+				})
+			})
+		}
 	}
 
 	// İzinleri yükle

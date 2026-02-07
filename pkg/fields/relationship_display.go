@@ -4,24 +4,50 @@ import (
 	"fmt"
 )
 
-// RelationshipDisplay handles display customization for relationships
+// RelationshipDisplay, ilişkiler için görüntüleme özelleştirmesini yönetir.
+//
+// Bu interface, ilişkili kayıtların nasıl görüntüleneceğini kontrol eder.
+// Her ilişki türü için farklı görüntüleme stratejileri sağlar.
+//
+// # Kullanım Örneği
+//
+//	display := fields.NewRelationshipDisplay(field)
+//	value, err := display.GetDisplayValue(item)
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipDisplay interface {
-	// GetDisplayValue returns the display value for a relationship
+	// GetDisplayValue, bir ilişki için görüntüleme değerini döndürür
 	GetDisplayValue(item interface{}) (string, error)
 
-	// GetDisplayValues returns display values for multiple items
+	// GetDisplayValues, birden fazla öğe için görüntüleme değerlerini döndürür
 	GetDisplayValues(items []interface{}) ([]string, error)
 
-	// FormatDisplayValue formats a display value
+	// FormatDisplayValue, bir görüntüleme değerini formatlar
 	FormatDisplayValue(value interface{}) string
 }
 
-// RelationshipDisplayImpl implements RelationshipDisplay
+// RelationshipDisplayImpl, RelationshipDisplay interface'ini implement eder.
+//
+// Bu yapı, ilişki görüntüleme işlemlerini gerçekleştirir.
+// Her ilişki türü için özel görüntüleme mantığı sağlar.
 type RelationshipDisplayImpl struct {
 	field RelationshipField
 }
 
-// NewRelationshipDisplay creates a new relationship display handler
+// NewRelationshipDisplay, yeni bir relationship display handler oluşturur.
+//
+// Bu fonksiyon, verilen field için görüntüleme handler'ı döndürür.
+//
+// # Parametreler
+//
+// - **field**: İlişki field'ı
+//
+// # Kullanım Örneği
+//
+//	display := fields.NewRelationshipDisplay(field)
+//
+// Döndürür:
+//   - Yapılandırılmış RelationshipDisplayImpl pointer'ı
 func NewRelationshipDisplay(field RelationshipField) *RelationshipDisplayImpl {
 	return &RelationshipDisplayImpl{
 		field: field,

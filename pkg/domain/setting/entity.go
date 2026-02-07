@@ -9,7 +9,7 @@ import (
 type Setting struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	Key       string    `json:"key" gorm:"uniqueIndex"`
-	Value     string    `json:"value" gorm:"type:longtext"`
+	Value     string    `json:"value" gorm:"type:text"`
 	Type      string    `json:"type"` // string, integer, boolean, json
 	Group     string    `json:"group" gorm:"index"`
 	Label     string    `json:"label"`

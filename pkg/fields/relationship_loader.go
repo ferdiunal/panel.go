@@ -5,19 +5,53 @@ import (
 	"fmt"
 )
 
-// RelationshipLoaderImpl implements the RelationshipLoader interface
+// RelationshipLoaderImpl, RelationshipLoader interface'ini implement eder.
+//
+// Bu yapı, ilişki yükleme işlemlerini gerçekleştirir.
+// Eager loading ve lazy loading stratejilerini destekler.
+//
+// # Kullanım Örneği
+//
+//	loader := fields.NewRelationshipLoader()
+//	err := loader.EagerLoad(ctx, items, field)
+//
+// Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type RelationshipLoaderImpl struct {
 	// Database connection or query builder would go here
 	// For now, this is a placeholder implementation
 }
 
-// NewRelationshipLoader creates a new relationship loader
+// NewRelationshipLoader, yeni bir relationship loader oluşturur.
+//
+// Bu fonksiyon, ilişki yükleme işlemleri için loader döndürür.
+//
+// # Kullanım Örneği
+//
+//	loader := fields.NewRelationshipLoader()
+//
+// Döndürür:
+//   - Yapılandırılmış RelationshipLoaderImpl pointer'ı
 func NewRelationshipLoader() *RelationshipLoaderImpl {
 	return &RelationshipLoaderImpl{}
 }
 
-// EagerLoad loads related data using eager loading strategy
-// This loads all related data in a single query
+// EagerLoad, eager loading stratejisi kullanarak ilişkili verileri yükler.
+//
+// Bu metod, tüm ilişkili verileri tek bir sorguda yükler.
+// N+1 sorgu problemini önlemek için kullanılır.
+//
+// # Parametreler
+//
+// - **ctx**: Context
+// - **items**: Yüklenecek öğeler
+// - **field**: İlişki field'ı
+//
+// # Kullanım Örneği
+//
+//	err := loader.EagerLoad(ctx, items, field)
+//
+// Döndürür:
+//   - Hata (yükleme başarısız olursa)
 func (rl *RelationshipLoaderImpl) EagerLoad(ctx context.Context, items []interface{}, field RelationshipField) error {
 	if len(items) == 0 {
 		return nil
