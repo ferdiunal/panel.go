@@ -1,8 +1,8 @@
-# Go Panel API - Optimizasyon Rehberi
+# Panel.go - Optimizasyon Rehberi
 
 ## Giriş
 
-Go Panel API, Laravel Nova'nın trait pattern'ini Go'ya uyarlayarak kod tekrarını azaltmış ve bakım kolaylığını artırmıştır. Bu rehber, yeni optimizasyon pattern'ini nasıl kullanacağınızı gösterir.
+Panel.go, mixin pattern ve resolver pattern kullanarak kod tekrarını azaltmış ve bakım kolaylığını artırmıştır. Bu rehber, optimizasyon pattern'lerini nasıl kullanacağınızı gösterir.
 
 ## Temel Konseptler
 
