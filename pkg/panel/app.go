@@ -272,6 +272,10 @@ func New(config Config) *Panel {
 	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
 	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
 
+	// SSE Notification Stream
+	notificationSSEHandler := handler.NewNotificationSSEHandler(db)
+	api.Get("/notifications/stream", context.Wrap(notificationSSEHandler.HandleNotificationStream))
+
 	// /resolve endpoint for dynamic routing check
 	api.Get("/resolve", context.Wrap(p.handleResolve))
 
