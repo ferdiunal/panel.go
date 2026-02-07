@@ -5,7 +5,7 @@ import (
 )
 
 // HasOne represents a one-to-one relationship (e.g., User -> Profile)
-type HasOne struct {
+type HasOneField struct {
 	Schema
 	RelatedResourceSlug string
 	RelatedResource     interface{} // resource.Resource interface (interface{} to avoid circular import)
@@ -16,49 +16,38 @@ type HasOne struct {
 	GormRelationConfig  *RelationshipGormConfig
 }
 
-// NewHasOne creates a new HasOne relationship field
-func NewHasOne(name, key, relatedResource string) *HasOne {
-	h := &HasOne{
-		Schema: Schema{
-			Name:  name,
-			Key:   key,
-			View:  "has-one-field",
-			Type:  TYPE_RELATIONSHIP,
-			Props: make(map[string]interface{}),
-		},
-		RelatedResourceSlug: relatedResource,
-		ForeignKeyColumn:    relatedResource + "_id",
-		OwnerKeyColumn:      "id",
-		LoadingStrategy:     EAGER_LOADING,
-		GormRelationConfig: NewRelationshipGormConfig().
-			WithForeignKey(relatedResource + "_id").
-			WithReferences("id"),
-	}
-	// Store relationship details in props for generic access (when Schema interface is used)
-	h.WithProps("related_resource", relatedResource)
-	h.WithProps("foreign_key", h.ForeignKeyColumn)
-	return h
-}
-
-// NewHasOneResource, resource instance kullanarak HasOne ilişkisi oluşturur.
-// Bu metod, resource referansı kullanarak tip güvenli ilişki tanımlaması sağlar.
+// NewHasOne creates a new HasOne relationship field.
+// Accepts either a string (resource slug) or a resource instance.
 //
 // Örnek kullanım:
-//   fields.NewHasOneResource("Profile", "profile", blog.NewProfileResource())
-func NewHasOneResource(name, key string, relatedResource interface{}) *HasOne {
+//   // String ile:
+//   fields.NewHasOne("Profile", "profile", "profiles")
+//
+//   // Resource instance ile:
+//   fields.NewHasOne("Profile", "profile", blog.NewProfileResource())
+func HasOne(name, key string, relatedResource interface{}) *HasOneField {
 	// Resource interface'inden slug'ı al
 	type resourceSlugger interface {
 		Slug() string
 	}
 
 	var slug string
-	if res, ok := relatedResource.(resourceSlugger); ok {
+	var resourceInstance interface{}
+
+	// Check if relatedResource is a string or a resource instance
+	if slugStr, ok := relatedResource.(string); ok {
+		// String slug provided
+		slug = slugStr
+	} else if res, ok := relatedResource.(resourceSlugger); ok {
+		// Resource instance provided
 		slug = res.Slug()
+		resourceInstance = relatedResource
 	} else {
+		// Fallback: empty slug
 		slug = ""
 	}
 
-	h := &HasOne{
+	h := &HasOneField{
 		Schema: Schema{
 			Name:  name,
 			Key:   key,
@@ -67,7 +56,7 @@ func NewHasOneResource(name, key string, relatedResource interface{}) *HasOne {
 			Props: make(map[string]interface{}),
 		},
 		RelatedResourceSlug: slug,
-		RelatedResource:     relatedResource,
+		RelatedResource:     resourceInstance,
 		ForeignKeyColumn:    slug + "_id",
 		OwnerKeyColumn:      "id",
 		LoadingStrategy:     EAGER_LOADING,
@@ -75,53 +64,56 @@ func NewHasOneResource(name, key string, relatedResource interface{}) *HasOne {
 			WithForeignKey(slug + "_id").
 			WithReferences("id"),
 	}
+	// Store relationship details in props for generic access (when Schema interface is used)
 	h.WithProps("related_resource", slug)
-	h.WithProps("related_resource_instance", relatedResource)
+	if resourceInstance != nil {
+		h.WithProps("related_resource_instance", resourceInstance)
+	}
 	h.WithProps("foreign_key", h.ForeignKeyColumn)
 	return h
 }
 
 // AutoOptions enables automatic options generation from the related table.
 // displayField is the column name to use for the option label.
-func (h *HasOne) AutoOptions(displayField string) *HasOne {
+func (h *HasOneField) AutoOptions(displayField string) *HasOneField {
 	h.Schema.AutoOptions(displayField)
 	return h
 }
 
 // ForeignKey sets the foreign key column name
-func (h *HasOne) ForeignKey(key string) *HasOne {
+func (h *HasOneField) ForeignKey(key string) *HasOneField {
 	h.ForeignKeyColumn = key
 	h.WithProps("foreign_key", key)
 	return h
 }
 
 // OwnerKey sets the owner key column name
-func (h *HasOne) OwnerKey(key string) *HasOne {
+func (h *HasOneField) OwnerKey(key string) *HasOneField {
 	h.OwnerKeyColumn = key
 	return h
 }
 
 // Query sets the query callback for customizing relationship query
-func (h *HasOne) Query(fn func(interface{}) interface{}) *HasOne {
+func (h *HasOneField) Query(fn func(interface{}) interface{}) *HasOneField {
 	h.QueryCallback = fn
 	return h
 }
 
 // WithEagerLoad sets the loading strategy to eager loading
-func (h *HasOne) WithEagerLoad() *HasOne {
+func (h *HasOneField) WithEagerLoad() *HasOneField {
 	h.LoadingStrategy = EAGER_LOADING
 	return h
 }
 
 // WithLazyLoad sets the loading strategy to lazy loading
-func (h *HasOne) WithLazyLoad() *HasOne {
+func (h *HasOneField) WithLazyLoad() *HasOneField {
 	h.LoadingStrategy = LAZY_LOADING
 	return h
 }
 
 // Extract extracts the value from the resource.
 // For HasOne, we want to extract the ID of the related resource if it's a struct.
-func (h *HasOne) Extract(resource interface{}) {
+func (h *HasOneField) Extract(resource interface{}) {
 	h.Schema.Extract(resource)
 
 	if h.Schema.Data != nil {
@@ -149,22 +141,22 @@ func (h *HasOne) Extract(resource interface{}) {
 }
 
 // GetRelationshipType returns the relationship type
-func (h *HasOne) GetRelationshipType() string {
+func (h *HasOneField) GetRelationshipType() string {
 	return "hasOne"
 }
 
 // GetRelatedResource returns the related resource slug
-func (h *HasOne) GetRelatedResource() string {
+func (h *HasOneField) GetRelatedResource() string {
 	return h.RelatedResourceSlug
 }
 
 // GetRelationshipName returns the relationship name
-func (h *HasOne) GetRelationshipName() string {
+func (h *HasOneField) GetRelationshipName() string {
 	return h.Name
 }
 
 // ResolveRelationship resolves the relationship by loading single related resource
-func (h *HasOne) ResolveRelationship(item interface{}) (interface{}, error) {
+func (h *HasOneField) ResolveRelationship(item interface{}) (interface{}, error) {
 	if item == nil {
 		return nil, nil
 	}
@@ -175,24 +167,24 @@ func (h *HasOne) ResolveRelationship(item interface{}) (interface{}, error) {
 }
 
 // ValidateRelationship validates the relationship
-func (h *HasOne) ValidateRelationship(value interface{}) error {
+func (h *HasOneField) ValidateRelationship(value interface{}) error {
 	// Validate that at most one related resource exists
 	// In a real implementation, this would check database constraints
 	return nil
 }
 
 // GetDisplayKey returns the display key (not used for HasOne)
-func (h *HasOne) GetDisplayKey() string {
+func (h *HasOneField) GetDisplayKey() string {
 	return ""
 }
 
 // GetSearchableColumns returns the searchable columns (not used for HasOne)
-func (h *HasOne) GetSearchableColumns() []string {
+func (h *HasOneField) GetSearchableColumns() []string {
 	return []string{}
 }
 
 // GetQueryCallback returns the query callback
-func (h *HasOne) GetQueryCallback() func(interface{}) interface{} {
+func (h *HasOneField) GetQueryCallback() func(interface{}) interface{} {
 	if h.QueryCallback == nil {
 		return func(q interface{}) interface{} { return q }
 	}
@@ -200,7 +192,7 @@ func (h *HasOne) GetQueryCallback() func(interface{}) interface{} {
 }
 
 // GetLoadingStrategy returns the loading strategy
-func (h *HasOne) GetLoadingStrategy() LoadingStrategy {
+func (h *HasOneField) GetLoadingStrategy() LoadingStrategy {
 	if h.LoadingStrategy == "" {
 		return EAGER_LOADING
 	}
@@ -208,17 +200,17 @@ func (h *HasOne) GetLoadingStrategy() LoadingStrategy {
 }
 
 // Searchable marks the element as searchable (implements Element interface)
-func (h *HasOne) Searchable() Element {
+func (h *HasOneField) Searchable() Element {
 	h.GlobalSearch = true
 	return h
 }
 
 // IsRequired returns whether the field is required
-func (h *HasOne) IsRequired() bool {
+func (h *HasOneField) IsRequired() bool {
 	return h.Schema.IsRequired
 }
 
 // GetTypes returns the type mappings (not used for HasOne)
-func (h *HasOne) GetTypes() map[string]string {
+func (h *HasOneField) GetTypes() map[string]string {
 	return make(map[string]string)
 }

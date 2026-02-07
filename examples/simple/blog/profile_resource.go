@@ -35,7 +35,7 @@ func (r *ProfileFieldResolver) ResolveFields(ctx *context.Context) []core.Elemen
 		fields.ID("ID").Sortable(),
 
 		// BelongsTo Relationship: Profile -> Author
-		fields.NewBelongsTo("Author", "author_id", "authors").AutoOptions("name"),
+		fields.BelongsTo("Author", "author_id", "authors").AutoOptions("name"),
 
 		fields.Text("Bio", "bio").Sortable(),
 		fields.Text("Website", "website").Sortable(),

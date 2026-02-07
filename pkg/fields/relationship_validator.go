@@ -93,7 +93,7 @@ func (rv *RelationshipValidatorImpl) ValidateMorphType(ctx context.Context, valu
 }
 
 // ValidateBelongsTo validates BelongsTo relationships
-func (rv *RelationshipValidatorImpl) ValidateBelongsTo(ctx context.Context, value interface{}, field *BelongsTo) error {
+func (rv *RelationshipValidatorImpl) ValidateBelongsTo(ctx context.Context, value interface{}, field *BelongsToField) error {
 	if value == nil {
 		if field.IsRequired() {
 			return &RelationshipError{
@@ -114,7 +114,7 @@ func (rv *RelationshipValidatorImpl) ValidateBelongsTo(ctx context.Context, valu
 }
 
 // ValidateHasMany validates HasMany relationships
-func (rv *RelationshipValidatorImpl) ValidateHasMany(ctx context.Context, value interface{}, field *HasMany) error {
+func (rv *RelationshipValidatorImpl) ValidateHasMany(ctx context.Context, value interface{}, field *HasManyField) error {
 	if value == nil {
 		return nil
 	}
@@ -127,7 +127,7 @@ func (rv *RelationshipValidatorImpl) ValidateHasMany(ctx context.Context, value 
 }
 
 // ValidateHasOne validates HasOne relationships
-func (rv *RelationshipValidatorImpl) ValidateHasOne(ctx context.Context, value interface{}, field *HasOne) error {
+func (rv *RelationshipValidatorImpl) ValidateHasOne(ctx context.Context, value interface{}, field *HasOneField) error {
 	if value == nil {
 		return nil
 	}
@@ -140,7 +140,7 @@ func (rv *RelationshipValidatorImpl) ValidateHasOne(ctx context.Context, value i
 }
 
 // ValidateBelongsToMany validates BelongsToMany relationships
-func (rv *RelationshipValidatorImpl) ValidateBelongsToMany(ctx context.Context, value interface{}, field *BelongsToMany) error {
+func (rv *RelationshipValidatorImpl) ValidateBelongsToMany(ctx context.Context, value interface{}, field *BelongsToFieldMany) error {
 	if value == nil {
 		return nil
 	}
