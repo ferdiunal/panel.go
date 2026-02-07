@@ -81,3 +81,12 @@ func (c *Context) HasPermission(action string) bool {
 func (c *Context) Context() stdcontext.Context {
 	return c.Ctx.Context()
 }
+
+// Flush flushes the response buffer (for SSE streaming)
+func (c *Context) Flush() error {
+	// Type assertion: check if the writer supports Flush()
+	if flusher, ok := c.Ctx.Context().Response.BodyWriter().(interface{ Flush() }); ok {
+		flusher.Flush()
+	}
+	return nil
+}
