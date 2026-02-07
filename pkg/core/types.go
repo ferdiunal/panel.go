@@ -83,6 +83,9 @@ const (
 	// TYPE_SELECT represents a select dropdown field.
 	TYPE_SELECT ElementType = "select"
 
+	// TYPE_PANEL represents a panel/section container for grouping fields.
+	TYPE_PANEL ElementType = "panel"
+
 	// TYPE_RELATIONSHIP represents a relationship field.
 	TYPE_RELATIONSHIP ElementType = "relationship"
 )

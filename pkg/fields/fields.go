@@ -55,6 +55,11 @@ func RichText(name string, attribute ...string) *Schema {
 	return f
 }
 
+// Panel, field'ları gruplamak için panel/section oluşturur.
+func Panel(title string, fields ...core.Element) *Panel {
+	return NewPanel(title, fields...)
+}
+
 // Password, şifre giriş alanı (input type="password") oluşturur.
 func Password(name string, attribute ...string) *Schema {
 	f := NewField(name, attribute...)
