@@ -316,6 +316,26 @@ type Config struct {
 
 	/// CORS, Cross-Origin Resource Sharing yapılandırmasını tutar
 	CORS CORSConfig
+
+	/// EncryptionKey, cookie şifreleme için kullanılan AES anahtarıdır.
+	/// SECURITY: 32-byte (AES-256) base64-encoded key kullanın
+	/// Örnek: openssl rand -base64 32
+	/// CRITICAL: Key'i her startup'ta değiştirmeyin (mevcut cookie'ler okunamaz hale gelir)
+	/// Production'da environment variable'dan alın: os.Getenv("COOKIE_ENCRYPTION_KEY")
+	EncryptionKey string
+
+	/// EnableHTTP2Push, HTTP/2 Server Push özelliğini aktif eder.
+	/// PERFORMANCE: Kritik kaynakları (JS, CSS) proaktif olarak tarayıcıya gönderir
+	/// IMPORTANT: Yanlış kullanımda performans kötüleşebilir, mutlaka ölçüm yapın
+	/// REQUIRES: HTTPS ve HTTP/2 aktif olmalı
+	/// Default: false (disabled)
+	EnableHTTP2Push bool
+
+	/// HTTP2PushResources, HTTP/2 Server Push ile gönderilecek kaynakların listesidir.
+	/// Sadece kritik kaynakları (main JS/CSS bundle) ekleyin
+	/// Örnek: []string{"/assets/app.js", "/assets/main.css"}
+	/// IMPORTANT: Asset isimleri build hash'li ise her build'de güncellemelisiniz
+	HTTP2PushResources []string
 }
 
 /// # SettingsConfig - Dinamik Ayarlar Yapılandırması
