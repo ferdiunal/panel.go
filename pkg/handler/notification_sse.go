@@ -7,7 +7,7 @@ import (
 
 	"github.com/ferdiunal/panel.go/pkg/context"
 	notificationDomain "github.com/ferdiunal/panel.go/pkg/domain/notification"
-	"github.com/ferdiunal/panel.go/pkg/domain/user"
+	userDomain "github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -296,7 +296,7 @@ func (h *NotificationSSEHandler) HandleNotificationStream(c *context.Context) er
 	}
 
 	// User objesinden ID'yi al
-	userModel, ok := user.(*user.User)
+	userModel, ok := user.(*userDomain.User)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized - Invalid user type",
