@@ -2,6 +2,7 @@
 - [Başlarken](Getting-Started)
 - [Kaynaklar](Resources)
 - [Alanlar](Fields)
+- [Bağımlı Alanlar](Dependent-Fields)
 - [İlişkiler](Relationships)
 - [Action'lar](Actions)
 - [Bildirimler](Notifications)
