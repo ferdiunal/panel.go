@@ -36,6 +36,7 @@ func NewField(name string, attribute ...string) *Schema {
 		Key:       attr,
 		Props:     make(map[string]interface{}),
 		TextAlign: "left",
+		LabelText: name,
 	}
 }
 
