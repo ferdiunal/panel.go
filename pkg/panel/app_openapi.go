@@ -1,7 +1,6 @@
 package panel
 
 import (
-	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/openapi"
 )
 

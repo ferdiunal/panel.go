@@ -88,7 +88,7 @@ func setupTestEndpoints(p *panel.Panel) {
 
 		return c.JSON(fiber.Map{
 			"message": message,
-			"lang":    fiberi18n.MustGetLocale(c),
+			"lang":    getLang(c),
 		})
 	})
 
@@ -106,7 +106,7 @@ func setupTestEndpoints(p *panel.Panel) {
 		return c.JSON(fiber.Map{
 			"message": message,
 			"name":    name,
-			"lang":    fiberi18n.MustGetLocale(c),
+			"lang":    getLang(c),
 		})
 	})
 
@@ -141,13 +141,13 @@ func setupTestEndpoints(p *panel.Panel) {
 		return c.JSON(fiber.Map{
 			"success": true,
 			"message": message,
-			"lang":    fiberi18n.MustGetLocale(c),
+			"lang":    getLang(c),
 		})
 	})
 
 	// 5. Tüm çevirileri listele
 	test.Get("/translations", func(c *fiber.Ctx) error {
-		lang := fiberi18n.MustGetLocale(c)
+		lang := getLang(c)
 
 		translations := map[string]string{
 			"welcome":                    fiberi18n.MustLocalize(c, "welcome"),
@@ -165,4 +165,13 @@ func setupTestEndpoints(p *panel.Panel) {
 			"translations": translations,
 		})
 	})
+}
+
+// getLang, fiber context'ten dil bilgisini güvenli bir şekilde alır.
+// Type assertion panic riskini önler.
+func getLang(c *fiber.Ctx) string {
+	if lang, ok := c.Locals("lang").(string); ok && lang != "" {
+		return lang
+	}
+	return "en" // fallback to default
 }

@@ -165,6 +165,39 @@ func (s *Schema) GetContext() ElementContext {
 	return s.Context
 }
 
+// GetName, bu element'in görünen adını döndürür.
+//
+// Name, element'in kullanıcı arayüzünde gösterilecek insan okunabilir adıdır.
+// Genellikle form label'ı veya tablo başlığı olarak kullanılır.
+//
+// Döndürür:
+//   - Element'in görünen adı (örn: "Name", "Email", "Author")
+//
+// Örnek:
+//
+//	field := fields.Text("Name", "name")
+//	name := field.GetName() // "Name"
+func (s *Schema) GetName() string {
+	return s.Name
+}
+
+// GetType, bu element'in veri tipini döndürür.
+//
+// Type, element'in veri tipini belirler ve validation, formatting ve
+// OpenAPI schema oluşturma için kullanılır.
+// Örneğin: TYPE_TEXT, TYPE_NUMBER, TYPE_BOOLEAN, TYPE_DATE
+//
+// Döndürür:
+//   - Element'in veri tipi (core.ElementType)
+//
+// Örnek:
+//
+//	field := fields.Text("Name", "name")
+//	fieldType := field.GetType() // core.TYPE_TEXT
+func (s *Schema) GetType() core.ElementType {
+	return s.Type
+}
+
 // Extract, verilen resource'dan veri çıkarır ve alanı doldurur.
 //
 // Bu metod, reflection kullanarak resource'dan alan değerini çıkarır.
@@ -3522,4 +3555,22 @@ func (s *Schema) GormULID() Element {
 	}
 	s.GormConfiguration.WithULID()
 	return s
+}
+
+// Rows, textarea field'ı için satır sayısını ayarlar.
+//
+// Bu metod, textarea field'larında görüntülenecek satır sayısını belirler.
+// Satır sayısı bilgisi Props'a "rows" key'i ile kaydedilir.
+//
+// Parametreler:
+//   - rows: Satır sayısı
+//
+// Döndürür:
+//   - Element pointer'ı (method chaining için)
+//
+// Örnek:
+//
+//	field := fields.Textarea("Description", "description").Rows(5)
+func (s *Schema) Rows(rows int) Element {
+	return s.WithProps("rows", rows)
 }

@@ -285,29 +285,26 @@ func (g *SpecGenerator) addStaticEndpoints(spec *OpenAPISpec) error {
 //   - Resource schema'larını oluşturur
 //   - Tag'leri ekler
 func (g *SpecGenerator) addDynamicEndpoints(spec *OpenAPISpec) error {
-	dynamicGen := NewDynamicSpecGenerator(g.mapper)
+	dynamicGen := NewDynamicSpecGenerator()
 
+	// Tüm resource'lar için path'leri oluştur
+	paths := dynamicGen.GenerateResourcePaths(g.resources)
+
+	// Path'leri spec'e ekle
+	for path, pathItem := range paths {
+		spec.Paths[path] = pathItem
+	}
+
+	// Tüm resource'lar için schema'ları oluştur
+	schemas := dynamicGen.GenerateResourceSchemas(g.resources)
+
+	// Schema'ları ve tag'leri ekle
 	for slug, res := range g.resources {
-		// Resource için path'leri oluştur
-		paths, err := dynamicGen.GenerateResourcePaths(slug, res)
-		if err != nil {
-			return fmt.Errorf("failed to generate paths for resource %s: %w", slug, err)
-		}
-
-		// Path'leri spec'e ekle
-		for path, pathItem := range paths {
-			spec.Paths[path] = pathItem
-		}
-
-		// Resource schema'sını oluştur
-		schema, err := dynamicGen.GenerateResourceSchema(slug, res)
-		if err != nil {
-			return fmt.Errorf("failed to generate schema for resource %s: %w", slug, err)
-		}
-
 		// Schema'yı components'e ekle
 		schemaName := toPascalCase(slug)
-		spec.Components.Schemas[schemaName] = schema
+		if schema, ok := schemas[schemaName]; ok {
+			spec.Components.Schemas[schemaName] = *schema
+		}
 
 		// Tag ekle
 		spec.Tags = append(spec.Tags, Tag{
