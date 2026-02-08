@@ -89,7 +89,12 @@ func TransChoice(c *fiber.Ctx, messageID string, count int, templateData ...map[
 //	lang := i18n.GetLocale(c)
 //	// Çıktı: "tr" veya "en"
 func GetLocale(c *fiber.Ctx) string {
-	return fiberi18n.MustGetLocale(c)
+	// fiberi18n middleware'i locale bilgisini c.Locals() ile kaydeder
+	if locale, ok := c.Locals("lang").(string); ok {
+		return locale
+	}
+	// Varsayılan dil
+	return "en"
 }
 
 // HasTranslation, çevirinin var olup olmadığını kontrol eder

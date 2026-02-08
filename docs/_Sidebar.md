@@ -16,6 +16,8 @@
 - [OpenAPI Custom Mapping](API-CUSTOM-MAPPING)
 - [Lensler](Lenses)
 - [Sayfalar](Pages)
+  - [Settings Page](SETTINGS_PAGE)
+  - [Account Page](ACCOUNT_PAGE)
 - [Ayarlar](Settings)
 - [Widgets](Widgets)
 - [Circuit Breaker & i18n](CIRCUIT_BREAKER_I18N)
