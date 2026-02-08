@@ -16,7 +16,7 @@ import (
 // # İşlem Sırası
 //
 // 1. Tüm item'lardan foreign key değerlerini çıkar
-// 2. Raw SQL ile ilişkili kayıtları yükle (SELECT * FROM related_table WHERE id IN (...))
+// 2. GORM query builder ile ilişkili kayıtları yükle (SELECT * FROM related_table WHERE id IN (...))
 // 3. İlişkili kayıtları ID'ye göre map et
 // 4. Her item'a ilişkili kaydı set et
 //
@@ -60,14 +60,14 @@ func (l *GormRelationshipLoader) eagerLoadBelongsTo(ctx context.Context, items [
 		return nil // Hiç foreign key yok, ilişki yok
 	}
 
-	// 2. Raw SQL ile ilişkili kayıtları yükle
+	// 2. GORM query builder ile ilişkili kayıtları yükle
 	safeOwnerKey := SanitizeColumnName(ownerKey)
 	safeTable := SanitizeColumnName(relatedTable)
 
 	var relatedRecords []map[string]interface{}
 	err := l.db.WithContext(ctx).
 		Table(safeTable).
-		Where(fmt.Sprintf("%s IN ?", safeOwnerKey), foreignKeyValues).
+		Where(safeOwnerKey+" IN ?", foreignKeyValues).
 		Find(&relatedRecords).Error
 
 	if err != nil {
@@ -99,6 +99,9 @@ func (l *GormRelationshipLoader) eagerLoadBelongsTo(ctx context.Context, items [
 
 // lazyLoadBelongsTo, tek bir kayıt için BelongsTo ilişkisini yükler.
 //
+// Bu metod, GORM Association API kullanarak tek bir kaydın BelongsTo
+// ilişkisini yükler. Reflection kullanarak dinamik olarak struct tipini belirler.
+//
 // # Parametreler
 //
 // - **ctx**: Context bilgisi
@@ -110,46 +113,56 @@ func (l *GormRelationshipLoader) eagerLoadBelongsTo(ctx context.Context, items [
 // - interface{}: Yüklenen ilişki verisi
 // - error: Hata durumunda hata mesajı
 func (l *GormRelationshipLoader) lazyLoadBelongsTo(ctx context.Context, item interface{}, field fields.RelationshipField) (interface{}, error) {
-	// BelongsTo field'ından gerekli bilgileri al
-	belongsToField, ok := field.(*fields.BelongsToField)
-	if !ok {
-		return nil, fmt.Errorf("field is not a BelongsTo field")
+	if item == nil {
+		return nil, nil
 	}
 
-	foreignKey := belongsToField.GetForeignKey()
-	ownerKey := belongsToField.GetOwnerKeyColumn()
-	relatedTable := belongsToField.GetRelatedTableName()
-
-	if foreignKey == "" || relatedTable == "" {
-		return nil, fmt.Errorf("invalid BelongsTo configuration")
+	// Reflection kullanarak relationship field tipini al
+	itemValue := reflect.ValueOf(item)
+	if itemValue.Kind() == reflect.Ptr {
+		itemValue = itemValue.Elem()
 	}
 
-	// Foreign key değerini çıkar
-	fkValue := extractFieldValue(item, foreignKey)
-	if fkValue == nil || isZeroValue(fkValue) {
-		return nil, nil // Foreign key yok, ilişki yok
+	relField := itemValue.FieldByName(field.GetRelationshipName())
+	if !relField.IsValid() {
+		return nil, fmt.Errorf("relationship field %s not found", field.GetRelationshipName())
 	}
 
-	// Raw SQL ile ilişkili kaydı yükle
-	safeOwnerKey := SanitizeColumnName(ownerKey)
-	safeTable := SanitizeColumnName(relatedTable)
+	relType := relField.Type()
 
-	var relatedRecord map[string]interface{}
+	// Yeni instance oluştur
+	var relValue reflect.Value
+	if relType.Kind() == reflect.Ptr {
+		// Pointer tip (örn. *Author)
+		relValue = reflect.New(relType.Elem())
+	} else {
+		// Non-pointer tip (örn. Author)
+		relValue = reflect.New(relType)
+	}
+
+	// GORM Association API kullanarak ilişkiyi yükle
 	err := l.db.WithContext(ctx).
-		Table(safeTable).
-		Where(fmt.Sprintf("%s = ?", safeOwnerKey), fkValue).
-		First(&relatedRecord).Error
+		Model(item).
+		Association(field.GetRelationshipName()).
+		Find(relValue.Interface())
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load BelongsTo relationship: %w", err)
 	}
 
 	// İlişki verisini set et
-	if err := setRelationshipData(item, field.GetRelationshipName(), relatedRecord); err != nil {
+	var actualValue interface{}
+	if relType.Kind() == reflect.Ptr {
+		actualValue = relValue.Interface()
+	} else {
+		actualValue = relValue.Elem().Interface()
+	}
+
+	if err := setRelationshipData(item, field.GetRelationshipName(), actualValue); err != nil {
 		return nil, err
 	}
 
-	return relatedRecord, nil
+	return actualValue, nil
 }
 
 // eagerLoadHasMany, HasMany ilişkisini batch loading ile yükler.
@@ -160,7 +173,7 @@ func (l *GormRelationshipLoader) lazyLoadBelongsTo(ctx context.Context, item int
 // # İşlem Sırası
 //
 // 1. Tüm item'lardan owner key değerlerini çıkar
-// 2. Raw SQL ile ilişkili kayıtları yükle (SELECT * FROM related_table WHERE foreign_key IN (...))
+// 2. GORM query builder ile ilişkili kayıtları yükle (SELECT * FROM related_table WHERE foreign_key IN (...))
 // 3. İlişkili kayıtları foreign key'e göre grupla
 // 4. Her item'a ilişkili kayıt listesini set et
 //
@@ -204,14 +217,14 @@ func (l *GormRelationshipLoader) eagerLoadHasMany(ctx context.Context, items []i
 		return nil // Hiç owner key yok
 	}
 
-	// 2. Raw SQL ile ilişkili kayıtları yükle
+	// 2. GORM query builder ile ilişkili kayıtları yükle
 	safeForeignKey := SanitizeColumnName(foreignKey)
 	safeTable := SanitizeColumnName(relatedTable)
 
 	var relatedRecords []map[string]interface{}
 	err := l.db.WithContext(ctx).
 		Table(safeTable).
-		Where(fmt.Sprintf("%s IN ?", safeForeignKey), ownerKeyValues).
+		Where(safeForeignKey+" IN ?", ownerKeyValues).
 		Find(&relatedRecords).Error
 
 	if err != nil {
@@ -242,6 +255,9 @@ func (l *GormRelationshipLoader) eagerLoadHasMany(ctx context.Context, items []i
 
 // lazyLoadHasMany, tek bir kayıt için HasMany ilişkisini yükler.
 //
+// Bu metod, GORM Association API kullanarak tek bir kaydın HasMany
+// ilişkisini yükler. Reflection kullanarak dinamik olarak struct tipini belirler.
+//
 // # Parametreler
 //
 // - **ctx**: Context bilgisi
@@ -253,46 +269,46 @@ func (l *GormRelationshipLoader) eagerLoadHasMany(ctx context.Context, items []i
 // - interface{}: Yüklenen ilişki verisi (slice)
 // - error: Hata durumunda hata mesajı
 func (l *GormRelationshipLoader) lazyLoadHasMany(ctx context.Context, item interface{}, field fields.RelationshipField) (interface{}, error) {
-	// HasMany field'ından gerekli bilgileri al
-	hasManyField, ok := field.(*fields.HasManyField)
-	if !ok {
-		return nil, fmt.Errorf("field is not a HasMany field")
+	if item == nil {
+		return []interface{}{}, nil
 	}
 
-	foreignKey := hasManyField.GetForeignKeyColumn()
-	ownerKey := hasManyField.GetOwnerKeyColumn()
-	relatedTable := hasManyField.GetRelatedTableName()
-
-	if foreignKey == "" || relatedTable == "" {
-		return nil, fmt.Errorf("invalid HasMany configuration")
+	// Reflection kullanarak relationship field tipini al
+	itemValue := reflect.ValueOf(item)
+	if itemValue.Kind() == reflect.Ptr {
+		itemValue = itemValue.Elem()
 	}
 
-	// Owner key değerini çıkar
-	ownerValue := extractFieldValue(item, ownerKey)
-	if ownerValue == nil || isZeroValue(ownerValue) {
-		return []map[string]interface{}{}, nil // Owner key yok, boş liste döndür
+	relField := itemValue.FieldByName(field.GetRelationshipName())
+	if !relField.IsValid() {
+		return nil, fmt.Errorf("relationship field %s not found", field.GetRelationshipName())
 	}
 
-	// Raw SQL ile ilişkili kayıtları yükle
-	safeForeignKey := SanitizeColumnName(foreignKey)
-	safeTable := SanitizeColumnName(relatedTable)
+	relType := relField.Type()
+	if relType.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("HasMany relationship field must be a slice")
+	}
 
-	var relatedRecords []map[string]interface{}
+	// Yeni slice instance oluştur
+	relValue := reflect.New(relType)
+
+	// GORM Association API kullanarak ilişkiyi yükle
 	err := l.db.WithContext(ctx).
-		Table(safeTable).
-		Where(fmt.Sprintf("%s = ?", safeForeignKey), ownerValue).
-		Find(&relatedRecords).Error
+		Model(item).
+		Association(field.GetRelationshipName()).
+		Find(relValue.Interface())
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load HasMany relationship: %w", err)
 	}
 
 	// İlişki verisini set et
-	if err := setRelationshipData(item, field.GetRelationshipName(), relatedRecords); err != nil {
+	actualValue := relValue.Elem().Interface()
+	if err := setRelationshipData(item, field.GetRelationshipName(), actualValue); err != nil {
 		return nil, err
 	}
 
-	return relatedRecords, nil
+	return actualValue, nil
 }
 
 // eagerLoadHasOne, HasOne ilişkisini batch loading ile yükler.
@@ -303,7 +319,7 @@ func (l *GormRelationshipLoader) lazyLoadHasMany(ctx context.Context, item inter
 // # İşlem Sırası
 //
 // 1. Tüm item'lardan owner key değerlerini çıkar
-// 2. Raw SQL ile ilişkili kayıtları yükle (SELECT * FROM related_table WHERE foreign_key IN (...))
+// 2. GORM query builder ile ilişkili kayıtları yükle (SELECT * FROM related_table WHERE foreign_key IN (...))
 // 3. İlişkili kayıtları foreign key'e göre map et (her foreign key için tek kayıt)
 // 4. Her item'a ilişkili kaydı set et
 //
@@ -347,14 +363,14 @@ func (l *GormRelationshipLoader) eagerLoadHasOne(ctx context.Context, items []in
 		return nil // Hiç owner key yok
 	}
 
-	// 2. Raw SQL ile ilişkili kayıtları yükle
+	// 2. GORM query builder ile ilişkili kayıtları yükle
 	safeForeignKey := SanitizeColumnName(foreignKey)
 	safeTable := SanitizeColumnName(relatedTable)
 
 	var relatedRecords []map[string]interface{}
 	err := l.db.WithContext(ctx).
 		Table(safeTable).
-		Where(fmt.Sprintf("%s IN ?", safeForeignKey), ownerKeyValues).
+		Where(safeForeignKey+" IN ?", ownerKeyValues).
 		Find(&relatedRecords).Error
 
 	if err != nil {
@@ -387,6 +403,9 @@ func (l *GormRelationshipLoader) eagerLoadHasOne(ctx context.Context, items []in
 
 // lazyLoadHasOne, tek bir kayıt için HasOne ilişkisini yükler.
 //
+// Bu metod, GORM Association API kullanarak tek bir kaydın HasOne
+// ilişkisini yükler. Reflection kullanarak dinamik olarak struct tipini belirler.
+//
 // # Parametreler
 //
 // - **ctx**: Context bilgisi
@@ -398,46 +417,56 @@ func (l *GormRelationshipLoader) eagerLoadHasOne(ctx context.Context, items []in
 // - interface{}: Yüklenen ilişki verisi
 // - error: Hata durumunda hata mesajı
 func (l *GormRelationshipLoader) lazyLoadHasOne(ctx context.Context, item interface{}, field fields.RelationshipField) (interface{}, error) {
-	// HasOne field'ından gerekli bilgileri al
-	hasOneField, ok := field.(*fields.HasOneField)
-	if !ok {
-		return nil, fmt.Errorf("field is not a HasOne field")
+	if item == nil {
+		return nil, nil
 	}
 
-	foreignKey := hasOneField.GetForeignKeyColumn()
-	ownerKey := hasOneField.GetOwnerKeyColumn()
-	relatedTable := hasOneField.GetRelatedTableName()
-
-	if foreignKey == "" || relatedTable == "" {
-		return nil, fmt.Errorf("invalid HasOne configuration")
+	// Reflection kullanarak relationship field tipini al
+	itemValue := reflect.ValueOf(item)
+	if itemValue.Kind() == reflect.Ptr {
+		itemValue = itemValue.Elem()
 	}
 
-	// Owner key değerini çıkar
-	ownerValue := extractFieldValue(item, ownerKey)
-	if ownerValue == nil || isZeroValue(ownerValue) {
-		return nil, nil // Owner key yok, ilişki yok
+	relField := itemValue.FieldByName(field.GetRelationshipName())
+	if !relField.IsValid() {
+		return nil, fmt.Errorf("relationship field %s not found", field.GetRelationshipName())
 	}
 
-	// Raw SQL ile ilişkili kaydı yükle
-	safeForeignKey := SanitizeColumnName(foreignKey)
-	safeTable := SanitizeColumnName(relatedTable)
+	relType := relField.Type()
 
-	var relatedRecord map[string]interface{}
+	// Yeni instance oluştur
+	var relValue reflect.Value
+	if relType.Kind() == reflect.Ptr {
+		// Pointer tip (örn. *Profile)
+		relValue = reflect.New(relType.Elem())
+	} else {
+		// Non-pointer tip (örn. Profile)
+		relValue = reflect.New(relType)
+	}
+
+	// GORM Association API kullanarak ilişkiyi yükle
 	err := l.db.WithContext(ctx).
-		Table(safeTable).
-		Where(fmt.Sprintf("%s = ?", safeForeignKey), ownerValue).
-		First(&relatedRecord).Error
+		Model(item).
+		Association(field.GetRelationshipName()).
+		Find(relValue.Interface())
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load HasOne relationship: %w", err)
 	}
 
 	// İlişki verisini set et
-	if err := setRelationshipData(item, field.GetRelationshipName(), relatedRecord); err != nil {
+	var actualValue interface{}
+	if relType.Kind() == reflect.Ptr {
+		actualValue = relValue.Interface()
+	} else {
+		actualValue = relValue.Elem().Interface()
+	}
+
+	if err := setRelationshipData(item, field.GetRelationshipName(), actualValue); err != nil {
 		return nil, err
 	}
 
-	return relatedRecord, nil
+	return actualValue, nil
 }
 
 // extractFieldValue, reflection kullanarak bir item'dan field değerini çıkarır.
@@ -631,4 +660,201 @@ func toPascalCase(s string) string {
 	}
 
 	return result
+}
+
+// eagerLoadBelongsToMany, BelongsToMany ilişkisini batch loading ile yükler.
+//
+// Bu metod, N+1 sorgu problemini önlemek için tüm kayıtların BelongsToMany
+// ilişkilerini pivot tablo üzerinden tek sorguda yükler.
+//
+// # İşlem Sırası
+//
+// 1. Tüm item'lardan owner key değerlerini çıkar
+// 2. Pivot tablodan ilişkili kayıt ID'lerini çek
+// 3. İlişkili tablodan kayıtları çek
+// 4. Her item'a ilişkili kayıt listesini set et
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi
+// - **items**: İlişkileri yüklenecek kayıt listesi
+// - **field**: BelongsToMany field tanımı
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+func (l *GormRelationshipLoader) eagerLoadBelongsToMany(ctx context.Context, items []interface{}, field fields.RelationshipField) error {
+	// BelongsToMany field'ından gerekli bilgileri al
+	belongsToManyField, ok := field.(*fields.BelongsToManyField)
+	if !ok {
+		return fmt.Errorf("field is not a BelongsToMany field")
+	}
+
+	pivotTable := belongsToManyField.PivotTableName
+	parentColumn := belongsToManyField.ForeignKeyColumn
+	relatedColumn := belongsToManyField.RelatedKeyColumn
+	relatedTable := belongsToManyField.RelatedResourceSlug
+	ownerKey := "id" // Ana tablonun primary key'i
+
+	if pivotTable == "" || parentColumn == "" || relatedColumn == "" || relatedTable == "" {
+		return fmt.Errorf("invalid BelongsToMany configuration")
+	}
+
+	// 1. Tüm item'lardan owner key değerlerini çıkar
+	ownerKeyValues := []interface{}{}
+	itemsByOwnerKey := map[interface{}]interface{}{}
+
+	for _, item := range items {
+		ownerValue := extractFieldValue(item, ownerKey)
+		if ownerValue != nil && !isZeroValue(ownerValue) {
+			ownerKeyValues = append(ownerKeyValues, ownerValue)
+			itemsByOwnerKey[ownerValue] = item
+		}
+	}
+
+	if len(ownerKeyValues) == 0 {
+		return nil // Hiç owner key yok
+	}
+
+	// 2. Pivot tablodan ilişkili kayıt ID'lerini çek
+	safePivotTable := SanitizeColumnName(pivotTable)
+	safeParentColumn := SanitizeColumnName(parentColumn)
+	safeRelatedColumn := SanitizeColumnName(relatedColumn)
+
+	type PivotRecord struct {
+		ParentID  interface{}
+		RelatedID interface{}
+	}
+
+	var pivotRecords []map[string]interface{}
+	err := l.db.WithContext(ctx).
+		Table(safePivotTable).
+		Where(safeParentColumn+" IN ?", ownerKeyValues).
+		Find(&pivotRecords).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to load BelongsToMany pivot records: %w", err)
+	}
+
+	// 3. İlişkili kayıt ID'lerini çıkar
+	relatedIDs := []interface{}{}
+	relatedIDSet := make(map[interface{}]bool)
+	for _, pivot := range pivotRecords {
+		relatedID := pivot[relatedColumn]
+		if relatedID != nil && !relatedIDSet[relatedID] {
+			relatedIDs = append(relatedIDs, relatedID)
+			relatedIDSet[relatedID] = true
+		}
+	}
+
+	if len(relatedIDs) == 0 {
+		// Hiç ilişkili kayıt yok, boş listeler set et
+		for _, item := range itemsByOwnerKey {
+			if err := setRelationshipData(item, field.GetRelationshipName(), []map[string]interface{}{}); err != nil {
+				fmt.Printf("[WARN] Failed to set BelongsToMany relationship: %v\n", err)
+			}
+		}
+		return nil
+	}
+
+	// 4. İlişkili tablodan kayıtları çek
+	safeRelatedTable := SanitizeColumnName(relatedTable)
+	var relatedRecords []map[string]interface{}
+	err = l.db.WithContext(ctx).
+		Table(safeRelatedTable).
+		Where("id IN ?", relatedIDs).
+		Find(&relatedRecords).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to load BelongsToMany related records: %w", err)
+	}
+
+	// 5. İlişkili kayıtları ID'ye göre map et
+	relatedByID := map[interface{}]map[string]interface{}{}
+	for _, record := range relatedRecords {
+		id := record["id"]
+		relatedByID[id] = record
+	}
+
+	// 6. Pivot kayıtlarını kullanarak ilişkileri grupla
+	relatedByParentID := map[interface{}][]map[string]interface{}{}
+	for _, pivot := range pivotRecords {
+		parentID := pivot[parentColumn]
+		relatedID := pivot[relatedColumn]
+		if record, ok := relatedByID[relatedID]; ok {
+			relatedByParentID[parentID] = append(relatedByParentID[parentID], record)
+		}
+	}
+
+	// 7. Her item'a ilişkili kayıt listesini set et
+	for ownerValue, item := range itemsByOwnerKey {
+		relatedList := relatedByParentID[ownerValue]
+		if relatedList == nil {
+			relatedList = []map[string]interface{}{} // Boş liste
+		}
+		if err := setRelationshipData(item, field.GetRelationshipName(), relatedList); err != nil {
+			// Log error but continue
+			fmt.Printf("[WARN] Failed to set BelongsToMany relationship: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// lazyLoadBelongsToMany, tek bir kayıt için BelongsToMany ilişkisini yükler.
+//
+// Bu metod, GORM Association API kullanarak tek bir kaydın BelongsToMany
+// ilişkisini yükler. Reflection kullanarak dinamik olarak struct tipini belirler.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi
+// - **item**: İlişkisi yüklenecek kayıt
+// - **field**: BelongsToMany field tanımı
+//
+// # Döndürür
+//
+// - interface{}: Yüklenen ilişki verisi (slice)
+// - error: Hata durumunda hata mesajı
+func (l *GormRelationshipLoader) lazyLoadBelongsToMany(ctx context.Context, item interface{}, field fields.RelationshipField) (interface{}, error) {
+	if item == nil {
+		return []interface{}{}, nil
+	}
+
+	// Reflection kullanarak relationship field tipini al
+	itemValue := reflect.ValueOf(item)
+	if itemValue.Kind() == reflect.Ptr {
+		itemValue = itemValue.Elem()
+	}
+
+	relField := itemValue.FieldByName(field.GetRelationshipName())
+	if !relField.IsValid() {
+		return nil, fmt.Errorf("relationship field %s not found", field.GetRelationshipName())
+	}
+
+	relType := relField.Type()
+	if relType.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("BelongsToMany relationship field must be a slice")
+	}
+
+	// Yeni slice instance oluştur
+	relValue := reflect.New(relType)
+
+	// GORM Association API kullanarak ilişkiyi yükle
+	err := l.db.WithContext(ctx).
+		Model(item).
+		Association(field.GetRelationshipName()).
+		Find(relValue.Interface())
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to load BelongsToMany relationship: %w", err)
+	}
+
+	// İlişki verisini set et
+	actualValue := relValue.Elem().Interface()
+	if err := setRelationshipData(item, field.GetRelationshipName(), actualValue); err != nil {
+		return nil, err
+	}
+
+	return actualValue, nil
 }

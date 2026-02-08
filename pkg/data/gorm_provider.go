@@ -695,8 +695,14 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	stdCtx := p.getContext(ctx)
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
 
-	// Apply Eager Loading - REMOVED: Using manual relationship loading instead
-	// Preload yerine manuel yükleme yapılacak (loadRelationshipsForItems ile)
+	// Apply Eager Loading with GORM Preload
+	// Sadece EAGER_LOADING stratejisine sahip relationship'ler için Preload kullan
+	relationshipFields := p.getRelationshipFields()
+	for _, field := range relationshipFields {
+		if field.GetLoadingStrategy() == fields.EAGER_LOADING {
+			db = db.Preload(field.GetRelationshipName())
+		}
+	}
 
 	// Apply Advanced Filters
 	if len(req.Filters) > 0 {
@@ -789,10 +795,17 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		items[i] = resultsVal.Index(i).Addr().Interface()
 	}
 
-	// Load relationships manually (replaces Preload)
-	if len(p.WithRelationships) > 0 && len(items) > 0 {
-		if err := p.loadRelationshipsForItems(ctx, items); err != nil {
-			fmt.Printf("[WARN] Failed to load relationships: %v\n", err)
+	// Load lazy relationships manually (LAZY_LOADING strategy)
+	// Eager loading relationships are already loaded via GORM Preload above
+	if len(items) > 0 {
+		for _, field := range relationshipFields {
+			if field.GetLoadingStrategy() == fields.LAZY_LOADING {
+				for _, item := range items {
+					if _, err := p.relationshipLoader.LazyLoad(stdCtx, item, field); err != nil {
+						fmt.Printf("[WARN] Failed to lazy load %s: %v\n", field.GetRelationshipName(), err)
+					}
+				}
+			}
 		}
 	}
 
@@ -912,17 +925,26 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 	stdCtx := p.getContext(ctx)
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
 
-	// Apply Eager Loading - REMOVED: Using manual relationship loading instead
-	// Preload yerine manuel yükleme yapılacak (loadRelationshipsForItem ile)
+	// Apply Eager Loading with GORM Preload
+	// Sadece EAGER_LOADING stratejisine sahip relationship'ler için Preload kullan
+	relationshipFields := p.getRelationshipFields()
+	for _, field := range relationshipFields {
+		if field.GetLoadingStrategy() == fields.EAGER_LOADING {
+			db = db.Preload(field.GetRelationshipName())
+		}
+	}
 
 	if err := db.Where("id = ?", id).First(result).Error; err != nil {
 		return nil, err
 	}
 
-	// Load relationships manually (replaces Preload)
-	if len(p.WithRelationships) > 0 {
-		if err := p.loadRelationshipsForItem(ctx, result); err != nil {
-			fmt.Printf("[WARN] Failed to load relationships: %v\n", err)
+	// Load lazy relationships manually (LAZY_LOADING strategy)
+	// Eager loading relationships are already loaded via GORM Preload above
+	for _, field := range relationshipFields {
+		if field.GetLoadingStrategy() == fields.LAZY_LOADING {
+			if _, err := p.relationshipLoader.LazyLoad(stdCtx, result, field); err != nil {
+				fmt.Printf("[WARN] Failed to lazy load %s: %v\n", field.GetRelationshipName(), err)
+			}
 		}
 	}
 
