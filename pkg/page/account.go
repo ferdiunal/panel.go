@@ -16,7 +16,6 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
-	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 

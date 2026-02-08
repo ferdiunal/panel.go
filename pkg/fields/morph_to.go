@@ -71,7 +71,7 @@ type MorphTo struct {
 	QueryCallback      func(query interface{}) interface{}
 	LoadingStrategy    LoadingStrategy
 	GormRelationConfig *RelationshipGormConfig
-	HoverCard          *HoverCardConfig
+	hoverCardConfig    *HoverCardConfig
 }
 
 // NewMorphTo, yeni bir MorphTo polimorfik ilişki alanı oluşturur.
@@ -630,7 +630,7 @@ func (m *MorphTo) IsRequired() bool {
 // Döndürür:
 //   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) WithHoverCard(config HoverCardConfig) *MorphTo {
-	m.HoverCard = &config
+	m.hoverCardConfig = &config
 	m.WithProps("hover_card", config)
 	return m
 }
@@ -662,10 +662,10 @@ func (m *MorphTo) WithHoverCard(config HoverCardConfig) *MorphTo {
 // Döndürür:
 //   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) HoverCard(hoverStruct interface{}) *MorphTo {
-	if m.HoverCard == nil {
-		m.HoverCard = NewHoverCardConfig()
+	if m.hoverCardConfig == nil {
+		m.hoverCardConfig = NewHoverCardConfig()
 	}
-	m.HoverCard.SetStruct(hoverStruct)
+	m.hoverCardConfig.SetStruct(hoverStruct)
 	m.WithProps("hover_card_enabled", true)
 	return m
 }
@@ -726,10 +726,10 @@ func (m *MorphTo) HoverCard(hoverStruct interface{}) *MorphTo {
 // Döndürür:
 //   - MorphTo pointer'ı (method chaining için)
 func (m *MorphTo) ResolveHoverCard(resolver HoverCardResolver) *MorphTo {
-	if m.HoverCard == nil {
-		m.HoverCard = NewHoverCardConfig()
+	if m.hoverCardConfig == nil {
+		m.hoverCardConfig = NewHoverCardConfig()
 	}
-	m.HoverCard.SetResolver(resolver)
+	m.hoverCardConfig.SetResolver(resolver)
 	return m
 }
 
@@ -740,5 +740,5 @@ func (m *MorphTo) ResolveHoverCard(resolver HoverCardResolver) *MorphTo {
 // Döndürür:
 //   - HoverCardConfig pointer'ı (nil olabilir)
 func (m *MorphTo) GetHoverCard() *HoverCardConfig {
-	return m.HoverCard
+	return m.hoverCardConfig
 }

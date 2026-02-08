@@ -126,6 +126,9 @@ type Base struct {
 
 	/// Filtre tanımlamaları - Liste görünümünde kullanılacak filtreler
 	FiltersVal []Filter
+
+	/// OpenAPI görünürlük kontrolü - false ise OpenAPI spec'te görünür (varsayılan)
+	openAPIDisabled bool
 }
 
 /// # SettingsSeed Yapısı
@@ -729,6 +732,52 @@ func (r Base) GetDialogType() DialogType {
 func (r Base) SetDialogType(dialogType DialogType) Resource {
 	r.DialogType = dialogType
 	return r
+}
+
+/// # OpenAPIEnabled Metodu
+///
+/// Bu fonksiyon, kaynağın OpenAPI spesifikasyonunda görünüp görünmeyeceğini döner.
+/// Varsayılan olarak tüm kaynaklar OpenAPI'de görünür (true).
+///
+/// ## Kullanım Senaryoları
+///
+/// 1. **API Dokümantasyonu**: Hangi endpoint'lerin dokümante edileceğini kontrol etmek
+/// 2. **Internal API'ler**: Dahili kullanım için API'leri gizlemek
+/// 3. **Beta Özellikler**: Henüz hazır olmayan özellikleri gizlemek
+/// 4. **Versiyonlama**: Eski API versiyonlarını gizlemek
+///
+/// ## Döndürür
+///
+/// - true: OpenAPI spec'te görünür (varsayılan)
+/// - false: OpenAPI spec'te gizli
+///
+/// ## Örnek Kullanım
+///
+///	enabled := r.OpenAPIEnabled()
+func (b Base) OpenAPIEnabled() bool {
+	return !b.openAPIDisabled
+}
+
+/// # SetOpenAPIEnabled Metodu
+///
+/// Bu fonksiyon, kaynağın OpenAPI görünürlüğünü ayarlar.
+/// Method chaining desteği için Resource interface'i döndürür.
+///
+/// ## Parametreler
+///
+/// - enabled: true = OpenAPI'de görünür, false = OpenAPI'de gizli
+///
+/// ## Döndürür
+///
+/// - Resource pointer'ı (method chaining için)
+///
+/// ## Örnek Kullanım
+///
+///	r.SetOpenAPIEnabled(false) // OpenAPI'de gizle
+///	r.SetOpenAPIEnabled(true)  // OpenAPI'de göster
+func (b Base) SetOpenAPIEnabled(enabled bool) Resource {
+	b.openAPIDisabled = !enabled
+	return b
 }
 
 /// # Repository Metodu

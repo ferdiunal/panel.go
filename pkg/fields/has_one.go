@@ -56,7 +56,7 @@ type HasOneField struct {
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
 	GormRelationConfig  *RelationshipGormConfig
-	HoverCard           *HoverCardConfig
+	hoverCardConfig     *HoverCardConfig
 }
 
 // HasOne, yeni bir HasOne ilişki alanı oluşturur.
@@ -3113,7 +3113,7 @@ func (h *HasOneField) GetTypes() map[string]string {
 // Döndürür:
 //   - HasOneField pointer'ı (method chaining için)
 func (h *HasOneField) WithHoverCard(config HoverCardConfig) *HasOneField {
-	h.HoverCard = &config
+	h.hoverCardConfig = &config
 	h.WithProps("hover_card", config)
 	return h
 }
@@ -3142,10 +3142,10 @@ func (h *HasOneField) WithHoverCard(config HoverCardConfig) *HasOneField {
 // Döndürür:
 //   - HasOneField pointer'ı (method chaining için)
 func (h *HasOneField) HoverCard(hoverStruct interface{}) *HasOneField {
-	if h.HoverCard == nil {
-		h.HoverCard = NewHoverCardConfig()
+	if h.hoverCardConfig == nil {
+		h.hoverCardConfig = NewHoverCardConfig()
 	}
-	h.HoverCard.SetStruct(hoverStruct)
+	h.hoverCardConfig.SetStruct(hoverStruct)
 	h.WithProps("hover_card_enabled", true)
 	return h
 }
@@ -3189,10 +3189,10 @@ func (h *HasOneField) HoverCard(hoverStruct interface{}) *HasOneField {
 // Döndürür:
 //   - HasOneField pointer'ı (method chaining için)
 func (h *HasOneField) ResolveHoverCard(resolver HoverCardResolver) *HasOneField {
-	if h.HoverCard == nil {
-		h.HoverCard = NewHoverCardConfig()
+	if h.hoverCardConfig == nil {
+		h.hoverCardConfig = NewHoverCardConfig()
 	}
-	h.HoverCard.SetResolver(resolver)
+	h.hoverCardConfig.SetResolver(resolver)
 	return h
 }
 
@@ -3203,5 +3203,5 @@ func (h *HasOneField) ResolveHoverCard(resolver HoverCardResolver) *HasOneField 
 // Döndürür:
 //   - HoverCardConfig pointer'ı (nil olabilir)
 func (h *HasOneField) GetHoverCard() *HoverCardConfig {
-	return h.HoverCard
+	return h.hoverCardConfig
 }

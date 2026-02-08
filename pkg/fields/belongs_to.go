@@ -61,7 +61,7 @@ type BelongsToField struct {
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
 	GormRelationConfig  *RelationshipGormConfig
-	HoverCard           *HoverCardConfig
+	hoverCardConfig     *HoverCardConfig
 }
 
 // BelongsTo, yeni bir BelongsTo ilişki alanı oluşturur.
@@ -426,7 +426,7 @@ func (b *BelongsToField) GetTypes() map[string]string {
 // Döndürür:
 //   - BelongsToField pointer'ı (method chaining için)
 func (b *BelongsToField) WithHoverCard(config HoverCardConfig) *BelongsToField {
-	b.HoverCard = &config
+	b.hoverCardConfig = &config
 	b.WithProps("hover_card", config)
 	return b
 }
@@ -456,10 +456,10 @@ func (b *BelongsToField) WithHoverCard(config HoverCardConfig) *BelongsToField {
 // Döndürür:
 //   - BelongsToField pointer'ı (method chaining için)
 func (b *BelongsToField) HoverCard(hoverStruct interface{}) *BelongsToField {
-	if b.HoverCard == nil {
-		b.HoverCard = NewHoverCardConfig()
+	if b.hoverCardConfig == nil {
+		b.hoverCardConfig = NewHoverCardConfig()
 	}
-	b.HoverCard.SetStruct(hoverStruct)
+	b.hoverCardConfig.SetStruct(hoverStruct)
 	b.WithProps("hover_card_enabled", true)
 	return b
 }
@@ -504,10 +504,10 @@ func (b *BelongsToField) HoverCard(hoverStruct interface{}) *BelongsToField {
 // Döndürür:
 //   - BelongsToField pointer'ı (method chaining için)
 func (b *BelongsToField) ResolveHoverCard(resolver HoverCardResolver) *BelongsToField {
-	if b.HoverCard == nil {
-		b.HoverCard = NewHoverCardConfig()
+	if b.hoverCardConfig == nil {
+		b.hoverCardConfig = NewHoverCardConfig()
 	}
-	b.HoverCard.SetResolver(resolver)
+	b.hoverCardConfig.SetResolver(resolver)
 	return b
 }
 
@@ -518,5 +518,5 @@ func (b *BelongsToField) ResolveHoverCard(resolver HoverCardResolver) *BelongsTo
 // Döndürür:
 //   - HoverCardConfig pointer'ı (nil olabilir)
 func (b *BelongsToField) GetHoverCard() *HoverCardConfig {
-	return b.HoverCard
+	return b.hoverCardConfig
 }
