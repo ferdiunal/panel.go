@@ -57,16 +57,16 @@ func (g *DynamicSpecGenerator) GenerateResourcePaths(resources map[string]resour
 
 		// Collection endpoint: GET /api/resources/{slug}
 		collectionPath := fmt.Sprintf("/api/resources/%s", slug)
-		paths[collectionPath] = g.generateCollectionPathItem(res)
+		paths[collectionPath] = *g.generateCollectionPathItem(res)
 
 		// Item endpoint: GET /api/resources/{slug}/{id}
 		itemPath := fmt.Sprintf("/api/resources/%s/{id}", slug)
-		paths[itemPath] = g.generateItemPathItem(res)
+		paths[itemPath] = *g.generateItemPathItem(res)
 
 		// Action endpoints
 		for _, action := range res.GetActions() {
 			actionPath := fmt.Sprintf("/api/resources/%s/actions/%s", slug, action.GetSlug())
-			paths[actionPath] = g.generateActionPathItem(res, action)
+			paths[actionPath] = *g.generateActionPathItem(res, action)
 		}
 	}
 
@@ -84,20 +84,20 @@ func (g *DynamicSpecGenerator) generateCollectionPathItem(res resource.Resource)
 			Tags:        []string{res.Title()},
 			Parameters:  g.generateListParameters(res),
 			Responses: Responses{
-				"200": &Response{
+				"200": Response{
 					Description: "Successful response",
-					Content: map[string]*MediaType{
-						"application/json": {
+					Content: map[string]MediaType{
+						"application/json": MediaType{
 							Schema: &Schema{
 								Type: "object",
-								Properties: map[string]*Schema{
-									"data": {
+								Properties: map[string]Schema{
+									"data": Schema{
 										Type: "array",
 										Items: &Schema{
 											Ref: fmt.Sprintf("#/components/schemas/%s", schemaName),
 										},
 									},
-									"meta": {
+									"meta": Schema{
 										Ref: "#/components/schemas/PaginationMeta",
 									},
 								},
@@ -113,8 +113,8 @@ func (g *DynamicSpecGenerator) generateCollectionPathItem(res resource.Resource)
 			Tags:        []string{res.Title()},
 			RequestBody: &RequestBody{
 				Required: true,
-				Content: map[string]*MediaType{
-					"application/json": {
+				Content: map[string]MediaType{
+					"application/json": MediaType{
 						Schema: &Schema{
 							Ref: fmt.Sprintf("#/components/schemas/%sInput", schemaName),
 						},
@@ -122,10 +122,10 @@ func (g *DynamicSpecGenerator) generateCollectionPathItem(res resource.Resource)
 				},
 			},
 			Responses: Responses{
-				"201": &Response{
+				"201": Response{
 					Description: "Resource created successfully",
-					Content: map[string]*MediaType{
-						"application/json": {
+					Content: map[string]MediaType{
+						"application/json": MediaType{
 							Schema: &Schema{
 								Ref: fmt.Sprintf("#/components/schemas/%s", schemaName),
 							},
@@ -146,7 +146,7 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 			Summary:     fmt.Sprintf("Get %s", res.Title()),
 			Description: fmt.Sprintf("Retrieve a single %s by ID", res.Title()),
 			Tags:        []string{res.Title()},
-			Parameters: []*Parameter{
+			Parameters: []Parameter{
 				{
 					Name:        "id",
 					In:          "path",
@@ -158,10 +158,10 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 				},
 			},
 			Responses: Responses{
-				"200": &Response{
+				"200": Response{
 					Description: "Successful response",
-					Content: map[string]*MediaType{
-						"application/json": {
+					Content: map[string]MediaType{
+						"application/json": MediaType{
 							Schema: &Schema{
 								Ref: fmt.Sprintf("#/components/schemas/%s", schemaName),
 							},
@@ -174,7 +174,7 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 			Summary:     fmt.Sprintf("Update %s", res.Title()),
 			Description: fmt.Sprintf("Update an existing %s", res.Title()),
 			Tags:        []string{res.Title()},
-			Parameters: []*Parameter{
+			Parameters: []Parameter{
 				{
 					Name:        "id",
 					In:          "path",
@@ -187,8 +187,8 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 			},
 			RequestBody: &RequestBody{
 				Required: true,
-				Content: map[string]*MediaType{
-					"application/json": {
+				Content: map[string]MediaType{
+					"application/json": MediaType{
 						Schema: &Schema{
 							Ref: fmt.Sprintf("#/components/schemas/%sInput", schemaName),
 						},
@@ -196,10 +196,10 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 				},
 			},
 			Responses: Responses{
-				"200": &Response{
+				"200": Response{
 					Description: "Resource updated successfully",
-					Content: map[string]*MediaType{
-						"application/json": {
+					Content: map[string]MediaType{
+						"application/json": MediaType{
 							Schema: &Schema{
 								Ref: fmt.Sprintf("#/components/schemas/%s", schemaName),
 							},
@@ -212,7 +212,7 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 			Summary:     fmt.Sprintf("Delete %s", res.Title()),
 			Description: fmt.Sprintf("Delete a %s", res.Title()),
 			Tags:        []string{res.Title()},
-			Parameters: []*Parameter{
+			Parameters: []Parameter{
 				{
 					Name:        "id",
 					In:          "path",
@@ -224,7 +224,7 @@ func (g *DynamicSpecGenerator) generateItemPathItem(res resource.Resource) *Path
 				},
 			},
 			Responses: Responses{
-				"204": &Response{
+				"204": Response{
 					Description: "Resource deleted successfully",
 				},
 			},
@@ -241,11 +241,11 @@ func (g *DynamicSpecGenerator) generateActionPathItem(res resource.Resource, act
 			Tags:        []string{res.Title()},
 			RequestBody: &RequestBody{
 				Required: true,
-				Content: map[string]*MediaType{
-					"application/json": {
+				Content: map[string]MediaType{
+					"application/json": MediaType{
 						Schema: &Schema{
 							Type: "object",
-							Properties: map[string]*Schema{
+							Properties: map[string]Schema{
 								"ids": {
 									Type: "array",
 									Items: &Schema{
@@ -260,13 +260,13 @@ func (g *DynamicSpecGenerator) generateActionPathItem(res resource.Resource, act
 				},
 			},
 			Responses: Responses{
-				"200": &Response{
+				"200": Response{
 					Description: "Action executed successfully",
-					Content: map[string]*MediaType{
-						"application/json": {
+					Content: map[string]MediaType{
+						"application/json": MediaType{
 							Schema: &Schema{
 								Type: "object",
-								Properties: map[string]*Schema{
+								Properties: map[string]Schema{
 									"message": {
 										Type: "string",
 									},
@@ -281,8 +281,8 @@ func (g *DynamicSpecGenerator) generateActionPathItem(res resource.Resource, act
 }
 
 // generateListParameters, liste endpoint'i için parametreleri oluşturur.
-func (g *DynamicSpecGenerator) generateListParameters(res resource.Resource) []*Parameter {
-	params := []*Parameter{
+func (g *DynamicSpecGenerator) generateListParameters(res resource.Resource) []Parameter {
+	params := []Parameter{
 		{
 			Name:        "page",
 			In:          "query",
@@ -330,7 +330,7 @@ func (g *DynamicSpecGenerator) generateListParameters(res resource.Resource) []*
 
 	// Filter parametrelerini ekle
 	for _, filter := range res.GetFilters() {
-		params = append(params, &Parameter{
+		params = append(params, Parameter{
 			Name:        filter.GetSlug(),
 			In:          "query",
 			Description: filter.GetName(),
@@ -356,7 +356,7 @@ func (g *DynamicSpecGenerator) GenerateResourceSchemas(resources map[string]reso
 	// Pagination meta schema
 	schemas["PaginationMeta"] = &Schema{
 		Type: "object",
-		Properties: map[string]*Schema{
+		Properties: map[string]Schema{
 			"current_page": {Type: "integer"},
 			"from":         {Type: "integer"},
 			"last_page":    {Type: "integer"},
@@ -389,7 +389,7 @@ func (g *DynamicSpecGenerator) GenerateResourceSchemas(resources map[string]reso
 func (g *DynamicSpecGenerator) generateResourceSchema(res resource.Resource, inputOnly bool) *Schema {
 	schema := &Schema{
 		Type:       "object",
-		Properties: make(map[string]*Schema),
+		Properties: make(map[string]Schema),
 		Required:   []string{},
 	}
 

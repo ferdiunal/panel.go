@@ -17,6 +17,14 @@
 //	}
 package openapi
 
+// Paths, OpenAPI path'lerini temsil eder.
+// Her key bir endpoint path'i (örn: "/api/users"), her value ise PathItem.
+type Paths map[string]PathItem
+
+// Responses, OpenAPI yanıtlarını temsil eder.
+// Her key bir HTTP status code (örn: "200", "404"), her value ise Response.
+type Responses map[string]Response
+
 // OpenAPISpec, OpenAPI 3.0.3 spesifikasyonunun ana yapısıdır.
 //
 // Bu yapı, API'nin tüm bilgilerini içerir: endpoint'ler, şemalar, güvenlik ayarları vb.
