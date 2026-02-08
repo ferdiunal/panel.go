@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
 )
@@ -185,6 +186,30 @@ import (
 /// - `500 Internal Server Error`: Sunucu hatası
 func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 	id := c.Params("id")
+
+	// Determine elements to use (before Provider.Show to extract relationship fields)
+	ctx := context.FromFiber(c.Ctx)
+	var elements []fields.Element
+	if ctx != nil && len(ctx.Elements) > 0 {
+		elements = ctx.Elements
+	} else {
+		elements = h.Elements
+	}
+
+	// Extract relationship fields from elements and set to provider
+	relationshipFields := []fields.RelationshipField{}
+	for _, element := range elements {
+		if relField, ok := fields.IsRelationshipField(element); ok {
+			relationshipFields = append(relationshipFields, relField)
+		}
+	}
+
+	// Set relationship fields to provider if it's a GormDataProvider
+	if gormProvider, ok := h.Provider.(*data.GormDataProvider); ok {
+		gormProvider.SetRelationshipFields(relationshipFields)
+	}
+
+	// Fetch data
 	item, err := h.Provider.Show(c, id)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Not found"})
@@ -192,18 +217,6 @@ func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 
 	if h.Policy != nil && !h.Policy.View(c, item) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Determine elements to use
-	// For Show, we generally use the handler's elements, but context overrides could happen if middleware sets them
-	// For now, simpler to use h.Elements as middleware might be Index specific or general.
-	// But let's check context just in case consistent with Index.
-	ctx := context.FromFiber(c.Ctx)
-	var elements []fields.Element
-	if ctx != nil && len(ctx.Elements) > 0 {
-		elements = ctx.Elements
-	} else {
-		elements = h.Elements
 	}
 
 	return c.JSON(fiber.Map{

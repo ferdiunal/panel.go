@@ -320,6 +320,19 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 		Filters: queryParams.Filters,
 	}
 
+	// Extract relationship fields from elements and set to provider
+	relationshipFields := []fields.RelationshipField{}
+	for _, element := range elements {
+		if relField, ok := fields.IsRelationshipField(element); ok {
+			relationshipFields = append(relationshipFields, relField)
+		}
+	}
+
+	// Set relationship fields to provider if it's a GormDataProvider
+	if gormProvider, ok := h.Provider.(*data.GormDataProvider); ok {
+		gormProvider.SetRelationshipFields(relationshipFields)
+	}
+
 	// Fetch Data
 	result, err := h.Provider.Index(c, req)
 	if err != nil {
