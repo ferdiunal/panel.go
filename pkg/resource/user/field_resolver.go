@@ -64,6 +64,11 @@ type UserFieldResolver struct{}
 //   - Roller permission yöneticisinden dinamik olarak alınır
 //   - Depolama başarısız olursa hata döndürülür
 func (r *UserFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	// Nil context kontrolü - resource initialization sırasında context olmayabilir
+	if ctx == nil {
+		ctx = &context.Context{} // Boş context oluştur
+	}
+
 	return []fields.Element{
 		// ID alanı - i18n destekli
 		fields.ID().Searchable(),
