@@ -937,8 +937,8 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 						}
 						query.Find(&results)
 					}
-				} else if view == "belongs-to-field" || view == "belongs-to-many-field" || view == "has-many-field" {
-					fmt.Printf("[DEBUG] BelongsTo/HasMany Query - Table: %s\n", table)
+				} else if view == "belongs-to-field" || view == "belongs-to-many-field" || view == "has-many-field" || view == "morph-to-many-field" {
+					fmt.Printf("[DEBUG] BelongsTo/HasMany/MorphToMany Query - Table: %s\n", table)
 					if h.DB != nil {
 						h.DB.Table(table).Select("id, " + display).Find(&results)
 					}
