@@ -300,6 +300,12 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	}
 	provider.SetWith(withRels)
 
+	// Validate relationship fields
+	// Bu validation, BelongsTo field'larının model struct'ında ilişki field'larına sahip olup olmadığını kontrol eder
+	if err := data.ValidateRelationshipFields(res.Model(), res.Fields()); err != nil {
+		panic(err) // Resource yüklenirken hata varsa panic at
+	}
+
 	// Initialize notification service
 	notificationService := notification.NewService(db)
 
@@ -931,8 +937,8 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 						}
 						query.Find(&results)
 					}
-				} else if view == "belongs-to-field" || view == "belongs-to-many-field" {
-					fmt.Printf("[DEBUG] BelongsTo Query - Table: %s\n", table)
+				} else if view == "belongs-to-field" || view == "belongs-to-many-field" || view == "has-many-field" {
+					fmt.Printf("[DEBUG] BelongsTo/HasMany Query - Table: %s\n", table)
 					if h.DB != nil {
 						h.DB.Table(table).Select("id, " + display).Find(&results)
 					}

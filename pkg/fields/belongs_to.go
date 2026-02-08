@@ -520,3 +520,46 @@ func (b *BelongsToField) ResolveHoverCard(resolver HoverCardResolver) *BelongsTo
 func (b *BelongsToField) GetHoverCard() *HoverCardConfig {
 	return b.hoverCardConfig
 }
+
+// GetForeignKey, foreign key sütun adını döndürür.
+//
+// Bu metod, BelongsTo ilişkisinde kullanılan foreign key sütununun adını döndürür.
+// GormRelationConfig'den foreign key bilgisini alır.
+//
+// # Dönüş Değeri
+//
+// - Foreign key sütun adı (örn. "author_id", "user_id")
+// - GormRelationConfig nil ise boş string döner
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors")
+//	foreignKey := field.GetForeignKey() // "author_id"
+//
+// Döndürür:
+//   - Foreign key sütun adı
+func (b *BelongsToField) GetForeignKey() string {
+	if b.GormRelationConfig != nil {
+		return b.GormRelationConfig.ForeignKey
+	}
+	return ""
+}
+
+// GetRelatedResourceSlug, ilişkili resource'un slug'ını döndürür.
+//
+// Bu metod, BelongsTo ilişkisinde kullanılan ilişkili resource'un slug'ını döndürür.
+//
+// # Dönüş Değeri
+//
+// - İlişkili resource slug'ı (örn. "authors", "users", "categories")
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors")
+//	slug := field.GetRelatedResourceSlug() // "authors"
+//
+// Döndürür:
+//   - İlişkili resource slug'ı
+func (b *BelongsToField) GetRelatedResourceSlug() string {
+	return b.RelatedResourceSlug
+}
