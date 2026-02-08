@@ -43,9 +43,9 @@ func ValidateRelationshipFields(model interface{}, elements []core.Element) erro
 	for _, element := range elements {
 		// Sadece BelongsTo field'larını kontrol et
 		if belongsTo, ok := element.(*fields.BelongsToField); ok {
-			// İlişki field'ının beklenen adını hesapla (CamelCase)
-			// Örnek: "author_id" -> "Author"
-			relationshipFieldName := strcase.ToCamel(belongsTo.GetKey())
+			// İlişki field'ının beklenen adını al (BelongsTo'nun ilk parametresi)
+			// Örnek: BelongsTo("Author", "author_id", ...) -> "Author"
+			relationshipFieldName := belongsTo.GetName()
 
 			// Model'de bu field var mı kontrol et
 			_, found := modelType.FieldByName(relationshipFieldName)
