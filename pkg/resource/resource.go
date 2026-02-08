@@ -1842,4 +1842,54 @@ type Resource interface {
 	/// - Kullanıcı deneyimini iyileştirir
 	/// - API erişimini korur
 	Visible() bool
+
+	/// OpenAPIEnabled, kaynağın OpenAPI spesifikasyonunda görünüp görünmeyeceğini belirler.
+	///
+	/// Bu metod, kaynağın OpenAPI/Swagger dokümantasyonunda gösterilip gösterilmeyeceğini
+	/// kontrol eder. false döndürülürse, kaynak OpenAPI spec'e dahil edilmez ve
+	/// Swagger UI'da görünmez.
+	///
+	/// ## Parametreler
+	/// Parametre almaz.
+	///
+	/// ## Döndürür
+	/// - `bool`: true = OpenAPI spec'te görünür, false = OpenAPI spec'te gizli
+	///
+	/// ## Örnek
+	/// ```go
+	/// // Normal kaynak (OpenAPI'de görünür)
+	/// func (r *UserResource) OpenAPIEnabled() bool {
+	///     return true
+	/// }
+	///
+	/// // Internal API kaynak (OpenAPI'de gizli)
+	/// func (r *InternalResource) OpenAPIEnabled() bool {
+	///     return false
+	/// }
+	///
+	/// // Geliştirme aşamasındaki kaynak (OpenAPI'de gizli)
+	/// func (r *BetaResource) OpenAPIEnabled() bool {
+	///     return false
+	/// }
+	/// ```
+	///
+	/// ## Kullanım Senaryoları
+	/// - **Internal API'ler**: Sadece sistem içi kullanım için olan kaynaklar
+	/// - **Deprecated API'ler**: Kullanımdan kaldırılacak kaynaklar
+	/// - **Beta/Experimental**: Henüz stabil olmayan kaynaklar
+	/// - **Admin-Only**: Sadece admin kullanıcılar için olan kaynaklar
+	/// - **Legacy API'ler**: Geriye dönük uyumluluk için tutulan kaynaklar
+	///
+	/// ## Önemli Notlar
+	/// - false döndürülse bile API endpoint'leri aktif kalır
+	/// - Sadece OpenAPI dokümantasyonu etkilenir
+	/// - Yetkilendirme için Policy kullanın, OpenAPIEnabled() değil
+	/// - Varsayılan değer true'dur (tüm kaynaklar OpenAPI'de görünür)
+	///
+	/// ## Avantajlar
+	/// - Dokümantasyon karmaşıklığını azaltır
+	/// - Internal API'leri gizler
+	/// - Public API'yi daha temiz gösterir
+	/// - API versiyonlama stratejisini destekler
+	OpenAPIEnabled() bool
 }

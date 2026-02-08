@@ -1294,11 +1294,12 @@ type OptimizedBase struct {
 	Authorizable
 	Resolvable
 	Navigable
-	model      any
-	slug       string
-	title      string
-	repository data.DataProvider
-	cards      []widget.Card
+	model            any
+	slug             string
+	title            string
+	repository       data.DataProvider
+	cards            []widget.Card
+	openAPIDisabled  bool
 }
 
 /// SetModel, resource'un temsil ettiği veritabanı model'ini ayarlar.
@@ -1843,4 +1844,38 @@ func (b *OptimizedBase) StoreHandler(c *context.Context, file *multipart.FileHea
 ///   order := r.NavigationOrder()
 func (b *OptimizedBase) NavigationOrder() int {
 	return b.GetNavigationOrder()
+}
+
+// OpenAPIEnabled, kaynağın OpenAPI spesifikasyonunda görünüp görünmeyeceğini döner.
+//
+// Bu metod, kaynağın OpenAPI/Swagger dokümantasyonunda gösterilip gösterilmeyeceğini
+// kontrol eder. Varsayılan değer true'dur (tüm kaynaklar OpenAPI'de görünür).
+//
+// Döndürür:
+// - true: OpenAPI spec'te görünür (varsayılan)
+// - false: OpenAPI spec'te gizli
+//
+// Örnek:
+//   enabled := r.OpenAPIEnabled()
+func (b *OptimizedBase) OpenAPIEnabled() bool {
+	return !b.openAPIDisabled
+}
+
+// SetOpenAPIEnabled, kaynağın OpenAPI görünürlüğünü ayarlar.
+//
+// Bu metod, kaynağın OpenAPI/Swagger dokümantasyonunda gösterilip gösterilmeyeceğini
+// belirler. Method chaining desteği için resource pointer'ı döner.
+//
+// Parametreler:
+// - enabled: true = OpenAPI'de görünür, false = OpenAPI'de gizli
+//
+// Döndürür:
+// - Resource pointer'ı (method chaining için)
+//
+// Örnek:
+//   r.SetOpenAPIEnabled(false) // OpenAPI'de gizle
+//   r.SetOpenAPIEnabled(true)  // OpenAPI'de göster
+func (b *OptimizedBase) SetOpenAPIEnabled(enabled bool) Resource {
+	b.openAPIDisabled = !enabled
+	return b
 }

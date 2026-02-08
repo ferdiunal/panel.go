@@ -3,7 +3,9 @@ package user
 import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	domainUser "github.com/ferdiunal/panel.go/pkg/domain/user"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/resource"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
@@ -59,9 +61,9 @@ type UserResource struct {
 //
 // - Model: domainUser.User (kullanıcı domain modeli)
 // - Slug: "users" (URL'de kullanılan benzersiz tanımlayıcı)
-// - Başlık: "Users" (UI'da gösterilen başlık)
+// - Başlık: "Users" (UI'da gösterilen başlık - i18n destekli)
 // - İkon: "users" (UI'da gösterilen ikon)
-// - Grup: "System" (panel menüsünde gösterileceği grup)
+// - Grup: "System" (panel menüsünde gösterileceği grup - i18n destekli)
 // - Görünürlük: true (panel menüsünde görünür)
 // - Navigasyon Sırası: 1 (menüde gösterilme sırası)
 // - Yetkilendirme Politikası: UserPolicy (erişim kontrolü)
@@ -80,6 +82,7 @@ type UserResource struct {
 // - Tüm ayarlar sırasıyla uygulanır, bu nedenle sıra önemlidir
 // - UserPolicy, UserFieldResolver ve UserCardResolver paketinde tanımlanmış olmalıdır
 // - Oluşturulan kaynak, panel sistemine kaydedilmeden önce ek konfigürasyonlar yapılabilir
+// - Başlık ve grup i18n desteği ile çoklu dilde gösterilebilir
 func NewUserResource() *UserResource {
 	r := &UserResource{}
 
@@ -87,9 +90,16 @@ func NewUserResource() *UserResource {
 	// Model, slug, başlık, ikon ve grup gibi temel özellikleri tanımla
 	r.SetModel(&domainUser.User{})
 	r.SetSlug("users")
-	r.SetTitle("Users")
+
+	// i18n destekli başlık ve grup ayarları
+	// Başlık ve grup, kullanıcının diline göre otomatik olarak çevrilir
+	r.SetTitleFunc(func(c *fiber.Ctx) string {
+		return i18n.Trans(c, "resources.users.title")
+	})
 	r.SetIcon("users")
-	r.SetGroup("System")
+	r.SetGroupFunc(func(c *fiber.Ctx) string {
+		return i18n.Trans(c, "resources.groups.system")
+	})
 	r.SetVisible(true)
 	r.SetNavigationOrder(1)
 

@@ -24,6 +24,7 @@ import (
 // - **Görüntüleme Eşlemeleri**: Her tip için görüntüleme alanı özelleştirme
 // - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
 // - **GORM Yapılandırması**: Polimorfik sütunlar özelleştirme
+// - **Hover Card**: Index ve detail sayfalarında hover card desteği
 //
 // # Kullanım Örneği
 //
@@ -37,6 +38,19 @@ import (
 //	        "video": "name",
 //	    }).
 //	    WithEagerLoad()
+//
+//	// Hover card ile
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	    }).
+//	    WithHoverCard(fields.NewHoverCardConfig().
+//	        WithAvatar("thumbnail", "").
+//	        WithGrid([]fields.HoverCardGridField{
+//	            {Key: "title", Label: "Başlık", Type: "text"},
+//	            {Key: "created_at", Label: "Tarih", Type: "date"},
+//	        }, "2-column"))
 //
 // # Veritabanı Yapısı
 //
@@ -57,6 +71,7 @@ type MorphTo struct {
 	QueryCallback      func(query interface{}) interface{}
 	LoadingStrategy    LoadingStrategy
 	GormRelationConfig *RelationshipGormConfig
+	HoverCard          *HoverCardConfig
 }
 
 // NewMorphTo, yeni bir MorphTo polimorfik ilişki alanı oluşturur.
@@ -587,4 +602,143 @@ func (m *MorphTo) Searchable() Element {
 //   - true ise alan zorunludur
 func (m *MorphTo) IsRequired() bool {
 	return m.Schema.IsRequired
+}
+
+// WithHoverCard, hover card konfigürasyonunu ayarlar.
+//
+// Bu metod, index ve detail sayfalarında ilişkili kaydın hover card ile
+// nasıl görüntüleneceğini belirler.
+//
+// # Parametreler
+//
+// - **config**: Hover card konfigürasyonu
+//
+// # Kullanım Örneği (Deprecated - Yeni API kullanın)
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    WithHoverCard(*fields.NewHoverCardConfig())
+//
+// # Yeni API (Önerilen)
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    HoverCard(&CommentableHoverCard{}).
+//	    ResolveHoverCard(func(ctx context.Context, record interface{}, relatedID interface{}, field fields.Field) (interface{}, error) {
+//	        // Custom logic
+//	        return &CommentableHoverCard{...}, nil
+//	    })
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
+func (m *MorphTo) WithHoverCard(config HoverCardConfig) *MorphTo {
+	m.HoverCard = &config
+	m.WithProps("hover_card", config)
+	return m
+}
+
+// HoverCard, hover card struct'ını ayarlar ve hover card'ı etkinleştirir.
+//
+// Bu metod, hover card için kullanılacak struct'ı belirler ve
+// hover card özelliğini aktif eder.
+//
+// # Parametreler
+//
+// - **hoverStruct**: Hover card verisi için kullanılacak struct (örn. &CommentableHoverCard{})
+//
+// # Kullanım Örneği
+//
+//	type CommentableHoverCard struct {
+//	    Thumbnail string `json:"thumbnail"`
+//	    Title     string `json:"title"`
+//	    Type      string `json:"type"`
+//	}
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	    }).
+//	    HoverCard(&CommentableHoverCard{})
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
+func (m *MorphTo) HoverCard(hoverStruct interface{}) *MorphTo {
+	if m.HoverCard == nil {
+		m.HoverCard = NewHoverCardConfig()
+	}
+	m.HoverCard.SetStruct(hoverStruct)
+	m.WithProps("hover_card_enabled", true)
+	return m
+}
+
+// ResolveHoverCard, hover card verilerini çözmek için callback fonksiyonunu ayarlar.
+//
+// Bu metod, hover card açıldığında çağrılacak resolver fonksiyonunu belirler.
+// Resolver, ilişkili kaydın hover card verilerini döndürür.
+//
+// # Parametreler
+//
+// - **resolver**: Hover card resolver callback fonksiyonu
+//
+// # Kullanım Örneği
+//
+//	field := fields.NewMorphTo("Commentable", "commentable").
+//	    Types(map[string]string{
+//	        "post":  "posts",
+//	        "video": "videos",
+//	    }).
+//	    HoverCard(&CommentableHoverCard{}).
+//	    ResolveHoverCard(func(ctx context.Context, record interface{}, relatedID interface{}, field fields.Field) (interface{}, error) {
+//	        // MorphTo için tip bilgisini al
+//	        morphType := record.(*Comment).CommentableType
+//
+//	        // Tip'e göre ilişkili kaydı al
+//	        var data interface{}
+//	        switch morphType {
+//	        case "post":
+//	            post := &Post{}
+//	            if err := db.First(post, relatedID).Error; err != nil {
+//	                return nil, err
+//	            }
+//	            data = post
+//	        case "video":
+//	            video := &Video{}
+//	            if err := db.First(video, relatedID).Error; err != nil {
+//	                return nil, err
+//	            }
+//	            data = video
+//	        }
+//
+//	        // Hover card verisini döndür
+//	        return &CommentableHoverCard{
+//	            Thumbnail: data.Thumbnail,
+//	            Title: data.Title,
+//	            Type: morphType,
+//	        }, nil
+//	    })
+//
+// # API Endpoint
+//
+// Frontend, hover card açıldığında şu endpoint'e istek atar:
+//
+//	GET /api/resource/{resource}/resolver/{field_name}?id={related_id}&type={morph_type}
+//	POST /api/resource/{resource}/resolver/{field_name} (body: {id: related_id, type: morph_type})
+//
+// Döndürür:
+//   - MorphTo pointer'ı (method chaining için)
+func (m *MorphTo) ResolveHoverCard(resolver HoverCardResolver) *MorphTo {
+	if m.HoverCard == nil {
+		m.HoverCard = NewHoverCardConfig()
+	}
+	m.HoverCard.SetResolver(resolver)
+	return m
+}
+
+// GetHoverCard, hover card konfigürasyonunu döndürür.
+//
+// Bu metod, hover card konfigürasyonunu alır.
+//
+// Döndürür:
+//   - HoverCardConfig pointer'ı (nil olabilir)
+func (m *MorphTo) GetHoverCard() *HoverCardConfig {
+	return m.HoverCard
 }
