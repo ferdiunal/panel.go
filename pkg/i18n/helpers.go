@@ -34,6 +34,11 @@ import (
 //	})
 //	// Çıktı: "5 ürün, toplam: 150.50 TL"
 func Trans(c *fiber.Ctx, messageID string, templateData ...map[string]interface{}) string {
+	// Nil context kontrolü - resource initialization sırasında context olmayabilir
+	if c == nil {
+		return messageID // Fallback: messageID'yi döndür
+	}
+
 	if len(templateData) > 0 && templateData[0] != nil {
 		return fiberi18n.MustLocalize(c, &i18n.LocalizeConfig{
 			MessageID:    messageID,
@@ -63,6 +68,11 @@ func Trans(c *fiber.Ctx, messageID string, templateData ...map[string]interface{
 //	})
 //	// Çıktı: "3 Ürün"
 func TransChoice(c *fiber.Ctx, messageID string, count int, templateData ...map[string]interface{}) string {
+	// Nil context kontrolü
+	if c == nil {
+		return messageID // Fallback: messageID'yi döndür
+	}
+
 	data := map[string]interface{}{
 		"Count": count,
 	}
@@ -89,6 +99,11 @@ func TransChoice(c *fiber.Ctx, messageID string, count int, templateData ...map[
 //	lang := i18n.GetLocale(c)
 //	// Çıktı: "tr" veya "en"
 func GetLocale(c *fiber.Ctx) string {
+	// Nil context kontrolü
+	if c == nil {
+		return "en" // Varsayılan dil
+	}
+
 	// fiberi18n middleware'i locale bilgisini c.Locals() ile kaydeder
 	if locale, ok := c.Locals("lang").(string); ok {
 		return locale
@@ -106,6 +121,11 @@ func GetLocale(c *fiber.Ctx) string {
 //	    message := i18n.Trans(c, "welcome")
 //	}
 func HasTranslation(c *fiber.Ctx, messageID string) bool {
+	// Nil context kontrolü
+	if c == nil {
+		return false
+	}
+
 	// Çeviriyi dene, hata varsa false döndür
 	_, err := fiberi18n.Localize(c, messageID)
 	return err == nil
@@ -119,6 +139,11 @@ func HasTranslation(c *fiber.Ctx, messageID string) bool {
 //	message := i18n.TransWithFallback(c, "unknown.key", "Varsayılan Mesaj")
 //	// Çıktı: "Varsayılan Mesaj" (çeviri yoksa)
 func TransWithFallback(c *fiber.Ctx, messageID string, fallback string, templateData ...map[string]interface{}) string {
+	// Nil context kontrolü
+	if c == nil {
+		return fallback
+	}
+
 	if !HasTranslation(c, messageID) {
 		return fallback
 	}
