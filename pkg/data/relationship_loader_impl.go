@@ -84,6 +84,8 @@ func (l *GormRelationshipLoader) EagerLoad(ctx context.Context, items []interfac
 		return l.eagerLoadHasMany(ctx, items, field)
 	case "hasOne":
 		return l.eagerLoadHasOne(ctx, items, field)
+	case "belongsToMany":
+		return l.eagerLoadBelongsToMany(ctx, items, field)
 	default:
 		return fmt.Errorf("unsupported relationship type: %s", field.GetRelationshipType())
 	}
@@ -127,6 +129,8 @@ func (l *GormRelationshipLoader) LazyLoad(ctx context.Context, item interface{},
 		return l.lazyLoadHasMany(ctx, item, field)
 	case "hasOne":
 		return l.lazyLoadHasOne(ctx, item, field)
+	case "belongsToMany":
+		return l.lazyLoadBelongsToMany(ctx, item, field)
 	default:
 		return nil, fmt.Errorf("unsupported relationship type: %s", field.GetRelationshipType())
 	}

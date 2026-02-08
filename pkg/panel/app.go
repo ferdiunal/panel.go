@@ -652,7 +652,8 @@ func New(config Config) *Panel {
 	// Auth Routes
 	authRoutes := api.Group("/auth")
 	// SECURITY: Strict rate limiting for authentication endpoints (10 req/min)
-	authRoutes.Use(middleware.AuthRateLimiter())
+	// TEMPORARY: Rate limiting disabled for development
+	// authRoutes.Use(middleware.AuthRateLimiter())
 	authRoutes.Post("/sign-in/email", context.Wrap(authH.LoginEmail))
 	authRoutes.Post("/sign-up/email", context.Wrap(authH.RegisterEmail))
 	authRoutes.Post("/sign-out", context.Wrap(authH.SignOut))
@@ -664,7 +665,8 @@ func New(config Config) *Panel {
 	// Middleware
 	api.Use(context.Wrap(authH.SessionMiddleware))
 	// SECURITY: Rate limiting for general API endpoints (100 req/min)
-	api.Use(middleware.APIRateLimiter())
+	// TEMPORARY: Rate limiting disabled for development
+	// api.Use(middleware.APIRateLimiter())
 
 	// Page Routes
 	api.Get("/pages", context.Wrap(p.handlePages))
