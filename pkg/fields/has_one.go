@@ -3205,3 +3205,63 @@ func (h *HasOneField) ResolveHoverCard(resolver HoverCardResolver) *HasOneField 
 func (h *HasOneField) GetHoverCard() *HoverCardConfig {
 	return h.hoverCardConfig
 }
+
+// GetRelatedTableName, ilişkili tablo adını döndürür.
+//
+// Bu metod, HasOne ilişkisinde kullanılan ilişkili tablonun adını döndürür.
+// Raw SQL sorguları için kullanılır.
+//
+// # Dönüş Değeri
+//
+// - İlişkili tablo adı (örn. "profiles", "invoices", "capitals")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasOne("Profile", "profile", "profiles")
+//	tableName := field.GetRelatedTableName() // "profiles"
+//
+// Döndürür:
+//   - İlişkili tablo adı
+func (h *HasOneField) GetRelatedTableName() string {
+	return h.RelatedResourceSlug
+}
+
+// GetForeignKeyColumn, foreign key sütun adını döndürür.
+//
+// Bu metod, HasOne ilişkisinde kullanılan foreign key sütununun adını döndürür.
+// Foreign key, ilişkili tablodaki referans sütunudur.
+//
+// # Dönüş Değeri
+//
+// - Foreign key sütun adı (örn. "user_id", "order_id", "country_id")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasOne("Profile", "profile", "profiles").ForeignKey("user_id")
+//	foreignKey := field.GetForeignKeyColumn() // "user_id"
+//
+// Döndürür:
+//   - Foreign key sütun adı
+func (h *HasOneField) GetForeignKeyColumn() string {
+	return h.ForeignKeyColumn
+}
+
+// GetOwnerKeyColumn, owner key sütun adını döndürür.
+//
+// Bu metod, HasOne ilişkisinde kullanılan owner key sütununun adını döndürür.
+// Owner key, ana tablodaki referans sütunudur (genellikle primary key).
+//
+// # Dönüş Değeri
+//
+// - Owner key sütun adı (örn. "id", "uuid")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasOne("Profile", "profile", "profiles").OwnerKey("id")
+//	ownerKey := field.GetOwnerKeyColumn() // "id"
+//
+// Döndürür:
+//   - Owner key sütun adı
+func (h *HasOneField) GetOwnerKeyColumn() string {
+	return h.OwnerKeyColumn
+}

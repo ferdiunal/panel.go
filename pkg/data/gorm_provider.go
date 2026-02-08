@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/query"
 	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
@@ -110,6 +111,10 @@ type GormDataProvider struct {
 	WithRelationships []string
 	/// SQL injection koruması için kolon validatörü
 	columnValidator *ColumnValidator
+	/// Raw SQL ile ilişki yükleme için loader
+	relationshipLoader fields.RelationshipLoader
+	/// Yüklenecek ilişki field'ları
+	relationshipFields []fields.RelationshipField
 }
 
 /// # NewGormDataProvider
@@ -169,9 +174,10 @@ func NewGormDataProvider(db *gorm.DB, model interface{}) *GormDataProvider {
 	}
 
 	return &GormDataProvider{
-		DB:              db,
-		Model:           model,
-		columnValidator: validator,
+		DB:                 db,
+		Model:              model,
+		columnValidator:    validator,
+		relationshipLoader: NewGormRelationshipLoader(db),
 	}
 }
 
@@ -689,10 +695,8 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	stdCtx := p.getContext(ctx)
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
 
-	// Apply Eager Loading
-	for _, rel := range p.WithRelationships {
-		db = db.Preload(rel)
-	}
+	// Apply Eager Loading - REMOVED: Using manual relationship loading instead
+	// Preload yerine manuel yükleme yapılacak (loadRelationshipsForItems ile)
 
 	// Apply Advanced Filters
 	if len(req.Filters) > 0 {
@@ -783,6 +787,13 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	items := make([]interface{}, resultsVal.Len())
 	for i := 0; i < resultsVal.Len(); i++ {
 		items[i] = resultsVal.Index(i).Addr().Interface()
+	}
+
+	// Load relationships manually (replaces Preload)
+	if len(p.WithRelationships) > 0 && len(items) > 0 {
+		if err := p.loadRelationshipsForItems(ctx, items); err != nil {
+			fmt.Printf("[WARN] Failed to load relationships: %v\n", err)
+		}
 	}
 
 	return &QueryResponse{
@@ -900,13 +911,21 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 
 	stdCtx := p.getContext(ctx)
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
-	for _, rel := range p.WithRelationships {
-		db = db.Preload(rel)
-	}
+
+	// Apply Eager Loading - REMOVED: Using manual relationship loading instead
+	// Preload yerine manuel yükleme yapılacak (loadRelationshipsForItem ile)
 
 	if err := db.Where("id = ?", id).First(result).Error; err != nil {
 		return nil, err
 	}
+
+	// Load relationships manually (replaces Preload)
+	if len(p.WithRelationships) > 0 {
+		if err := p.loadRelationshipsForItem(ctx, result); err != nil {
+			fmt.Printf("[WARN] Failed to load relationships: %v\n", err)
+		}
+	}
+
 	return result, nil
 }
 
@@ -1114,18 +1133,23 @@ func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interfac
 		if field != nil {
 			if field.DBName == "" {
 				if rel, ok := modelSchema.Relationships.Relations[field.Name]; ok {
-					relName := field.Name
 					switch rel.Type {
 					case schema.HasOne:
-						relType := rel.FieldSchema.ModelType
-						if relType.Kind() == reflect.Ptr {
-							relType = relType.Elem()
-						}
-						relInstance := reflect.New(relType).Interface()
-
 						if v != nil {
-							if err := p.DB.WithContext(stdCtx).First(relInstance, v).Error; err == nil {
-								p.DB.WithContext(stdCtx).Model(newItem).Association(relName).Replace(relInstance)
+							// Get newItem ID
+							newItemID := reflect.ValueOf(newItem).Elem().FieldByName(modelSchema.PrioritizedPrimaryField.Name).Interface()
+
+							// Get foreign key and related table info from GORM schema
+							foreignKey := ""
+							if len(rel.References) > 0 {
+								foreignKey = rel.References[0].ForeignKey.DBName
+							}
+							relatedTable := rel.FieldSchema.Table
+
+							if foreignKey != "" && relatedTable != "" && newItemID != nil {
+								if err := p.replaceHasOne(stdCtx, newItemID, foreignKey, v, relatedTable); err != nil {
+									fmt.Printf("[WARN] Failed to replace HasOne: %v\n", err)
+								}
 							}
 						}
 					case schema.Many2Many:
@@ -1142,29 +1166,31 @@ func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interfac
 						}
 
 						if len(ids) > 0 {
-							relType := rel.FieldSchema.ModelType
-							if relType.Kind() == reflect.Slice {
-								relType = relType.Elem()
+							// Get newItem ID
+							newItemID := reflect.ValueOf(newItem).Elem().FieldByName(modelSchema.PrioritizedPrimaryField.Name).Interface()
+
+							// Get pivot table info from GORM schema
+							pivotTable := ""
+							parentColumn := ""
+							relatedColumn := ""
+
+							if rel.JoinTable != nil {
+								pivotTable = rel.JoinTable.Name
 							}
-							if relType.Kind() == reflect.Ptr {
-								relType = relType.Elem()
+
+							if len(rel.References) > 0 {
+								for _, ref := range rel.References {
+									if ref.OwnPrimaryKey {
+										parentColumn = ref.ForeignKey.DBName
+									} else {
+										relatedColumn = ref.ForeignKey.DBName
+									}
+								}
 							}
 
-							// Create a slice of related structs with just IDs
-							// GORM Association().Replace() works best with struct instances or slice of structs
-							// It can also take slice of primary keys but let's try to be safe
-
-							// Ideally we should find them to ensure they exist, but for performance just binding IDs might work
-							// if we use Omit("Example.*") to avoid updating them, but Association Replace handles linking.
-
-							// Let's query them to be safe and GORM-compliant
-							sliceType := reflect.SliceOf(reflect.PtrTo(relType))
-							relatedItems := reflect.New(sliceType).Interface()
-
-							// Assuming ID is integer or string, GORM Find with slice of IDs works
-							if err := p.DB.WithContext(stdCtx).Where("id IN ?", ids).Find(relatedItems).Error; err == nil {
-								if err := p.DB.WithContext(stdCtx).Model(newItem).Association(relName).Replace(relatedItems); err != nil {
-									// Log error?
+							if pivotTable != "" && parentColumn != "" && relatedColumn != "" && newItemID != nil {
+								if err := p.replaceMany2Many(stdCtx, newItemID, ids, pivotTable, parentColumn, relatedColumn); err != nil {
+									fmt.Printf("[WARN] Failed to replace Many2Many: %v\n", err)
 								}
 							}
 						}
@@ -1404,21 +1430,30 @@ func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[stri
 			if field.DBName != "" {
 				updates[k] = v
 			} else if rel, ok := modelSchema.Relationships.Relations[field.Name]; ok {
-				relName := field.Name
 				switch rel.Type {
 				case schema.HasOne, schema.BelongsTo:
-					relType := rel.FieldSchema.ModelType
-					if relType.Kind() == reflect.Ptr {
-						relType = relType.Elem()
+					// Get item ID
+					itemID := reflect.ValueOf(item).Elem().FieldByName(modelSchema.PrioritizedPrimaryField.Name).Interface()
+
+					// Get foreign key and related table info from GORM schema
+					foreignKey := ""
+					if len(rel.References) > 0 {
+						foreignKey = rel.References[0].ForeignKey.DBName
 					}
-					relInstance := reflect.New(relType).Interface()
+					relatedTable := rel.FieldSchema.Table
 
 					if v != nil {
-						if err := p.DB.WithContext(stdCtx).First(relInstance, v).Error; err == nil {
-							p.DB.WithContext(stdCtx).Model(item).Association(relName).Replace(relInstance)
+						if foreignKey != "" && relatedTable != "" && itemID != nil {
+							if err := p.replaceHasOne(stdCtx, itemID, foreignKey, v, relatedTable); err != nil {
+								fmt.Printf("[WARN] Failed to replace HasOne: %v\n", err)
+							}
 						}
 					} else {
-						p.DB.WithContext(stdCtx).Model(item).Association(relName).Clear()
+						if foreignKey != "" && relatedTable != "" && itemID != nil {
+							if err := p.clearHasOne(stdCtx, itemID, foreignKey, relatedTable); err != nil {
+								fmt.Printf("[WARN] Failed to clear HasOne: %v\n", err)
+							}
+						}
 					}
 				case schema.Many2Many:
 					// Handle BelongsToMany (Many2Many) update
@@ -1435,24 +1470,41 @@ func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[stri
 						}
 					}
 
+					// Get item ID
+					itemID := reflect.ValueOf(item).Elem().FieldByName(modelSchema.PrioritizedPrimaryField.Name).Interface()
+
+					// Get pivot table info from GORM schema
+					pivotTable := ""
+					parentColumn := ""
+					relatedColumn := ""
+
+					if rel.JoinTable != nil {
+						pivotTable = rel.JoinTable.Name
+					}
+
+					if len(rel.References) > 0 {
+						for _, ref := range rel.References {
+							if ref.OwnPrimaryKey {
+								parentColumn = ref.ForeignKey.DBName
+							} else {
+								relatedColumn = ref.ForeignKey.DBName
+							}
+						}
+					}
+
 					if len(ids) > 0 {
-						relType := rel.FieldSchema.ModelType
-						if relType.Kind() == reflect.Slice {
-							relType = relType.Elem()
-						}
-						if relType.Kind() == reflect.Ptr {
-							relType = relType.Elem()
-						}
-
-						sliceType := reflect.SliceOf(reflect.PtrTo(relType))
-						relatedItems := reflect.New(sliceType).Interface()
-
-						if err := p.DB.WithContext(stdCtx).Where("id IN ?", ids).Find(relatedItems).Error; err == nil {
-							p.DB.WithContext(stdCtx).Model(item).Association(relName).Replace(relatedItems)
+						if pivotTable != "" && parentColumn != "" && relatedColumn != "" && itemID != nil {
+							if err := p.replaceMany2Many(stdCtx, itemID, ids, pivotTable, parentColumn, relatedColumn); err != nil {
+								fmt.Printf("[WARN] Failed to replace Many2Many: %v\n", err)
+							}
 						}
 					} else {
 						// If empty list sent, clear associations
-						p.DB.WithContext(stdCtx).Model(item).Association(relName).Clear()
+						if pivotTable != "" && parentColumn != "" && itemID != nil {
+							if err := p.clearMany2Many(stdCtx, itemID, pivotTable, parentColumn); err != nil {
+								fmt.Printf("[WARN] Failed to clear Many2Many: %v\n", err)
+							}
+						}
 					}
 				}
 
@@ -1658,4 +1710,267 @@ func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[stri
 func (p *GormDataProvider) Delete(ctx *context.Context, id string) error {
 	stdCtx := p.getContext(ctx)
 	return p.DB.WithContext(stdCtx).Model(p.Model).Where("id = ?", id).Delete(nil).Error
+}
+
+// SetRelationshipFields, yüklenecek ilişki field'larını ayarlar.
+//
+// Bu metod, RelationshipLoader tarafından kullanılacak field'ları belirler.
+// Resource'dan gelen relationship field'ları buraya set edilir.
+//
+// # Parametreler
+//
+// - **fields**: Yüklenecek ilişki field'ları ([]fields.RelationshipField)
+//
+// # Kullanım Örneği
+//
+//	relationshipFields := []fields.RelationshipField{authorField, postsField}
+//	provider.SetRelationshipFields(relationshipFields)
+func (p *GormDataProvider) SetRelationshipFields(fields []fields.RelationshipField) {
+	p.relationshipFields = fields
+}
+
+// getRelationshipFields, yüklenecek ilişki field'larını döndürür.
+//
+// Bu metod, WithRelationships listesinde belirtilen ilişkilere karşılık gelen
+// field'ları relationshipFields listesinden filtreler.
+//
+// # Döndürür
+//
+// - []fields.RelationshipField: Yüklenecek ilişki field'ları
+func (p *GormDataProvider) getRelationshipFields() []fields.RelationshipField {
+	if len(p.WithRelationships) == 0 || len(p.relationshipFields) == 0 {
+		return []fields.RelationshipField{}
+	}
+
+	// WithRelationships listesinde belirtilen ilişkileri filtrele
+	result := []fields.RelationshipField{}
+	for _, relName := range p.WithRelationships {
+		for _, field := range p.relationshipFields {
+			if field.GetRelationshipName() == relName {
+				result = append(result, field)
+				break
+			}
+		}
+	}
+
+	return result
+}
+
+// loadRelationshipsForItems, birden fazla kayıt için ilişkileri batch loading ile yükler.
+//
+// Bu metod, N+1 sorgu problemini önlemek için tüm kayıtların ilişkilerini
+// tek seferde yükler. RelationshipLoader'ın EagerLoad metodunu kullanır.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi (*context.Context)
+// - **items**: İlişkileri yüklenecek kayıt listesi ([]interface{})
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+//
+// # Kullanım Örneği
+//
+//	items := []interface{}{&user1, &user2, &user3}
+//	err := provider.loadRelationshipsForItems(ctx, items)
+func (p *GormDataProvider) loadRelationshipsForItems(ctx *context.Context, items []interface{}) error {
+	if p.relationshipLoader == nil {
+		return fmt.Errorf("relationship loader not initialized")
+	}
+
+	if len(items) == 0 {
+		return nil
+	}
+
+	stdCtx := p.getContext(ctx)
+	relationshipFields := p.getRelationshipFields()
+
+	for _, field := range relationshipFields {
+		// Sadece eager loading stratejisine sahip field'ları yükle
+		if field.GetLoadingStrategy() == fields.EAGER_LOADING {
+			if err := p.relationshipLoader.EagerLoad(stdCtx, items, field); err != nil {
+				return fmt.Errorf("failed to eager load %s: %w", field.GetRelationshipName(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// loadRelationshipsForItem, tek bir kayıt için ilişkileri yükler.
+//
+// Bu metod, lazy loading stratejisi ile tek bir kaydın ilişkilerini yükler.
+// RelationshipLoader'ın LazyLoad metodunu kullanır.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi (*context.Context)
+// - **item**: İlişkisi yüklenecek kayıt (interface{})
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+//
+// # Kullanım Örneği
+//
+//	err := provider.loadRelationshipsForItem(ctx, &user)
+func (p *GormDataProvider) loadRelationshipsForItem(ctx *context.Context, item interface{}) error {
+	if p.relationshipLoader == nil {
+		return fmt.Errorf("relationship loader not initialized")
+	}
+
+	if item == nil {
+		return nil
+	}
+
+	stdCtx := p.getContext(ctx)
+	relationshipFields := p.getRelationshipFields()
+
+	for _, field := range relationshipFields {
+		if _, err := p.relationshipLoader.LazyLoad(stdCtx, item, field); err != nil {
+			return fmt.Errorf("failed to lazy load %s: %w", field.GetRelationshipName(), err)
+		}
+	}
+
+	return nil
+}
+
+// replaceHasOne, HasOne ilişkisini raw SQL ile günceller.
+//
+// Bu metod, GORM Association yerine raw SQL kullanarak HasOne ilişkisini günceller.
+// Circular dependency sorununu önlemek için struct field'larına bağımlı olmadan çalışır.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi (stdcontext.Context)
+// - **parentID**: Ana kaydın ID'si (interface{})
+// - **foreignKey**: İlişkili tablodaki foreign key sütun adı (string)
+// - **relatedID**: İlişkili kaydın ID'si (interface{})
+// - **relatedTable**: İlişkili tablo adı (string)
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+//
+// # Kullanım Örneği
+//
+//	err := p.replaceHasOne(ctx, userID, "user_id", profileID, "profiles")
+func (p *GormDataProvider) replaceHasOne(ctx stdcontext.Context, parentID interface{}, foreignKey string, relatedID interface{}, relatedTable string) error {
+	safeTable := SanitizeColumnName(relatedTable)
+	safeForeignKey := SanitizeColumnName(foreignKey)
+
+	return p.DB.WithContext(ctx).Exec(
+		fmt.Sprintf("UPDATE %s SET %s = ? WHERE id = ?", safeTable, safeForeignKey),
+		parentID, relatedID,
+	).Error
+}
+
+// clearHasOne, HasOne ilişkisini raw SQL ile temizler.
+//
+// Bu metod, GORM Association yerine raw SQL kullanarak HasOne ilişkisini temizler.
+// İlişkili kaydın foreign key'ini NULL yapar.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi (stdcontext.Context)
+// - **parentID**: Ana kaydın ID'si (interface{})
+// - **foreignKey**: İlişkili tablodaki foreign key sütun adı (string)
+// - **relatedTable**: İlişkili tablo adı (string)
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+//
+// # Kullanım Örneği
+//
+//	err := p.clearHasOne(ctx, userID, "user_id", "profiles")
+func (p *GormDataProvider) clearHasOne(ctx stdcontext.Context, parentID interface{}, foreignKey string, relatedTable string) error {
+	safeTable := SanitizeColumnName(relatedTable)
+	safeForeignKey := SanitizeColumnName(foreignKey)
+
+	return p.DB.WithContext(ctx).Exec(
+		fmt.Sprintf("UPDATE %s SET %s = NULL WHERE %s = ?", safeTable, safeForeignKey, safeForeignKey),
+		parentID,
+	).Error
+}
+
+// replaceMany2Many, Many2Many ilişkilerini raw SQL ile günceller.
+//
+// Bu metod, GORM Association yerine raw SQL kullanarak Many2Many ilişkilerini günceller.
+// Pivot tablodaki mevcut kayıtları siler ve yeni kayıtları ekler.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi (stdcontext.Context)
+// - **parentID**: Ana kaydın ID'si (interface{})
+// - **relatedIDs**: İlişkili kayıtların ID'leri ([]interface{})
+// - **pivotTable**: Pivot tablo adı (string)
+// - **parentColumn**: Pivot tablodaki ana kayıt sütun adı (string)
+// - **relatedColumn**: Pivot tablodaki ilişkili kayıt sütun adı (string)
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+//
+// # Kullanım Örneği
+//
+//	err := p.replaceMany2Many(ctx, userID, roleIDs, "user_roles", "user_id", "role_id")
+func (p *GormDataProvider) replaceMany2Many(ctx stdcontext.Context, parentID interface{}, relatedIDs []interface{}, pivotTable string, parentColumn string, relatedColumn string) error {
+	safePivotTable := SanitizeColumnName(pivotTable)
+	safeParentColumn := SanitizeColumnName(parentColumn)
+	safeRelatedColumn := SanitizeColumnName(relatedColumn)
+
+	tx := p.DB.WithContext(ctx).Begin()
+
+	// 1. Clear existing relationships
+	if err := tx.Exec(
+		fmt.Sprintf("DELETE FROM %s WHERE %s = ?", safePivotTable, safeParentColumn),
+		parentID,
+	).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 2. Insert new relationships
+	for _, relatedID := range relatedIDs {
+		if err := tx.Exec(
+			fmt.Sprintf("INSERT INTO %s (%s, %s) VALUES (?, ?)", safePivotTable, safeParentColumn, safeRelatedColumn),
+			parentID, relatedID,
+		).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+}
+
+// clearMany2Many, Many2Many ilişkilerini raw SQL ile temizler.
+//
+// Bu metod, GORM Association yerine raw SQL kullanarak Many2Many ilişkilerini temizler.
+// Pivot tablodaki tüm kayıtları siler.
+//
+// # Parametreler
+//
+// - **ctx**: Context bilgisi (stdcontext.Context)
+// - **parentID**: Ana kaydın ID'si (interface{})
+// - **pivotTable**: Pivot tablo adı (string)
+// - **parentColumn**: Pivot tablodaki ana kayıt sütun adı (string)
+//
+// # Döndürür
+//
+// - error: Hata durumunda hata mesajı
+//
+// # Kullanım Örneği
+//
+//	err := p.clearMany2Many(ctx, userID, "user_roles", "user_id")
+func (p *GormDataProvider) clearMany2Many(ctx stdcontext.Context, parentID interface{}, pivotTable string, parentColumn string) error {
+	safePivotTable := SanitizeColumnName(pivotTable)
+	safeParentColumn := SanitizeColumnName(parentColumn)
+
+	return p.DB.WithContext(ctx).Exec(
+		fmt.Sprintf("DELETE FROM %s WHERE %s = ?", safePivotTable, safeParentColumn),
+		parentID,
+	).Error
 }

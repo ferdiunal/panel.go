@@ -563,3 +563,47 @@ func (b *BelongsToField) GetForeignKey() string {
 func (b *BelongsToField) GetRelatedResourceSlug() string {
 	return b.RelatedResourceSlug
 }
+
+// GetRelatedTableName, ilişkili tablo adını döndürür.
+//
+// Bu metod, BelongsTo ilişkisinde kullanılan ilişkili tablonun adını döndürür.
+// Raw SQL sorguları için kullanılır.
+//
+// # Dönüş Değeri
+//
+// - İlişkili tablo adı (örn. "authors", "users", "categories")
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors")
+//	tableName := field.GetRelatedTableName() // "authors"
+//
+// Döndürür:
+//   - İlişkili tablo adı
+func (b *BelongsToField) GetRelatedTableName() string {
+	return b.RelatedResourceSlug
+}
+
+// GetOwnerKeyColumn, owner key sütun adını döndürür.
+//
+// Bu metod, BelongsTo ilişkisinde kullanılan owner key (references) sütununun adını döndürür.
+// Owner key, ilişkili tablodaki referans sütunudur (genellikle primary key).
+//
+// # Dönüş Değeri
+//
+// - Owner key sütun adı (örn. "id", "uuid")
+// - GormRelationConfig nil ise varsayılan olarak "id" döner
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors")
+//	ownerKey := field.GetOwnerKeyColumn() // "id"
+//
+// Döndürür:
+//   - Owner key sütun adı
+func (b *BelongsToField) GetOwnerKeyColumn() string {
+	if b.GormRelationConfig != nil {
+		return b.GormRelationConfig.References
+	}
+	return "id"
+}
