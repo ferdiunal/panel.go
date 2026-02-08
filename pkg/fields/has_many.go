@@ -132,10 +132,7 @@ func HasMany(name, key string, relatedResource interface{}) *HasManyField {
 	if resourceInstance != nil {
 		h.WithProps("related_resource_instance", resourceInstance)
 	}
-	// HasMany fields can now be shown in forms (like BelongsToMany)
-	// They are hidden on create by default (no parent ID yet)
-	h.HideOnCreate()
-	// Removed HideOnUpdate() - now visible in edit forms
+	// HasMany fields are now visible in both create and edit forms
 	return h
 }
 
@@ -293,4 +290,64 @@ func (h *HasManyField) IsRequired() bool {
 // GetTypes returns the type mappings (not used for HasMany)
 func (h *HasManyField) GetTypes() map[string]string {
 	return make(map[string]string)
+}
+
+// AutoOptions, ilişkili tablodan otomatik options oluşturmayı etkinleştirir.
+//
+// Bu metod, HasMany ilişkisinde ilişkili kayıtların otomatik olarak yüklenmesini
+// ve frontend'de multi-select combobox'ta gösterilmesini sağlar.
+//
+// # Parametreler
+//
+// - **displayField**: Option label'ı için kullanılacak sütun adı (örn. "title", "name")
+//
+// # Kullanım Örneği
+//
+//	// Author resource'unda Posts ilişkisi
+//	field := fields.HasMany("Posts", "posts", "posts").
+//	    AutoOptions("title").  // Post'ların "title" sütunu label olarak kullanılır
+//	    ForeignKey("author_id").
+//	    WithEagerLoad()
+//
+// # Backend Response Formatı
+//
+// AutoOptions etkinleştirildiğinde, backend response'unda options otomatik olarak eklenir:
+//
+//	{
+//	  "posts": {
+//	    "key": "posts",
+//	    "type": "relationship",
+//	    "view": "has-many-field",
+//	    "data": [1, 2, 3],
+//	    "props": {
+//	      "related_resource": "posts",
+//	      "options": {
+//	        "1": "First Post",
+//	        "2": "Second Post",
+//	        "3": "Third Post"
+//	      }
+//	    }
+//	  }
+//	}
+//
+// # Frontend Rendering
+//
+// Frontend'de HasManyField componenti otomatik olarak:
+// - Pre-loaded options'ları multi-select combobox'ta gösterir
+// - Search fonksiyonu ile filtreleme yapar
+// - Seçili değerleri chips olarak gösterir
+// - Kullanıcı yeni kayıtlar seçebilir veya mevcut seçimleri kaldırabilir
+//
+// # Önemli Notlar
+//
+// - displayField sütunu, ilişkili tabloda mevcut olmalıdır
+// - Büyük veri setleri için (10,000+ kayıt) performans sorunları olabilir
+// - Best practice: AutoOptions sadece küçük-orta veri setleri için kullanın
+// - Null değerler için otomatik fallback kontrolü yapılır
+//
+// Döndürür:
+//   - HasManyField pointer'ı (method chaining için)
+func (h *HasManyField) AutoOptions(displayField string) *HasManyField {
+	h.Schema.AutoOptions(displayField)
+	return h
 }
