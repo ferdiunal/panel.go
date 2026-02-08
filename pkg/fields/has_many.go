@@ -351,3 +351,63 @@ func (h *HasManyField) AutoOptions(displayField string) *HasManyField {
 	h.Schema.AutoOptions(displayField)
 	return h
 }
+
+// GetRelatedTableName, ilişkili tablo adını döndürür.
+//
+// Bu metod, HasMany ilişkisinde kullanılan ilişkili tablonun adını döndürür.
+// Raw SQL sorguları için kullanılır.
+//
+// # Dönüş Değeri
+//
+// - İlişkili tablo adı (örn. "posts", "comments", "orders")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasMany("Posts", "posts", "posts")
+//	tableName := field.GetRelatedTableName() // "posts"
+//
+// Döndürür:
+//   - İlişkili tablo adı
+func (h *HasManyField) GetRelatedTableName() string {
+	return h.RelatedResourceSlug
+}
+
+// GetForeignKeyColumn, foreign key sütun adını döndürür.
+//
+// Bu metod, HasMany ilişkisinde kullanılan foreign key sütununun adını döndürür.
+// Foreign key, ilişkili tablodaki referans sütunudur.
+//
+// # Dönüş Değeri
+//
+// - Foreign key sütun adı (örn. "author_id", "user_id", "category_id")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasMany("Posts", "posts", "posts").ForeignKey("author_id")
+//	foreignKey := field.GetForeignKeyColumn() // "author_id"
+//
+// Döndürür:
+//   - Foreign key sütun adı
+func (h *HasManyField) GetForeignKeyColumn() string {
+	return h.ForeignKeyColumn
+}
+
+// GetOwnerKeyColumn, owner key sütun adını döndürür.
+//
+// Bu metod, HasMany ilişkisinde kullanılan owner key sütununun adını döndürür.
+// Owner key, ana tablodaki referans sütunudur (genellikle primary key).
+//
+// # Dönüş Değeri
+//
+// - Owner key sütun adı (örn. "id", "uuid")
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasMany("Posts", "posts", "posts").OwnerKey("id")
+//	ownerKey := field.GetOwnerKeyColumn() // "id"
+//
+// Döndürür:
+//   - Owner key sütun adı
+func (h *HasManyField) GetOwnerKeyColumn() string {
+	return h.OwnerKeyColumn
+}
