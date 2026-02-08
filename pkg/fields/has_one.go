@@ -22,6 +22,7 @@ import (
 // - **Owner Key Özelleştirme**: Ana tablodaki referans sütunu özelleştirilebilir
 // - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
 // - **GORM Yapılandırması**: Foreign key ve references özelleştirme
+// - **Hover Card**: Index ve detail sayfalarında hover card desteği
 //
 // # Kullanım Örneği
 //
@@ -35,6 +36,16 @@ import (
 //	    ForeignKey("user_id").
 //	    WithEagerLoad()
 //
+//	// Hover card ile
+//	field := fields.HasOne("Profile", "profile", "profiles").
+//	    ForeignKey("user_id").
+//	    WithHoverCard(fields.NewHoverCardConfig().
+//	        WithAvatar("avatar", "").
+//	        WithGrid([]fields.HoverCardGridField{
+//	            {Key: "bio", Label: "Bio", Type: "text"},
+//	            {Key: "location", Label: "Konum", Type: "text", Icon: "map-pin"},
+//	        }, "2-column"))
+//
 // Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type HasOneField struct {
 	Schema
@@ -45,6 +56,7 @@ type HasOneField struct {
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
 	GormRelationConfig  *RelationshipGormConfig
+	HoverCard           *HoverCardConfig
 }
 
 // HasOne, yeni bir HasOne ilişki alanı oluşturur.
@@ -3073,4 +3085,123 @@ func (h *HasOneField) IsRequired() bool {
 //   - Boş map (map[string]string{}) - HasOne için kullanılmaz
 func (h *HasOneField) GetTypes() map[string]string {
 	return make(map[string]string)
+}
+
+// WithHoverCard, hover card konfigürasyonunu ayarlar.
+//
+// Bu metod, index ve detail sayfalarında ilişkili kaydın hover card ile
+// nasıl görüntüleneceğini belirler.
+//
+// # Parametreler
+//
+// - **config**: Hover card konfigürasyonu
+//
+// # Kullanım Örneği (Deprecated - Yeni API kullanın)
+//
+//	field := fields.HasOne("Profile", "profile", "profiles").
+//	    WithHoverCard(*fields.NewHoverCardConfig())
+//
+// # Yeni API (Önerilen)
+//
+//	field := fields.HasOne("Profile", "profile", "profiles").
+//	    HoverCard(&ProfileHoverCard{}).
+//	    ResolveHoverCard(func(ctx context.Context, record interface{}, relatedID interface{}, field fields.Field) (interface{}, error) {
+//	        // Custom logic
+//	        return &ProfileHoverCard{...}, nil
+//	    })
+//
+// Döndürür:
+//   - HasOneField pointer'ı (method chaining için)
+func (h *HasOneField) WithHoverCard(config HoverCardConfig) *HasOneField {
+	h.HoverCard = &config
+	h.WithProps("hover_card", config)
+	return h
+}
+
+// HoverCard, hover card struct'ını ayarlar ve hover card'ı etkinleştirir.
+//
+// Bu metod, hover card için kullanılacak struct'ı belirler ve
+// hover card özelliğini aktif eder.
+//
+// # Parametreler
+//
+// - **hoverStruct**: Hover card verisi için kullanılacak struct (örn. &ProfileHoverCard{})
+//
+// # Kullanım Örneği
+//
+//	type ProfileHoverCard struct {
+//	    Avatar string `json:"avatar"`
+//	    Bio    string `json:"bio"`
+//	    Location string `json:"location"`
+//	}
+//
+//	field := fields.HasOne("Profile", "profile", "profiles").
+//	    ForeignKey("user_id").
+//	    HoverCard(&ProfileHoverCard{})
+//
+// Döndürür:
+//   - HasOneField pointer'ı (method chaining için)
+func (h *HasOneField) HoverCard(hoverStruct interface{}) *HasOneField {
+	if h.HoverCard == nil {
+		h.HoverCard = NewHoverCardConfig()
+	}
+	h.HoverCard.SetStruct(hoverStruct)
+	h.WithProps("hover_card_enabled", true)
+	return h
+}
+
+// ResolveHoverCard, hover card verilerini çözmek için callback fonksiyonunu ayarlar.
+//
+// Bu metod, hover card açıldığında çağrılacak resolver fonksiyonunu belirler.
+// Resolver, ilişkili kaydın hover card verilerini döndürür.
+//
+// # Parametreler
+//
+// - **resolver**: Hover card resolver callback fonksiyonu
+//
+// # Kullanım Örneği
+//
+//	field := fields.HasOne("Profile", "profile", "profiles").
+//	    ForeignKey("user_id").
+//	    HoverCard(&ProfileHoverCard{}).
+//	    ResolveHoverCard(func(ctx context.Context, record interface{}, relatedID interface{}, field fields.Field) (interface{}, error) {
+//	        // İlişkili kaydı veritabanından al
+//	        profile := &Profile{}
+//	        if err := db.First(profile, relatedID).Error; err != nil {
+//	            return nil, err
+//	        }
+//
+//	        // Hover card verisini döndür
+//	        return &ProfileHoverCard{
+//	            Avatar: profile.Avatar,
+//	            Bio: profile.Bio,
+//	            Location: profile.Location,
+//	        }, nil
+//	    })
+//
+// # API Endpoint
+//
+// Frontend, hover card açıldığında şu endpoint'e istek atar:
+//
+//	GET /api/resource/{resource}/resolver/{field_name}?id={related_id}
+//	POST /api/resource/{resource}/resolver/{field_name} (body: {id: related_id})
+//
+// Döndürür:
+//   - HasOneField pointer'ı (method chaining için)
+func (h *HasOneField) ResolveHoverCard(resolver HoverCardResolver) *HasOneField {
+	if h.HoverCard == nil {
+		h.HoverCard = NewHoverCardConfig()
+	}
+	h.HoverCard.SetResolver(resolver)
+	return h
+}
+
+// GetHoverCard, hover card konfigürasyonunu döndürür.
+//
+// Bu metod, hover card konfigürasyonunu alır.
+//
+// Döndürür:
+//   - HoverCardConfig pointer'ı (nil olabilir)
+func (h *HasOneField) GetHoverCard() *HoverCardConfig {
+	return h.HoverCard
 }

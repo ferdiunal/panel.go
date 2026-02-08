@@ -56,29 +56,155 @@ Tek satırlık metin girişi için kullanılır.
 
 ### Tarih Alanı (Date)
 
-Tarih seçimi için kullanılır.
+Tarih seçimi için kullanılır. İki mod destekler:
+- **Dialog Modu (Varsayılan)**: Popover içinde takvim arayüzü, tarih seçildiğinde otomatik kapanma
+- **Native Modu**: HTML5 date input, mobil uyumlu
 
 ```go
+// Dialog modu (varsayılan)
 (&fields.Schema{
 	Key:   "published_at",
 	Name:  "Yayınlanma Tarihi",
 	View:  "date",
 	Props: make(map[string]interface{}),
 }).OnDetail().OnForm()
+
+// Native modu
+(&fields.Schema{
+	Key:   "birth_date",
+	Name:  "Doğum Tarihi",
+	View:  "date",
+	Props: map[string]interface{}{
+		"native": true, // Native HTML date input kullan
+	},
+}).OnForm().Required()
+```
+
+**Frontend Kullanımı:**
+```tsx
+// Dialog modu (varsayılan)
+<DateField
+  name="published_at"
+  label="Yayınlanma Tarihi"
+  value={publishedAt}
+  onChange={setPublishedAt}
+/>
+
+// Native modu
+<DateField
+  name="birth_date"
+  label="Doğum Tarihi"
+  value={birthDate}
+  onChange={setBirthDate}
+  useNative
+  required
+/>
 ```
 
 ### Tarih-Saat Alanı (DateTime)
 
-Tarih ve saat seçimi için kullanılır.
+Tarih ve saat seçimi için kullanılır. İki mod destekler:
+- **Dialog Modu (Varsayılan)**: Popover içinde takvim + saat girişi, "Tamam" butonu ile kapanma
+- **Native Modu**: HTML5 datetime-local input, mobil uyumlu
 
 ```go
+// Dialog modu (varsayılan)
 (&fields.Schema{
 	Key:   "created_at",
 	Name:  "Oluşturulma Tarihi",
 	View:  "datetime",
 	Props: make(map[string]interface{}),
 }).ReadOnly().OnList().OnDetail()
+
+// Native modu
+(&fields.Schema{
+	Key:   "appointment_at",
+	Name:  "Randevu Tarihi ve Saati",
+	View:  "datetime",
+	Props: map[string]interface{}{
+		"native": true, // Native HTML datetime-local input kullan
+	},
+}).OnForm().Required()
 ```
+
+**Frontend Kullanımı:**
+```tsx
+// Dialog modu (varsayılan)
+<DateTimeField
+  name="created_at"
+  label="Oluşturulma Tarihi"
+  value={createdAt}
+  onChange={setCreatedAt}
+/>
+
+// Native modu
+<DateTimeField
+  name="appointment_at"
+  label="Randevu Tarihi ve Saati"
+  value={appointmentAt}
+  onChange={setAppointmentAt}
+  useNative
+  required
+/>
+```
+
+### Saat Alanı (Time)
+
+Saat seçimi için kullanılır. İki mod destekler:
+- **Dialog Modu (Varsayılan)**: Popover içinde saat girişi, "Tamam" butonu ile kapanma
+- **Native Modu**: HTML5 time input, mobil uyumlu
+
+```go
+// Dialog modu (varsayılan)
+(&fields.Schema{
+	Key:   "start_time",
+	Name:  "Başlangıç Saati",
+	View:  "time",
+	Props: make(map[string]interface{}),
+}).OnForm()
+
+// Native modu
+(&fields.Schema{
+	Key:   "work_hours",
+	Name:  "Çalışma Saati",
+	View:  "time",
+	Props: map[string]interface{}{
+		"native": true, // Native HTML time input kullan
+	},
+}).OnForm().Required()
+```
+
+**Frontend Kullanımı:**
+```tsx
+// Dialog modu (varsayılan)
+<TimeField
+  name="start_time"
+  label="Başlangıç Saati"
+  value={startTime}
+  onChange={setStartTime}
+/>
+
+// Native modu
+<TimeField
+  name="work_hours"
+  label="Çalışma Saati"
+  value={workHours}
+  onChange={setWorkHours}
+  useNative
+  required
+/>
+```
+
+**Mod Seçimi Rehberi:**
+
+| Özellik | Dialog Modu | Native Modu |
+|---------|-------------|-------------|
+| **Görsel** | Zengin takvim/saat arayüzü | Basit HTML input |
+| **Mobil Uyumluluk** | İyi | Mükemmel (native picker) |
+| **Bundle Boyutu** | Daha büyük (~20KB) | Minimal (~1KB) |
+| **Özelleştirme** | Yüksek | Sınırlı |
+| **Performans** | Orta | Hızlı |
+| **Kullanım Senaryosu** | Desktop uygulamalar | Mobil uygulamalar, basit formlar |
 
 ### Evet/Hayır Alanı (Switch)
 
@@ -91,6 +217,144 @@ Boolean değerleri için kullanılır.
 	View:  "switch",
 	Props: make(map[string]interface{}),
 }).OnList().OnDetail().OnForm()
+```
+
+### Checkbox Alanı
+
+Tek bir checkbox veya checkbox grubu için kullanılır.
+
+**Tek Checkbox:**
+```go
+(&fields.Schema{
+	Key:   "terms_accepted",
+	Name:  "Kullanım koşullarını kabul ediyorum",
+	View:  "checkbox",
+	Props: make(map[string]interface{}),
+}).OnForm().Required()
+```
+
+**Checkbox Grubu:**
+```go
+(&fields.Schema{
+	Key:   "interests",
+	Name:  "İlgi Alanları",
+	View:  "checkbox",
+	Props: map[string]interface{}{
+		"options": []map[string]interface{}{
+			{"value": "sports", "label": "Spor"},
+			{"value": "music", "label": "Müzik"},
+			{"value": "tech", "label": "Teknoloji"},
+		},
+	},
+}).OnForm()
+```
+
+**Frontend Kullanımı:**
+```tsx
+// Tek checkbox
+<CheckboxField
+  name="terms"
+  label="Kullanım koşullarını kabul ediyorum"
+  checked={terms}
+  onCheckedChange={setTerms}
+  required
+/>
+
+// Checkbox grubu
+<CheckboxField
+  name="interests"
+  label="İlgi Alanları"
+  options={[
+    { value: 'sports', label: 'Spor' },
+    { value: 'music', label: 'Müzik' },
+    { value: 'tech', label: 'Teknoloji' }
+  ]}
+  value={interests}
+  onChange={setInterests}
+/>
+```
+
+### Radio Group Alanı
+
+Birden fazla seçenek arasından tek bir seçim için kullanılır.
+
+```go
+(&fields.Schema{
+	Key:   "gender",
+	Name:  "Cinsiyet",
+	View:  "radio",
+	Props: map[string]interface{}{
+		"options": []map[string]interface{}{
+			{"value": "male", "label": "Erkek"},
+			{"value": "female", "label": "Kadın"},
+			{"value": "other", "label": "Diğer"},
+		},
+	},
+}).OnForm().Required()
+
+// Açıklamalı seçenekler
+(&fields.Schema{
+	Key:   "plan",
+	Name:  "Plan Seçimi",
+	View:  "radio",
+	Props: map[string]interface{}{
+		"options": []map[string]interface{}{
+			{
+				"value":       "basic",
+				"label":       "Temel",
+				"description": "Temel özellikler",
+			},
+			{
+				"value":       "pro",
+				"label":       "Pro",
+				"description": "Gelişmiş özellikler",
+			},
+		},
+		"orientation": "horizontal", // veya "vertical" (varsayılan)
+	},
+}).OnForm().Required()
+```
+
+**Frontend Kullanımı:**
+```tsx
+// Dikey düzen (varsayılan)
+<RadioGroupField
+  name="gender"
+  label="Cinsiyet"
+  options={[
+    { value: 'male', label: 'Erkek' },
+    { value: 'female', label: 'Kadın' },
+    { value: 'other', label: 'Diğer' }
+  ]}
+  value={gender}
+  onChange={setGender}
+  required
+/>
+
+// Yatay düzen
+<RadioGroupField
+  name="status"
+  label="Durum"
+  options={[
+    { value: 'active', label: 'Aktif' },
+    { value: 'inactive', label: 'Pasif' }
+  ]}
+  value={status}
+  onChange={setStatus}
+  orientation="horizontal"
+/>
+
+// Açıklamalı seçenekler
+<RadioGroupField
+  name="plan"
+  label="Plan Seçimi"
+  options={[
+    { value: 'basic', label: 'Temel', description: 'Temel özellikler' },
+    { value: 'pro', label: 'Pro', description: 'Gelişmiş özellikler' }
+  ]}
+  value={plan}
+  onChange={setPlan}
+/>
 ```
 
 ### Sayı Alanı (Number)
@@ -1574,6 +1838,1071 @@ func (r *UserFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
        OnDetail().
        ReadOnly()
    ```
+
+## Frontend Bileşenleri
+
+Panel.go'nun React tabanlı frontend bileşenleri, backend field tanımlamalarını kullanıcı arayüzünde görselleştirir. Bu bölümde frontend bileşenlerinin özel özellikleri ve kullanımları açıklanmaktadır.
+
+### TextInput - Maskeli Metin Girişi
+
+TextInput bileşeni, `react-input-mask` kütüphanesi kullanılarak geliştirilmiş maskeli metin girişi desteği sağlar. Bu özellik sayesinde telefon numarası, TC kimlik no, tarih, kredi kartı, IBAN gibi formatlanmış veri girişleri kolayca yapılabilir.
+
+#### Mask Prop'u
+
+TextInput bileşenine `mask` prop'u ekleyerek input maskesi tanımlayabilirsiniz:
+
+```tsx
+// Frontend (React/TypeScript)
+<TextInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  mask="(599) 999 99 99"
+  placeholder="(5XX) XXX XX XX"
+/>
+```
+
+#### Maske Karakterleri
+
+Mask tanımlarken kullanabileceğiniz özel karakterler:
+
+- **9**: Rakam (0-9)
+- **a**: Harf (a-z, A-Z)
+- **\***: Alfanumerik (harf veya rakam)
+
+Diğer tüm karakterler (parantez, tire, boşluk vb.) olduğu gibi gösterilir.
+
+#### Mask Özellikleri
+
+TextInput bileşeni mask için üç prop kabul eder:
+
+| Prop | Tip | Varsayılan | Açıklama |
+|------|-----|-----------|----------|
+| `mask` | `string` | `undefined` | Input maskesi formatı |
+| `maskChar` | `string` | `"_"` | Boş karakterler için gösterilecek karakter |
+| `alwaysShowMask` | `boolean` | `false` | Maskeyi her zaman göster (focus olmasa bile) |
+
+#### Kullanım Örnekleri
+
+##### Telefon Numarası (Türkiye)
+
+```tsx
+<TextInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  mask="(599) 999 99 99"
+  placeholder="(5XX) XXX XX XX"
+  required
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Tel("Telefon", "phone").
+	OnList().
+	OnDetail().
+	OnForm().
+	Required().
+	Pattern(`^\(5\d{2}\) \d{3} \d{2} \d{2}$`).
+	HelpText("Türkiye cep telefonu formatında giriniz")
+```
+
+##### TC Kimlik Numarası
+
+```tsx
+<TextInput
+  name="tc_no"
+  label="TC Kimlik No"
+  value={tcNo}
+  onChange={setTcNo}
+  mask="99999999999"
+  placeholder="TC Kimlik No"
+  required
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Text("TC Kimlik No", "tc_no").
+	OnForm().
+	OnDetail().
+	Required().
+	Pattern(`^\d{11}$`).
+	MinLength(11).
+	MaxLength(11).
+	HelpText("11 haneli TC kimlik numaranızı giriniz")
+```
+
+##### Tarih Girişi
+
+```tsx
+<TextInput
+  name="birth_date"
+  label="Doğum Tarihi"
+  value={birthDate}
+  onChange={setBirthDate}
+  mask="99/99/9999"
+  placeholder="GG/AA/YYYY"
+  maskChar="_"
+  alwaysShowMask
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Date("Doğum Tarihi", "birth_date").
+	OnForm().
+	OnDetail().
+	Required().
+	HelpText("Doğum tarihinizi GG/AA/YYYY formatında giriniz")
+```
+
+##### Kredi Kartı Numarası
+
+```tsx
+<TextInput
+  name="card_number"
+  label="Kart Numarası"
+  value={cardNumber}
+  onChange={setCardNumber}
+  mask="9999 9999 9999 9999"
+  placeholder="Kart Numarası"
+  required
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Text("Kart Numarası", "card_number").
+	OnForm().
+	Required().
+	Pattern(`^\d{4} \d{4} \d{4} \d{4}$`).
+	MinLength(19).
+	MaxLength(19).
+	HelpText("16 haneli kart numaranızı giriniz").
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		// Boşlukları kaldır ve veritabanına kaydet
+		if cardNo, ok := value.(string); ok {
+			return strings.ReplaceAll(cardNo, " ", "")
+		}
+		return value
+	})
+```
+
+##### IBAN Numarası (Türkiye)
+
+```tsx
+<TextInput
+  name="iban"
+  label="IBAN"
+  value={iban}
+  onChange={setIban}
+  mask="TR99 9999 9999 9999 9999 9999 99"
+  placeholder="TR00 0000 0000 0000 0000 0000 00"
+  required
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Text("IBAN", "iban").
+	OnForm().
+	OnDetail().
+	Required().
+	Pattern(`^TR\d{2} \d{4} \d{4} \d{4} \d{4} \d{4} \d{2}$`).
+	MinLength(32).
+	MaxLength(32).
+	HelpText("Türkiye IBAN numaranızı giriniz").
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		// Boşlukları kaldır ve veritabanına kaydet
+		if iban, ok := value.(string); ok {
+			return strings.ReplaceAll(iban, " ", "")
+		}
+		return value
+	})
+```
+
+##### Posta Kodu
+
+```tsx
+<TextInput
+  name="postal_code"
+  label="Posta Kodu"
+  value={postalCode}
+  onChange={setPostalCode}
+  mask="99999"
+  placeholder="Posta Kodu"
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Text("Posta Kodu", "postal_code").
+	OnForm().
+	Pattern(`^\d{5}$`).
+	MinLength(5).
+	MaxLength(5).
+	HelpText("5 haneli posta kodunu giriniz")
+```
+
+##### Saat Girişi
+
+```tsx
+<TextInput
+  name="time"
+  label="Saat"
+  value={time}
+  onChange={setTime}
+  mask="99:99"
+  placeholder="SS:DD"
+  maskChar="_"
+/>
+```
+
+**Backend Field Tanımı:**
+```go
+fields.Text("Saat", "time").
+	OnForm().
+	Pattern(`^([0-1][0-9]|2[0-3]):[0-5][0-9]$`).
+	HelpText("Saat formatında giriniz (örn: 14:30)")
+```
+
+#### Backend Entegrasyonu
+
+Maskeli input'lardan gelen veriler genellikle formatlanmış şekilde gelir (örn: "(555) 123 45 67"). Backend'de bu verileri işlerken formatı temizlemek veya doğrulamak gerekebilir:
+
+```go
+// Telefon numarası için Modify callback
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if phone, ok := value.(string); ok {
+			// Sadece rakamları al
+			re := regexp.MustCompile(`\D`)
+			cleaned := re.ReplaceAllString(phone, "")
+			return cleaned
+		}
+		return value
+	})
+
+// IBAN için Modify callback
+fields.Text("IBAN", "iban").
+	OnForm().
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if iban, ok := value.(string); ok {
+			// Boşlukları kaldır
+			return strings.ReplaceAll(iban, " ", "")
+		}
+		return value
+	})
+
+// Kredi kartı için Modify callback
+fields.Text("Kart Numarası", "card_number").
+	OnForm().
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if cardNo, ok := value.(string); ok {
+			// Boşlukları kaldır ve şifrele
+			cleaned := strings.ReplaceAll(cardNo, " ", "")
+			encrypted, _ := encrypt(cleaned)
+			return encrypted
+		}
+		return value
+	})
+```
+
+#### Resolve Callback ile Formatlama
+
+Veritabanından gelen temiz veriyi frontend'de formatlanmış şekilde göstermek için Resolve callback kullanabilirsiniz:
+
+```go
+// Telefon numarasını formatla
+fields.Tel("Telefon", "phone").
+	OnList().
+	OnDetail().
+	Resolve(func(value interface{}, item interface{}, c *fiber.Ctx) interface{} {
+		if phone, ok := value.(string); ok && len(phone) == 10 {
+			// 5551234567 -> (555) 123 45 67
+			return fmt.Sprintf("(%s) %s %s %s",
+				phone[0:3],
+				phone[3:6],
+				phone[6:8],
+				phone[8:10],
+			)
+		}
+		return value
+	})
+
+// IBAN'ı formatla
+fields.Text("IBAN", "iban").
+	OnList().
+	OnDetail().
+	Resolve(func(value interface{}, item interface{}, c *fiber.Ctx) interface{} {
+		if iban, ok := value.(string); ok && len(iban) == 26 {
+			// TR123456789012345678901234 -> TR12 3456 7890 1234 5678 9012 34
+			formatted := ""
+			for i := 0; i < len(iban); i += 4 {
+				end := i + 4
+				if end > len(iban) {
+					end = len(iban)
+				}
+				if i > 0 {
+					formatted += " "
+				}
+				formatted += iban[i:end]
+			}
+			return formatted
+		}
+		return value
+	})
+```
+
+#### Validasyon
+
+Maskeli input'lar için backend validasyonu önemlidir:
+
+```go
+// Telefon numarası validasyonu
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Required().
+	Pattern(`^5\d{9}$`). // Sadece rakamlar, 10 haneli, 5 ile başlayan
+	MinLength(10).
+	MaxLength(10).
+	HelpText("Geçerli bir Türkiye cep telefonu numarası giriniz")
+
+// TC Kimlik No validasyonu
+fields.Text("TC Kimlik No", "tc_no").
+	OnForm().
+	Required().
+	Pattern(`^\d{11}$`).
+	MinLength(11).
+	MaxLength(11).
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if tcNo, ok := value.(string); ok {
+			// TC Kimlik No algoritması ile doğrula
+			if !isValidTCNo(tcNo) {
+				return errors.New("Geçersiz TC Kimlik No")
+			}
+			return tcNo
+		}
+		return value
+	})
+
+// IBAN validasyonu
+fields.Text("IBAN", "iban").
+	OnForm().
+	Required().
+	Pattern(`^TR\d{24}$`). // Boşluksuz format
+	MinLength(26).
+	MaxLength(26).
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if iban, ok := value.(string); ok {
+			// IBAN checksum doğrulaması
+			if !isValidIBAN(iban) {
+				return errors.New("Geçersiz IBAN numarası")
+			}
+			return iban
+		}
+		return value
+	})
+```
+
+#### Best Practices
+
+1. **Tutarlı Format Kullanımı**: Aynı veri tipi için her zaman aynı mask formatını kullanın
+   ```tsx
+   // İyi ✓
+   mask="(599) 999 99 99"  // Tüm telefon alanlarında
+
+   // Kötü ✗
+   mask="(599) 999 99 99"  // Bir yerde
+   mask="599 999 99 99"    // Başka bir yerde
+   ```
+
+2. **Backend Temizleme**: Maskeli veriler backend'e gönderilmeden önce temizlenmelidir
+   ```go
+   // Modify callback ile temizleme
+   Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+       if str, ok := value.(string); ok {
+           return strings.ReplaceAll(str, " ", "")
+       }
+       return value
+   })
+   ```
+
+3. **Placeholder Kullanımı**: Kullanıcıya beklenen formatı gösterin
+   ```tsx
+   <TextInput
+     mask="(599) 999 99 99"
+     placeholder="(5XX) XXX XX XX"  // Format örneği
+   />
+   ```
+
+4. **Yardım Metni**: Karmaşık formatlar için açıklama ekleyin
+   ```tsx
+   <TextInput
+     mask="TR99 9999 9999 9999 9999 9999 99"
+     placeholder="TR00 0000 0000 0000 0000 0000 00"
+     helpText="Türkiye IBAN numaranızı TR ile başlayarak giriniz"
+   />
+   ```
+
+5. **Validasyon**: Hem frontend hem backend'de validasyon yapın
+   ```tsx
+   // Frontend
+   <TextInput
+     mask="99999999999"
+     required
+     error={tcNoError}
+   />
+   ```
+   ```go
+   // Backend
+   fields.Text("TC Kimlik No", "tc_no").
+       Required().
+       Pattern(`^\d{11}$`).
+       MinLength(11).
+       MaxLength(11)
+   ```
+
+6. **Erişilebilirlik**: Mask kullanırken erişilebilirlik özelliklerini koruyun
+   ```tsx
+   <TextInput
+     mask="(599) 999 99 99"
+     aria-label="Telefon Numarası"
+     aria-describedby="phone-help"
+   />
+   ```
+
+#### Teknik Detaylar
+
+- **Paket**: `react-input-mask` (v2.0.4+)
+- **TypeScript Desteği**: `@types/react-input-mask`
+- **Bileşen Konumu**: `web/src/components/fields/TextInput.tsx`
+- **Shadcn/ui Entegrasyonu**: TextInput, shadcn/ui Input bileşenini kullanır
+- **Performans**: Mask işlemleri client-side'da yapılır, backend'e minimal yük
+
+#### Sınırlamalar
+
+1. **Dinamik Maskeler**: Mask değeri runtime'da değiştirilemez (component re-render gerektirir)
+2. **Karmaşık Formatlar**: Çok karmaşık formatlar için özel regex validasyonu gerekebilir
+3. **Mobil Klavye**: Mobil cihazlarda sayısal klavye için `type="tel"` kullanımı önerilir
+4. **Copy-Paste**: Kullanıcı formatlanmamış veri yapıştırırsa mask otomatik uygulanır
+
+---
+
+### TelInput - Telefon Numarası Girişi
+
+TelInput bileşeni, telefon numarası girişi için özel olarak tasarlanmış esnek bir bileşendir. İki farklı mod destekler:
+
+1. **PhoneInput Modu (Gelişmiş)**: Uluslararası telefon numarası girişi, ülke seçimi ve otomatik formatlama
+2. **Native Modu (Basit)**: HTML tel input ile opsiyonel mask desteği
+
+#### Mod Seçimi
+
+TelInput bileşeni, `usePhoneInput` prop'una göre otomatik olarak uygun modu kullanır:
+
+```tsx
+// PhoneInput modu (gelişmiş) - Uluslararası telefon numaraları için
+<TelInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  usePhoneInput
+  defaultCountry="TR"
+/>
+
+// Native modu (basit) - Yerel telefon numaraları için
+<TelInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  mask="(599) 999 99 99"
+  placeholder="(5XX) XXX XX XX"
+/>
+```
+
+#### PhoneInput Modu (Gelişmiş)
+
+PhoneInput modu, `react-phone-number-input` kütüphanesi kullanarak uluslararası telefon numarası desteği sağlar.
+
+**Özellikler:**
+- Ülke bayrağı ve telefon kodu seçimi
+- Otomatik telefon numarası formatlaması
+- E.164 formatında değer döndürme (+905551234567)
+- Arama yapılabilir ülke listesi
+- 200+ ülke desteği
+
+**Kullanım Örneği:**
+
+```tsx
+import { TelInput } from '@/components/fields/TelInput';
+
+function ContactForm() {
+  const [phone, setPhone] = useState('');
+
+  return (
+    <TelInput
+      name="phone"
+      label="Telefon Numarası"
+      value={phone}
+      onChange={setPhone}
+      usePhoneInput
+      defaultCountry="TR"
+      placeholder="Telefon numaranızı girin"
+      required
+      helpText="Uluslararası format kullanılacaktır"
+    />
+  );
+}
+```
+
+**Backend Field Tanımı:**
+
+```go
+fields.Tel("Telefon", "phone").
+	OnList().
+	OnDetail().
+	OnForm().
+	Required().
+	Pattern(`^\+[1-9]\d{1,14}$`). // E.164 format
+	HelpText("Uluslararası telefon numarası formatında giriniz").
+	Resolve(func(value interface{}, item interface{}, c *fiber.Ctx) interface{} {
+		// E.164 formatını görsel formata çevir
+		if phone, ok := value.(string); ok && len(phone) > 0 {
+			// +905551234567 -> +90 (555) 123 45 67
+			return formatPhoneNumber(phone)
+		}
+		return value
+	})
+```
+
+#### Native Modu (Basit)
+
+Native modu, basit HTML tel input kullanır ve opsiyonel olarak mask desteği sağlar.
+
+**Özellikler:**
+- Hafif ve hızlı
+- Opsiyonel input mask desteği
+- Mobil cihazlarda sayısal klavye
+- Basit validasyon
+
+**Maskeli Kullanım:**
+
+```tsx
+// Türkiye telefon numarası formatı
+<TelInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  mask="(599) 999 99 99"
+  placeholder="(5XX) XXX XX XX"
+  required
+/>
+```
+
+**Maskesiz Kullanım:**
+
+```tsx
+// Basit tel input
+<TelInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  placeholder="Telefon numaranızı girin"
+  required
+/>
+```
+
+**Backend Field Tanımı:**
+
+```go
+fields.Tel("Telefon", "phone").
+	OnList().
+	OnDetail().
+	OnForm().
+	Required().
+	Pattern(`^\(5\d{2}\) \d{3} \d{2} \d{2}$`). // Maskeli format
+	HelpText("Türkiye cep telefonu formatında giriniz").
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		// Formatı temizle ve sadece rakamları al
+		if phone, ok := value.(string); ok {
+			re := regexp.MustCompile(`\D`)
+			cleaned := re.ReplaceAllString(phone, "")
+			return cleaned
+		}
+		return value
+	})
+```
+
+#### Props Karşılaştırması
+
+| Prop | PhoneInput Modu | Native Modu | Açıklama |
+|------|----------------|-------------|----------|
+| `usePhoneInput` | `true` | `false` / `undefined` | Mod seçimi |
+| `defaultCountry` | ✅ | ❌ | Varsayılan ülke kodu (örn: "TR") |
+| `mask` | ❌ | ✅ | Input maskesi formatı |
+| `maskChar` | ❌ | ✅ | Mask için boş karakter |
+| `alwaysShowMask` | ❌ | ✅ | Maskeyi her zaman göster |
+| `placeholder` | ✅ | ✅ | Placeholder metni |
+| `required` | ✅ | ✅ | Zorunlu alan |
+| `disabled` | ✅ | ✅ | Devre dışı |
+| `error` | ✅ | ✅ | Hata mesajı |
+| `helpText` | ✅ | ✅ | Yardım metni |
+
+#### Kullanım Senaryoları
+
+##### Senaryo 1: Uluslararası İş Uygulaması
+
+Farklı ülkelerden kullanıcıların telefon numarası girmesi gerekiyorsa PhoneInput modunu kullanın:
+
+```tsx
+<TelInput
+  name="phone"
+  label="Phone Number"
+  value={phone}
+  onChange={setPhone}
+  usePhoneInput
+  defaultCountry="US"
+  placeholder="Enter your phone number"
+  required
+  helpText="We'll use this to contact you"
+/>
+```
+
+```go
+// Backend - E.164 format beklenir
+fields.Tel("Phone", "phone").
+	OnForm().
+	Required().
+	Pattern(`^\+[1-9]\d{1,14}$`).
+	HelpText("International phone number format")
+```
+
+##### Senaryo 2: Yerel Türkiye Uygulaması
+
+Sadece Türkiye telefon numaraları için Native mod ile mask kullanın:
+
+```tsx
+<TelInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  mask="(599) 999 99 99"
+  placeholder="(5XX) XXX XX XX"
+  required
+  helpText="Türkiye cep telefonu numaranızı girin"
+/>
+```
+
+```go
+// Backend - Maskeli format beklenir
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Required().
+	Pattern(`^\(5\d{2}\) \d{3} \d{2} \d{2}$`).
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		// Sadece rakamları al: (555) 123 45 67 -> 5551234567
+		if phone, ok := value.(string); ok {
+			re := regexp.MustCompile(`\D`)
+			return re.ReplaceAllString(phone, "")
+		}
+		return value
+	})
+```
+
+##### Senaryo 3: Basit Form
+
+Mask olmadan basit telefon girişi:
+
+```tsx
+<TelInput
+  name="phone"
+  label="Telefon"
+  value={phone}
+  onChange={setPhone}
+  placeholder="05551234567"
+/>
+```
+
+```go
+// Backend - Basit validasyon
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Pattern(`^0\d{10}$`).
+	MinLength(11).
+	MaxLength(11)
+```
+
+#### Backend Entegrasyonu
+
+##### PhoneInput Modu için Backend
+
+PhoneInput modu E.164 formatında değer döndürür (+905551234567). Backend'de bu formatı işleyin:
+
+```go
+// Validasyon
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Required().
+	Pattern(`^\+[1-9]\d{1,14}$`). // E.164 format
+	HelpText("Uluslararası telefon numarası").
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if phone, ok := value.(string); ok {
+			// E.164 formatını doğrula
+			if !isValidE164(phone) {
+				return errors.New("Geçersiz telefon numarası formatı")
+			}
+			return phone
+		}
+		return value
+	})
+
+// Görüntüleme için formatlama
+fields.Tel("Telefon", "phone").
+	OnList().
+	OnDetail().
+	Resolve(func(value interface{}, item interface{}, c *fiber.Ctx) interface{} {
+		if phone, ok := value.(string); ok {
+			// +905551234567 -> +90 (555) 123 45 67
+			return formatE164ToDisplay(phone)
+		}
+		return value
+	})
+```
+
+##### Native Modu için Backend
+
+Native mod maskeli veya maskesiz değer döndürür. Backend'de temizleme yapın:
+
+```go
+// Maskeli format için
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Required().
+	Pattern(`^\(5\d{2}\) \d{3} \d{2} \d{2}$`).
+	Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+		if phone, ok := value.(string); ok {
+			// (555) 123 45 67 -> 5551234567
+			re := regexp.MustCompile(`\D`)
+			cleaned := re.ReplaceAllString(phone, "")
+
+			// Türkiye telefon numarası validasyonu
+			if !strings.HasPrefix(cleaned, "5") || len(cleaned) != 10 {
+				return errors.New("Geçersiz Türkiye telefon numarası")
+			}
+
+			return cleaned
+		}
+		return value
+	}).
+	Resolve(func(value interface{}, item interface{}, c *fiber.Ctx) interface{} {
+		if phone, ok := value.(string); ok && len(phone) == 10 {
+			// 5551234567 -> (555) 123 45 67
+			return fmt.Sprintf("(%s) %s %s %s",
+				phone[0:3],
+				phone[3:6],
+				phone[6:8],
+				phone[8:10],
+			)
+		}
+		return value
+	})
+```
+
+#### Validasyon Örnekleri
+
+##### PhoneInput Modu Validasyonu
+
+```go
+// E.164 format validasyonu
+func isValidE164(phone string) bool {
+	// +[1-9][0-9]{1,14}
+	re := regexp.MustCompile(`^\+[1-9]\d{1,14}$`)
+	return re.MatchString(phone)
+}
+
+// Ülkeye özel validasyon
+func validatePhoneByCountry(phone string, country string) error {
+	switch country {
+	case "TR":
+		// Türkiye: +90 ile başlamalı, 13 karakter
+		if !strings.HasPrefix(phone, "+90") || len(phone) != 13 {
+			return errors.New("Geçersiz Türkiye telefon numarası")
+		}
+	case "US":
+		// ABD: +1 ile başlamalı, 12 karakter
+		if !strings.HasPrefix(phone, "+1") || len(phone) != 12 {
+			return errors.New("Geçersiz ABD telefon numarası")
+		}
+	}
+	return nil
+}
+```
+
+##### Native Modu Validasyonu
+
+```go
+// Türkiye cep telefonu validasyonu
+func isValidTurkishMobile(phone string) bool {
+	// Sadece rakamlar, 10 haneli, 5 ile başlayan
+	re := regexp.MustCompile(`^5\d{9}$`)
+	return re.MatchString(phone)
+}
+
+// Maskeli format validasyonu
+func isValidMaskedPhone(phone string) bool {
+	// (5XX) XXX XX XX formatı
+	re := regexp.MustCompile(`^\(5\d{2}\) \d{3} \d{2} \d{2}$`)
+	return re.MatchString(phone)
+}
+```
+
+#### Best Practices
+
+1. **Doğru Modu Seçin**
+   - Uluslararası kullanıcılar → PhoneInput modu
+   - Tek ülke, yerel kullanıcılar → Native mod (maskeli)
+   - Basit formlar → Native mod (maskesiz)
+
+2. **Backend Temizleme**
+   ```go
+   // Her zaman backend'de formatı temizleyin
+   Modify(func(value interface{}, c *fiber.Ctx) interface{} {
+       if phone, ok := value.(string); ok {
+           // Boşluk, parantez, tire vb. kaldır
+           re := regexp.MustCompile(`\D`)
+           return re.ReplaceAllString(phone, "")
+       }
+       return value
+   })
+   ```
+
+3. **Tutarlı Format**
+   ```tsx
+   // İyi ✓ - Tüm projede aynı format
+   <TelInput mask="(599) 999 99 99" />
+
+   // Kötü ✗ - Farklı formatlar
+   <TelInput mask="(599) 999 99 99" />  // Bir yerde
+   <TelInput mask="599 999 99 99" />    // Başka yerde
+   ```
+
+4. **Placeholder Kullanımı**
+   ```tsx
+   // Format örneği gösterin
+   <TelInput
+     mask="(599) 999 99 99"
+     placeholder="(5XX) XXX XX XX"
+   />
+   ```
+
+5. **Yardım Metni**
+   ```tsx
+   // Kullanıcıyı yönlendirin
+   <TelInput
+     usePhoneInput
+     helpText="Ülke kodunu seçip telefon numaranızı girin"
+   />
+   ```
+
+6. **Hata Mesajları**
+   ```tsx
+   // Açıklayıcı hata mesajları
+   <TelInput
+     error="Geçerli bir Türkiye cep telefonu numarası giriniz (5XX ile başlamalı)"
+   />
+   ```
+
+#### Teknik Detaylar
+
+**PhoneInput Modu:**
+- **Paket**: `react-phone-number-input` (v3.4.0+)
+- **Bileşen**: `web/src/components/ui/phone-input.tsx`
+- **Format**: E.164 (+905551234567)
+- **Ülke Sayısı**: 200+
+- **Bundle Boyutu**: ~50KB (gzipped)
+
+**Native Modu:**
+- **Paket**: `react-input-mask` (v2.0.4+)
+- **Bileşen**: `web/src/components/fields/TelInput.tsx`
+- **Format**: Özelleştirilebilir
+- **Bundle Boyutu**: ~5KB (gzipped)
+
+#### Performans Karşılaştırması
+
+| Özellik | PhoneInput | Native (Maskeli) | Native (Maskesiz) |
+|---------|-----------|------------------|-------------------|
+| Bundle Boyutu | ~50KB | ~5KB | ~1KB |
+| İlk Render | ~100ms | ~20ms | ~10ms |
+| Ülke Desteği | 200+ | 1 | 1 |
+| Otomatik Format | ✅ | ✅ | ❌ |
+| Validasyon | ✅ | Kısmi | ❌ |
+
+#### Sınırlamalar
+
+**PhoneInput Modu:**
+1. **Bundle Boyutu**: Daha büyük bundle boyutu (~50KB)
+2. **Performans**: İlk render daha yavaş
+3. **Özelleştirme**: Stil özelleştirmesi sınırlı
+4. **Mobil**: Mobil cihazlarda bazen klavye sorunları
+
+**Native Modu:**
+1. **Ülke Desteği**: Tek ülke için optimize
+2. **Validasyon**: Manuel validasyon gerekli
+3. **Format**: Otomatik format düzeltme yok
+4. **Uluslararası**: Uluslararası numaralar için uygun değil
+
+---
+
+## Tooltip Desteği
+
+Tüm form field'larında tooltip desteği mevcuttur. Tooltip, label'ın yanında bir info ikonu olarak gösterilir ve kullanıcıya ek bilgi sağlar.
+
+### Kullanım
+
+**Backend Field Tanımı:**
+```go
+fields.Text("Kullanıcı Adı", "username").
+	OnForm().
+	Required().
+	WithProps("tooltip", "Kullanıcı adınız benzersiz olmalıdır ve en az 3 karakter içermelidir").
+	MinLength(3).
+	Unique("users", "username")
+```
+
+**Frontend Kullanımı:**
+```tsx
+<TextInput
+  name="username"
+  label="Kullanıcı Adı"
+  value={username}
+  onChange={setUsername}
+  tooltip="Kullanıcı adınız benzersiz olmalıdır ve en az 3 karakter içermelidir"
+  required
+/>
+```
+
+### Desteklenen Komponentler
+
+Tooltip desteği olan tüm form field komponentleri:
+
+| Komponent | Tooltip Desteği | Kullanım Yeri |
+|-----------|----------------|---------------|
+| **TextInput** | ✅ | Form, Index, Detail |
+| **TelInput** | ✅ | Form, Index, Detail |
+| **DateField** | ✅ | Form, Index, Detail |
+| **DateTimeField** | ✅ | Form, Index, Detail |
+| **TimeField** | ✅ | Form, Index, Detail |
+| **CheckboxField** | ✅ | Form, Index, Detail |
+| **RadioGroupField** | ✅ | Form, Index, Detail |
+| **NumberInput** | ✅ | Form, Index, Detail |
+| **EmailInput** | ✅ | Form, Index, Detail |
+| **PasswordInput** | ✅ | Form, Index, Detail |
+| **URLInput** | ✅ | Form, Index, Detail |
+| **TextareaField** | ✅ | Form, Index, Detail |
+| **SelectField** | ✅ | Form, Index, Detail |
+| **SwitchField** | ✅ | Form, Index, Detail |
+
+### Örnekler
+
+**Telefon Numarası ile Tooltip:**
+```go
+fields.Tel("Telefon", "phone").
+	OnForm().
+	Required().
+	WithProps("tooltip", "Türkiye cep telefonu formatında giriniz (5XX XXX XX XX)")
+```
+
+```tsx
+<TelInput
+  name="phone"
+  label="Telefon Numarası"
+  value={phone}
+  onChange={setPhone}
+  mask="(599) 999 99 99"
+  tooltip="Türkiye cep telefonu formatında giriniz (5XX XXX XX XX)"
+  required
+/>
+```
+
+**Tarih ile Tooltip:**
+```go
+fields.Date("Doğum Tarihi", "birth_date").
+	OnForm().
+	Required().
+	WithProps("tooltip", "18 yaşından büyük olmalısınız")
+```
+
+```tsx
+<DateField
+  name="birth_date"
+  label="Doğum Tarihi"
+  value={birthDate}
+  onChange={setBirthDate}
+  tooltip="18 yaşından büyük olmalısınız"
+  useNative
+  required
+/>
+```
+
+**Checkbox ile Tooltip:**
+```go
+fields.Checkbox("Kullanım Koşulları", "terms_accepted").
+	OnForm().
+	Required().
+	WithProps("tooltip", "Devam etmek için kullanım koşullarını okumalı ve kabul etmelisiniz")
+```
+
+```tsx
+<CheckboxField
+  name="terms"
+  label="Kullanım koşullarını kabul ediyorum"
+  checked={terms}
+  onCheckedChange={setTerms}
+  tooltip="Devam etmek için kullanım koşullarını okumalı ve kabul etmelisiniz"
+  required
+/>
+```
+
+### Görünüm
+
+Tooltip, label'ın yanında bir info ikonu (ℹ️) olarak gösterilir:
+
+```
+[Label] ℹ️
+```
+
+Kullanıcı info ikonunun üzerine geldiğinde (hover), tooltip içeriği bir popover içinde gösterilir.
+
+### Best Practices
+
+1. **Kısa ve Öz**: Tooltip metni kısa ve anlaşılır olmalıdır (maksimum 1-2 cümle)
+2. **Ek Bilgi**: Tooltip, label'da yer almayan ek bilgi sağlamalıdır
+3. **Yönlendirici**: Kullanıcıya ne yapması gerektiğini açıkça belirtmelidir
+4. **Tutarlı**: Benzer alanlar için benzer tooltip formatı kullanılmalıdır
+
+**İyi Örnekler:**
+```tsx
+tooltip="Kullanıcı adınız benzersiz olmalıdır ve en az 3 karakter içermelidir"
+tooltip="Türkiye cep telefonu formatında giriniz (5XX XXX XX XX)"
+tooltip="18 yaşından büyük olmalısınız"
+```
+
+**Kötü Örnekler:**
+```tsx
+tooltip="Kullanıcı adı" // Çok kısa, ek bilgi yok
+tooltip="Bu alan kullanıcı adınızı girmeniz için kullanılır. Kullanıcı adınız benzersiz olmalıdır..." // Çok uzun
+tooltip="Girin" // Belirsiz
+```
 
 ## Sonraki Adımlar
 
