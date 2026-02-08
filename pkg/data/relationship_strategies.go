@@ -719,7 +719,6 @@ func (l *GormRelationshipLoader) eagerLoadBelongsToMany(ctx context.Context, ite
 	// 2. Pivot tablodan ilişkili kayıt ID'lerini çek
 	safePivotTable := SanitizeColumnName(pivotTable)
 	safeParentColumn := SanitizeColumnName(parentColumn)
-	safeRelatedColumn := SanitizeColumnName(relatedColumn)
 
 	type PivotRecord struct {
 		ParentID  interface{}
