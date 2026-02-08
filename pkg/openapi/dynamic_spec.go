@@ -412,16 +412,14 @@ func (g *DynamicSpecGenerator) generateResourceSchema(res resource.Resource, inp
 
 		// Field'ı schema'ya çevir
 		fieldSchema := g.mapper.MapFieldToSchema(element)
-		if fieldSchema != nil {
-			schema.Properties[element.GetKey()] = fieldSchema
+		schema.Properties[element.GetKey()] = fieldSchema
 
-			// Required kontrolü
-			// Bu basitleştirilmiş bir kontrol, gerçek implementasyonda
-			// validation rules kontrol edilmeli
-			if inputOnly {
-				// Required field'ları ekle (basitleştirilmiş)
-				// Gerçek implementasyonda validation rules'dan alınmalı
-			}
+		// Required kontrolü
+		// Bu basitleştirilmiş bir kontrol, gerçek implementasyonda
+		// validation rules kontrol edilmeli
+		if inputOnly {
+			// Required field'ları ekle (basitleştirilmiş)
+			// Gerçek implementasyonda validation rules'dan alınmalı
 		}
 	}
 

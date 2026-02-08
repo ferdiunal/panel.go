@@ -479,3 +479,28 @@ func (r *CustomMappingRegistry) Count() (int, int, int) {
 
 	return len(r.fieldTypeMappings), len(r.fieldMappings), len(r.resourceMappings)
 }
+
+// Global registry instance
+var globalRegistry *CustomMappingRegistry
+var registryOnce sync.Once
+
+// GetRegistry, global CustomMappingRegistry instance'ını döndürür.
+//
+// Bu fonksiyon singleton pattern kullanarak tek bir global registry instance'ı sağlar.
+// Thread-safe olarak çalışır.
+//
+// Döndürür:
+//   - Global CustomMappingRegistry pointer'ı
+//
+// Örnek:
+//
+//	registry := openapi.GetRegistry()
+//	registry.RegisterFieldTypeMapping(core.TYPE_TEXT, func(field fields.Element) Schema {
+//	    return Schema{Type: "string", MaxLength: ptr(500)}
+//	})
+func GetRegistry() *CustomMappingRegistry {
+	registryOnce.Do(func() {
+		globalRegistry = NewCustomMappingRegistry()
+	})
+	return globalRegistry
+}

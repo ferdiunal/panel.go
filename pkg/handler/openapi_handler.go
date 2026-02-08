@@ -21,8 +21,8 @@ import (
 //	app.Get("/api/docs", handler.SwaggerUI)
 type OpenAPIHandler struct {
 	resources map[string]resource.Resource
-	config    openapi.OpenAPIConfig
-	spec      *openapi.OpenAPISpec
+	config    openapi.SpecGeneratorConfig
+	generator *openapi.SpecGenerator
 }
 
 // NewOpenAPIHandler, yeni bir OpenAPIHandler oluşturur.
@@ -33,10 +33,12 @@ type OpenAPIHandler struct {
 //
 // ## Döndürür
 // - OpenAPIHandler pointer'ı
-func NewOpenAPIHandler(resources map[string]resource.Resource, config openapi.OpenAPIConfig) *OpenAPIHandler {
+func NewOpenAPIHandler(resources map[string]resource.Resource, config openapi.SpecGeneratorConfig) *OpenAPIHandler {
+	generator := openapi.NewSpecGenerator(resources, config)
 	return &OpenAPIHandler{
 		resources: resources,
 		config:    config,
+		generator: generator,
 	}
 }
 
@@ -53,34 +55,15 @@ func NewOpenAPIHandler(resources map[string]resource.Resource, config openapi.Op
 //
 //	app.Get("/api/openapi.json", handler.GetSpec)
 func (h *OpenAPIHandler) GetSpec(c *fiber.Ctx) error {
-	// Spec'i cache'den al veya oluştur
-	if h.spec == nil {
-		spec := openapi.NewOpenAPISpec(h.config)
-
-		// Static endpoint'leri ekle
-		staticGen := openapi.NewStaticSpecGenerator()
-		staticPaths := staticGen.GeneratePaths()
-		for path, pathItem := range staticPaths {
-			spec.Paths[path] = pathItem
-		}
-
-		// Dynamic resource endpoint'lerini ekle
-		dynamicGen := openapi.NewDynamicSpecGenerator()
-		dynamicPaths := dynamicGen.GenerateResourcePaths(h.resources)
-		for path, pathItem := range dynamicPaths {
-			spec.Paths[path] = pathItem
-		}
-
-		// Resource schema'larını ekle
-		dynamicSchemas := dynamicGen.GenerateResourceSchemas(h.resources)
-		for name, schema := range dynamicSchemas {
-			spec.Components.Schemas[name] = schema
-		}
-
-		h.spec = spec
+	// Spec'i generator'dan al
+	spec, err := h.generator.GetSpec()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to generate OpenAPI spec",
+		})
 	}
 
-	return c.JSON(h.spec)
+	return c.JSON(spec)
 }
 
 // SwaggerUI, Swagger UI arayüzünü gösterir.
@@ -97,9 +80,6 @@ func (h *OpenAPIHandler) GetSpec(c *fiber.Ctx) error {
 func (h *OpenAPIHandler) SwaggerUI(c *fiber.Ctx) error {
 	// Spec URL'ini oluştur
 	specURL := "/api/openapi.json"
-	if h.config.BasePath != "" {
-		specURL = h.config.BasePath + specURL
-	}
 
 	html := openapi.SwaggerUIHTML(specURL, h.config.Title)
 	c.Type("html")
@@ -120,9 +100,6 @@ func (h *OpenAPIHandler) SwaggerUI(c *fiber.Ctx) error {
 func (h *OpenAPIHandler) ReDocUI(c *fiber.Ctx) error {
 	// Spec URL'ini oluştur
 	specURL := "/api/openapi.json"
-	if h.config.BasePath != "" {
-		specURL = h.config.BasePath + specURL
-	}
 
 	html := openapi.ReDocHTML(specURL, h.config.Title)
 	c.Type("html")
@@ -143,9 +120,6 @@ func (h *OpenAPIHandler) ReDocUI(c *fiber.Ctx) error {
 func (h *OpenAPIHandler) RapidocUI(c *fiber.Ctx) error {
 	// Spec URL'ini oluştur
 	specURL := "/api/openapi.json"
-	if h.config.BasePath != "" {
-		specURL = h.config.BasePath + specURL
-	}
 
 	html := openapi.RapidocHTML(specURL, h.config.Title)
 	c.Type("html")
@@ -158,5 +132,5 @@ func (h *OpenAPIHandler) RapidocUI(c *fiber.Ctx) error {
 //
 //	handler.RefreshSpec()
 func (h *OpenAPIHandler) RefreshSpec() {
-	h.spec = nil
+	h.generator.InvalidateCache()
 }

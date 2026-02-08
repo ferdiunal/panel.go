@@ -12,6 +12,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
@@ -97,6 +98,12 @@ type Base struct {
 
 	/// Menü grubu - İlgili resource'ları gruplamak için kullanılır
 	GroupName string
+
+	/// Dinamik başlık fonksiyonu - i18n desteği için kullanılır
+	titleFunc func(*fiber.Ctx) string
+
+	/// Dinamik grup fonksiyonu - i18n desteği için kullanılır
+	groupFunc func(*fiber.Ctx) string
 
 	/// Alan tanımlamaları - Form ve liste görünümlerinde kullanılacak alanlar
 	/// Detaylı bilgi için bkz: docs/Fields.md
@@ -775,6 +782,53 @@ func (b Base) OpenAPIEnabled() bool {
 ///
 ///	r.SetOpenAPIEnabled(false) // OpenAPI'de gizle
 ///	r.SetOpenAPIEnabled(true)  // OpenAPI'de göster
+
+// SetTitleFunc, resource'un başlığını dinamik olarak ayarlamak için bir fonksiyon belirler.
+//
+// Bu metod, i18n desteği için kullanılır. Başlık, kullanıcının diline göre
+// otomatik olarak çevrilir.
+//
+// ## Parametreler
+//
+// - fn: Başlık döndüren fonksiyon (fiber.Ctx alır, string döndürür)
+//
+// ## Döndürür
+//
+// - Resource pointer'ı (method chaining için)
+//
+// ## Örnek Kullanım
+//
+//	r.SetTitleFunc(func(c *fiber.Ctx) string {
+//	    return i18n.Trans(c, "resources.users.title")
+//	})
+func (b *Base) SetTitleFunc(fn func(*fiber.Ctx) string) Resource {
+	b.titleFunc = fn
+	return b
+}
+
+// SetGroupFunc, resource'un grubunu dinamik olarak ayarlamak için bir fonksiyon belirler.
+//
+// Bu metod, i18n desteği için kullanılır. Grup, kullanıcının diline göre
+// otomatik olarak çevrilir.
+//
+// ## Parametreler
+//
+// - fn: Grup adı döndüren fonksiyon (fiber.Ctx alır, string döndürür)
+//
+// ## Döndürür
+//
+// - Resource pointer'ı (method chaining için)
+//
+// ## Örnek Kullanım
+//
+//	r.SetGroupFunc(func(c *fiber.Ctx) string {
+//	    return i18n.Trans(c, "resources.groups.system")
+//	})
+func (b *Base) SetGroupFunc(fn func(*fiber.Ctx) string) Resource {
+	b.groupFunc = fn
+	return b
+}
+
 func (b Base) SetOpenAPIEnabled(enabled bool) Resource {
 	b.openAPIDisabled = !enabled
 	return b

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
@@ -147,12 +149,10 @@ import (
 // - Gereksiz veri döndürülmemelidir
 func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		ctx := context.New(c)
-
 		// URL'den field adını al
-		fieldName := ctx.Params("field")
+		fieldName := c.Params("field")
 		if fieldName == "" {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Field name is required",
 			})
 		}
@@ -165,10 +165,10 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		}
 
 		// Query parametrelerini parse et
-		if err := ctx.QueryParser(&params); err != nil {
+		if err := c.QueryParser(&params); err != nil {
 			// Query'de yoksa body'den parse et
-			if err := ctx.BodyParser(&params); err != nil {
-				return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			if err := c.BodyParser(&params); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 					"error": "Invalid request parameters",
 				})
 			}
@@ -176,7 +176,7 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 
 		// ID parametresi zorunlu
 		if params.ID == nil {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "ID parameter is required",
 			})
 		}
@@ -191,7 +191,7 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		}
 
 		if targetField == nil {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Field not found",
 			})
 		}
@@ -199,7 +199,7 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		// Field'ın RelationshipField olup olmadığını kontrol et
 		relationshipField, ok := targetField.(fields.RelationshipField)
 		if !ok {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Field is not a relationship field",
 			})
 		}
@@ -216,21 +216,21 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		case *fields.MorphTo:
 			hoverCardConfig = field.GetHoverCard()
 		default:
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Hover card not supported for this field type",
 			})
 		}
 
 		// Hover card konfigürasyonu kontrolü
 		if hoverCardConfig == nil || !hoverCardConfig.Enabled {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Hover card not configured for this field",
 			})
 		}
 
 		// Resolver kontrolü
 		if hoverCardConfig.Resolver == nil {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Hover card resolver not configured",
 			})
 		}
@@ -238,8 +238,10 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		// Ana kaydı al (eğer record_id varsa)
 		var record interface{}
 		if params.RecordID != nil && h.Provider != nil {
+			// RecordID'yi string'e çevir
+			recordIDStr := fmt.Sprintf("%v", params.RecordID)
 			var err error
-			record, err = h.Provider.GetItem(ctx.Context(), params.RecordID)
+			record, err = h.Provider.Show(&context.Context{Ctx: c}, recordIDStr)
 			if err != nil {
 				// Record bulunamadı ama devam edebiliriz (resolver'da nil olabilir)
 				record = nil
@@ -247,15 +249,15 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		}
 
 		// Resolver'ı çağır
-		hoverCardData, err := hoverCardConfig.Resolver(ctx.Context(), record, params.ID, relationshipField)
+		hoverCardData, err := hoverCardConfig.Resolver(c.Context(), record, params.ID, relationshipField)
 		if err != nil {
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
 
 		// Hover card verisini döndür
-		return ctx.JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"data": hoverCardData,
 		})
 	}

@@ -248,6 +248,48 @@ type Element interface {
 	//   ctx := field.GetContext() // List ve Form context'lerini içerir
 	GetContext() ElementContext
 
+	// GetName, bu element'in görünen adını döndürür.
+	//
+	// Name, element'in kullanıcı arayüzünde gösterilecek insan okunabilir adıdır.
+	// Genellikle form label'ı veya tablo başlığı olarak kullanılır.
+	//
+	// Döndürür:
+	//   - Element'in görünen adı (örn: "Name", "Email", "Author")
+	//
+	// Örnek:
+	//   field := fields.Text("Name", "name")
+	//   name := field.GetName() // "Name"
+	GetName() string
+
+	// GetType, bu element'in veri tipini döndürür.
+	//
+	// Type, element'in veri tipini belirler ve validation, formatting ve
+	// OpenAPI schema oluşturma için kullanılır.
+	// Örneğin: TYPE_TEXT, TYPE_NUMBER, TYPE_BOOLEAN, TYPE_DATE
+	//
+	// Döndürür:
+	//   - Element'in veri tipi (core.ElementType)
+	//
+	// Örnek:
+	//   field := fields.Text("Name", "name")
+	//   fieldType := field.GetType() // core.TYPE_TEXT
+	GetType() ElementType
+
+	// Rows, textarea field'ı için satır sayısını ayarlar.
+	//
+	// Bu metod, textarea field'larında görüntülenecek satır sayısını belirler.
+	// Sadece textarea field'ları için geçerlidir, diğer field'lar için no-op olarak çalışır.
+	//
+	// Parametreler:
+	//   - rows: Satır sayısı
+	//
+	// Döndürür:
+	//   - Element pointer'ı (method chaining için)
+	//
+	// Örnek:
+	//   field := fields.Textarea("Description", "description").Rows(5)
+	Rows(rows int) Element
+
 	// ============================================================================
 	// Veri İşleme Metodları (Data Processing)
 	// ============================================================================

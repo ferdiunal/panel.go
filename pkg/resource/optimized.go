@@ -9,6 +9,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
@@ -1297,6 +1298,8 @@ type OptimizedBase struct {
 	model            any
 	slug             string
 	title            string
+	titleFunc        func(*fiber.Ctx) string
+	groupFunc        func(*fiber.Ctx) string
 	repository       data.DataProvider
 	cards            []widget.Card
 	openAPIDisabled  bool
@@ -1878,4 +1881,44 @@ func (b *OptimizedBase) OpenAPIEnabled() bool {
 func (b *OptimizedBase) SetOpenAPIEnabled(enabled bool) Resource {
 	b.openAPIDisabled = !enabled
 	return b
+}
+
+// SetTitleFunc, resource'un başlığını dinamik olarak ayarlamak için bir fonksiyon belirler.
+//
+// Bu metod, i18n desteği için kullanılır. Başlık, kullanıcının diline göre
+// otomatik olarak çevrilir.
+//
+// Parametreler:
+// - fn: Başlık döndüren fonksiyon (fiber.Ctx alır, string döndürür)
+//
+// Döndürür:
+// - Resource pointer'ı (method chaining için)
+//
+// Örnek:
+//   r.SetTitleFunc(func(c *fiber.Ctx) string {
+//       return i18n.Trans(c, "resources.users.title")
+//   })
+func (o *OptimizedBase) SetTitleFunc(fn func(*fiber.Ctx) string) Resource {
+	o.titleFunc = fn
+	return o
+}
+
+// SetGroupFunc, resource'un grubunu dinamik olarak ayarlamak için bir fonksiyon belirler.
+//
+// Bu metod, i18n desteği için kullanılır. Grup, kullanıcının diline göre
+// otomatik olarak çevrilir.
+//
+// Parametreler:
+// - fn: Grup adı döndüren fonksiyon (fiber.Ctx alır, string döndürür)
+//
+// Döndürür:
+// - Resource pointer'ı (method chaining için)
+//
+// Örnek:
+//   r.SetGroupFunc(func(c *fiber.Ctx) string {
+//       return i18n.Trans(c, "resources.groups.system")
+//   })
+func (o *OptimizedBase) SetGroupFunc(fn func(*fiber.Ctx) string) Resource {
+	o.groupFunc = fn
+	return o
 }

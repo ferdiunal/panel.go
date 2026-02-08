@@ -623,7 +623,7 @@ func New(config Config) *Panel {
 			SuccessThreshold:       successThreshold,
 			HalfOpenMaxConcurrent:  halfOpenMaxConcurrent,
 			// IsFailure: Hangi hataların sayılacağını belirler (varsayılan: status >= 500)
-			IsFailure: func(err error) bool {
+			IsFailure: func(c *fiber.Ctx, err error) bool {
 				// 500+ status kodları hata olarak sayılır
 				return err != nil
 			},
@@ -704,11 +704,11 @@ func New(config Config) *Panel {
 	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
 
 	// OpenAPI Routes
-	openAPIConfig := openapi.OpenAPIConfig{
-		Title:       config.Name,
+	openAPIConfig := openapi.SpecGeneratorConfig{
+		Title:       "Panel.go Admin Panel",
 		Version:     "1.0.0",
 		Description: "Panel.go Admin Panel API",
-		BasePath:    "",
+		ServerURL:   "",
 	}
 	p.openAPIHandler = handler.NewOpenAPIHandler(p.resources, openAPIConfig)
 	api.Get("/openapi.json", p.openAPIHandler.GetSpec)
