@@ -1,9 +1,12 @@
 package panel
 
 import (
+	"time"
+
 	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
+	"golang.org/x/text/language"
 	"gorm.io/gorm"
 )
 
@@ -308,6 +311,10 @@ type Config struct {
 	/// DashboardPage, dashboard sayfasının yapılandırmasını tutar (opsiyonel)
 	DashboardPage *page.Dashboard
 
+	/// AccountPage, hesap ayarları sayfasının yapılandırmasını tutar (opsiyonel)
+	/// Kullanıcıların kendi hesap ayarlarını yönetmek için kullanılır
+	AccountPage *page.Account
+
 	/// UserResource, kullanıcı resource'unu tutar
 	UserResource resource.Resource
 
@@ -337,6 +344,14 @@ type Config struct {
 	/// Örnek: []string{"/assets/app.js", "/assets/main.css"}
 	/// IMPORTANT: Asset isimleri build hash'li ise her build'de güncellemelisiniz
 	HTTP2PushResources []string
+
+	/// CircuitBreaker, Circuit Breaker yapılandırmasını tutar
+	/// Servis hatalarını yönetmek ve sistem çökmelerini önlemek için kullanılır
+	CircuitBreaker CircuitBreakerConfig
+
+	/// I18n, çoklu dil desteği yapılandırmasını tutar
+	/// Uygulamanın farklı dillerde gösterilmesini sağlar
+	I18n I18nConfig
 }
 
 // / # SettingsConfig - Dinamik Ayarlar Yapılandırması
@@ -679,4 +694,155 @@ type DatabaseConfig struct {
 	/// Büyük tablolar için horizontal partitioning desteği sağlar.
 	/// Kullanım: Yüksek trafikli uygulamalarda performans optimizasyonu
 	Sharding ShardingConfig
+}
+
+// / # CircuitBreakerConfig - Circuit Breaker Yapılandırması
+// /
+// / Circuit Breaker, servis hatalarını yönetmek ve sistem çökmelerini önlemek için
+// / kullanılan bir dayanıklılık (resilience) desenidir. Üç durum arasında geçiş yapar:
+// / Closed (Normal), Open (Devre Dışı), Half-Open (Test).
+// /
+// / ## Kullanım Senaryoları
+// / - Dış API çağrılarını koruma
+// / - Veritabanı bağlantı hatalarını yönetme
+// / - Yavaş yanıt veren servisleri izole etme
+// / - Cascade failure'ları önleme
+// /
+// / ## Örnek Kullanım
+// / ```go
+// / cbConfig := CircuitBreakerConfig{
+// /     Enabled:                true,
+// /     FailureThreshold:       5,      // 5 ardışık hata sonrası devre aç
+// /     Timeout:                10 * time.Second,  // 10 saniye bekle
+// /     SuccessThreshold:       5,      // 5 başarılı istek sonrası devre kapat
+// /     HalfOpenMaxConcurrent:  1,      // Half-open'da 1 eşzamanlı istek
+// / }
+// / ```
+// /
+// / ## Circuit Breaker Durumları
+// / - **Closed (Kapalı)**: Normal çalışma, istekler geçer, hatalar sayılır
+// / - **Open (Açık)**: Devre açık, istekler hemen reddedilir (503 Service Unavailable)
+// / - **Half-Open (Yarı Açık)**: Test modu, sınırlı sayıda istek geçer
+// /
+// / ## Avantajlar
+// / - Sistem çökmelerini önler
+// / - Hızlı hata yanıtı (fail-fast)
+// / - Otomatik kurtarma (self-healing)
+// / - Cascade failure'ları engeller
+// /
+// / ## Önemli Notlar
+// / - FailureThreshold: Kaç ardışık hata sonrası devre açılır
+// / - Timeout: Devre açıldıktan sonra ne kadar beklenecek
+// / - SuccessThreshold: Kaç başarılı istek sonrası devre kapanır
+// / - HalfOpenMaxConcurrent: Half-open durumunda kaç eşzamanlı istek
+// /
+// / ## Best Practices
+// / - Kritik servislere uygulayın (dış API'ler, veritabanı)
+// / - Timeout değerini servis yanıt süresine göre ayarlayın
+// / - Monitoring ve alerting ekleyin
+// / - Fallback mekanizmaları tanımlayın
+type CircuitBreakerConfig struct {
+	/// Enabled, Circuit Breaker'ın aktif olup olmadığını belirtir
+	/// true: Circuit Breaker etkin, false: Devre dışı
+	Enabled bool
+
+	/// FailureThreshold, devre açılmadan önce kaç ardışık hata olması gerektiğini belirtir
+	/// Varsayılan: 5
+	/// Örnek: 5 ardışık hata sonrası devre açılır
+	FailureThreshold int
+
+	/// Timeout, devre açıldıktan sonra ne kadar süre bekleneceğini belirtir
+	/// Varsayılan: 10 * time.Second
+	/// Bu süre sonunda Half-Open durumuna geçilir
+	Timeout time.Duration
+
+	/// SuccessThreshold, devre kapanmadan önce kaç başarılı istek olması gerektiğini belirtir
+	/// Varsayılan: 5
+	/// Half-Open durumunda bu kadar başarılı istek sonrası devre kapanır
+	SuccessThreshold int
+
+	/// HalfOpenMaxConcurrent, Half-Open durumunda kaç eşzamanlı istek izin verileceğini belirtir
+	/// Varsayılan: 1
+	/// Genellikle 1 olarak ayarlanır (tek bir test isteği)
+	HalfOpenMaxConcurrent int
+}
+
+// / # I18nConfig - Çoklu Dil Desteği Yapılandırması
+// /
+// / Panel uygulamasında çoklu dil desteği sağlar. go-i18n kütüphanesi kullanılarak
+// / mesajların farklı dillerde gösterilmesini sağlar.
+// /
+// / ## Kullanım Senaryoları
+// / - Çok dilli kullanıcı arayüzü
+// / - Uluslararası uygulamalar
+// / - Bölgesel içerik sunumu
+// / - Dinamik dil değiştirme
+// /
+// / ## Örnek Kullanım
+// / ```go
+// / i18nConfig := I18nConfig{
+// /     Enabled:          true,
+// /     RootPath:         "./locales",
+// /     AcceptLanguages:  []language.Tag{language.Turkish, language.English},
+// /     DefaultLanguage:  language.Turkish,
+// /     FormatBundleFile: "yaml",
+// / }
+// / ```
+// /
+// / ## Dil Dosyası Yapısı
+// / ```yaml
+// / # locales/tr/messages.yaml
+// / welcome:
+// /   other: "Hoş geldiniz"
+// / welcomeWithName:
+// /   other: "Hoş geldiniz, {{.Name}}"
+// / ```
+// /
+// / ## Dil Seçimi
+// / Dil, şu sırayla belirlenir:
+// / 1. Query parametresi: ?lang=tr
+// / 2. Accept-Language header
+// / 3. DefaultLanguage (fallback)
+// /
+// / ## Avantajlar
+// / - Kolay çoklu dil desteği
+// / - Dinamik dil değiştirme
+// / - Fallback dil desteği
+// / - Template değişkenleri desteği
+// /
+// / ## Önemli Notlar
+// / - RootPath: Dil dosyalarının bulunduğu dizin
+// / - AcceptLanguages: Desteklenen diller listesi
+// / - DefaultLanguage: Varsayılan dil (fallback)
+// / - FormatBundleFile: Dil dosyası formatı (yaml, json, toml)
+// /
+// / ## Best Practices
+// / - Dil dosyalarını organize edin (locales/tr/, locales/en/)
+// / - Fallback dil her zaman tanımlayın
+// / - Template değişkenlerini kullanın ({{.Name}})
+// / - Çeviri anahtarlarını anlamlı isimlendirin
+type I18nConfig struct {
+	/// Enabled, i18n'in aktif olup olmadığını belirtir
+	/// true: Çoklu dil desteği etkin, false: Devre dışı
+	Enabled bool
+
+	/// RootPath, dil dosyalarının bulunduğu dizini belirtir
+	/// Varsayılan: "./locales"
+	/// Örnek: "./locales" -> locales/tr/messages.yaml, locales/en/messages.yaml
+	RootPath string
+
+	/// AcceptLanguages, desteklenen dillerin listesidir
+	/// Varsayılan: []language.Tag{language.Turkish, language.English}
+	/// Örnek: []language.Tag{language.Turkish, language.English, language.German}
+	AcceptLanguages []language.Tag
+
+	/// DefaultLanguage, varsayılan dili belirtir (fallback)
+	/// Varsayılan: language.Turkish
+	/// Eğer kullanıcının dili desteklenmiyorsa bu dil kullanılır
+	DefaultLanguage language.Tag
+
+	/// FormatBundleFile, dil dosyası formatını belirtir
+	/// Varsayılan: "yaml"
+	/// Değerler: "yaml", "json", "toml"
+	FormatBundleFile string
 }

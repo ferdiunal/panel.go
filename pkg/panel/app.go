@@ -49,11 +49,14 @@ import (
 	authHandler "github.com/ferdiunal/panel.go/pkg/handler/auth"
 	"github.com/ferdiunal/panel.go/pkg/middleware"
 	"github.com/ferdiunal/panel.go/pkg/notification"
+	"github.com/ferdiunal/panel.go/pkg/openapi"
 	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/permission"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceUser "github.com/ferdiunal/panel.go/pkg/resource/user"
 	"github.com/ferdiunal/panel.go/pkg/service/auth"
+	"github.com/gofiber/contrib/circuitbreaker"
+	"github.com/gofiber/contrib/fiberi18n/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -63,6 +66,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/etag"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"golang.org/x/text/language"
 	"gorm.io/gorm"
 )
 
@@ -96,6 +100,7 @@ type Panel struct {
 	resources          map[string]resource.Resource
 	pages              map[string]page.Page
 	http2PushResources []string // Cached list of critical assets for HTTP/2 push
+	openAPIHandler     *handler.OpenAPIHandler
 }
 
 // / # New Fonksiyonu
@@ -266,6 +271,39 @@ func New(config Config) *Panel {
 	// SECURITY: Audit logging for security events
 	auditLogger := &middleware.ConsoleAuditLogger{}
 	app.Use(middleware.AuditMiddleware(auditLogger))
+
+	// I18N: Çoklu dil desteği (Internationalization)
+	// Uygulamanın farklı dillerde gösterilmesini sağlar
+	// Dil seçimi: 1) Query param (?lang=tr), 2) Accept-Language header, 3) DefaultLanguage
+	if config.I18n.Enabled {
+		// Varsayılan değerleri ayarla
+		rootPath := config.I18n.RootPath
+		if rootPath == "" {
+			rootPath = "./locales"
+		}
+
+		acceptLanguages := config.I18n.AcceptLanguages
+		if len(acceptLanguages) == 0 {
+			acceptLanguages = []language.Tag{language.Turkish, language.English}
+		}
+
+		defaultLanguage := config.I18n.DefaultLanguage
+		if defaultLanguage == language.Und {
+			defaultLanguage = language.Turkish
+		}
+
+		formatBundleFile := config.I18n.FormatBundleFile
+		if formatBundleFile == "" {
+			formatBundleFile = "yaml"
+		}
+
+		app.Use(fiberi18n.New(&fiberi18n.Config{
+			RootPath:         rootPath,
+			AcceptLanguages:  acceptLanguages,
+			DefaultLanguage:  defaultLanguage,
+			FormatBundleFile: formatBundleFile,
+		}))
+	}
 
 	// Static file serving
 	// For SDK users: always use embedded assets
@@ -446,9 +484,103 @@ func New(config Config) *Panel {
 		// Default Settings Page
 		p.RegisterPage(&page.Settings{
 			Elements: []fields.Element{
-				fields.Text("Site Name").Label("Site Name").Placeholder("Site Name").Default("Panel.go"),
-				fields.Switch("Register Enable").Default(true),
-				fields.Switch("Forgot Password Enable").Default(false),
+				fields.Text("Site Name", "site_name").
+					Label("Site Name").
+					Placeholder("Enter site name").
+					Default("Panel.go").
+					Required(),
+				fields.Text("Site URL", "site_url").
+					Label("Site URL").
+					Placeholder("https://example.com").
+					Required(),
+				fields.Textarea("Site Description", "site_description").
+					Label("Site Description").
+					Placeholder("Enter site description").
+					Rows(3),
+				fields.Email("Contact Email", "contact_email").
+					Label("Contact Email").
+					Placeholder("contact@example.com"),
+				fields.Tel("Contact Phone", "contact_phone").
+					Label("Contact Phone").
+					Placeholder("+90 555 123 4567"),
+				fields.Textarea("Contact Address", "contact_address").
+					Label("Contact Address").
+					Placeholder("Enter contact address").
+					Rows(2),
+				fields.Switch("Register Enable", "register_enable").
+					Label("User Registration").
+					HelpText("Allow new users to register").
+					Default(true),
+				fields.Switch("Forgot Password Enable", "forgot_password_enable").
+					Label("Forgot Password").
+					HelpText("Enable password reset functionality").
+					Default(false),
+				fields.Switch("Maintenance Mode", "maintenance_mode").
+					Label("Maintenance Mode").
+					HelpText("Put the site in maintenance mode").
+					Default(false),
+				fields.Switch("Debug Mode", "debug_mode").
+					Label("Debug Mode").
+					HelpText("Enable debug mode (development only)").
+					Default(false),
+			},
+		})
+	}
+
+	// Register Account Page
+	if p.Config.AccountPage != nil {
+		p.RegisterPage(p.Config.AccountPage)
+	} else {
+		// Default Account Page
+		p.RegisterPage(&page.Account{
+			Elements: []fields.Element{
+				fields.Text("Name", "name").
+					Label("Full Name").
+					Placeholder("Enter your full name").
+					Required(),
+				fields.Email("Email", "email").
+					Label("Email Address").
+					Placeholder("your@email.com").
+					Required(),
+				fields.Image("Image", "image").
+					Label("Profile Picture").
+					HelpText("Upload your profile picture"),
+				fields.Password("Current Password", "current_password").
+					Label("Current Password").
+					Placeholder("Enter current password").
+					HelpText("Required to change password"),
+				fields.Password("New Password", "new_password").
+					Label("New Password").
+					Placeholder("Enter new password").
+					HelpText("Leave blank to keep current password"),
+				fields.Password("Confirm Password", "confirm_password").
+					Label("Confirm Password").
+					Placeholder("Confirm new password"),
+				fields.Switch("Email Notifications", "email_notifications").
+					Label("Email Notifications").
+					HelpText("Receive notifications via email").
+					Default(true),
+				fields.Switch("SMS Notifications", "sms_notifications").
+					Label("SMS Notifications").
+					HelpText("Receive notifications via SMS").
+					Default(false),
+				fields.Select("Language", "language").
+					Label("Language").
+					Placeholder("Select language").
+					Options(map[string]string{
+						"en": "English",
+						"tr": "Türkçe",
+					}).
+					Default("en"),
+				fields.Select("Theme", "theme").
+					Label("Theme").
+					Placeholder("Select theme").
+					Options(map[string]string{
+						"light": "Light",
+						"dark":  "Dark",
+						"auto":  "Auto",
+					}).
+					Default("auto"),
 			},
 		})
 	}
@@ -458,6 +590,64 @@ func New(config Config) *Panel {
 	// /api/resource/:resource/:id -> Detail/Show/Update/Delete
 
 	api := app.Group("/api")
+
+	// RESILIENCE: Circuit Breaker middleware
+	// Servis hatalarını yönetir ve sistem çökmelerini önler
+	// Üç durum: Closed (Normal), Open (Devre Dışı), Half-Open (Test)
+	if config.CircuitBreaker.Enabled {
+		// Varsayılan değerleri ayarla
+		failureThreshold := config.CircuitBreaker.FailureThreshold
+		if failureThreshold == 0 {
+			failureThreshold = 5 // 5 ardışık hata sonrası devre aç
+		}
+
+		timeout := config.CircuitBreaker.Timeout
+		if timeout == 0 {
+			timeout = 10 * time.Second // 10 saniye bekle
+		}
+
+		successThreshold := config.CircuitBreaker.SuccessThreshold
+		if successThreshold == 0 {
+			successThreshold = 5 // 5 başarılı istek sonrası devre kapat
+		}
+
+		halfOpenMaxConcurrent := config.CircuitBreaker.HalfOpenMaxConcurrent
+		if halfOpenMaxConcurrent == 0 {
+			halfOpenMaxConcurrent = 1 // Half-open'da 1 eşzamanlı istek
+		}
+
+		// Circuit Breaker oluştur
+		cb := circuitbreaker.New(circuitbreaker.Config{
+			FailureThreshold:       failureThreshold,
+			Timeout:                timeout,
+			SuccessThreshold:       successThreshold,
+			HalfOpenMaxConcurrent:  halfOpenMaxConcurrent,
+			// IsFailure: Hangi hataların sayılacağını belirler (varsayılan: status >= 500)
+			IsFailure: func(err error) bool {
+				// 500+ status kodları hata olarak sayılır
+				return err != nil
+			},
+			// OnOpen: Devre açıldığında çağrılır (503 Service Unavailable)
+			OnOpen: func(c *fiber.Ctx) error {
+				return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+					"error":   "Service temporarily unavailable",
+					"message": "The service is experiencing high failure rates. Please try again later.",
+					"code":    "CIRCUIT_BREAKER_OPEN",
+				})
+			},
+			// OnHalfOpen: Half-open durumunda çağrılır (429 Too Many Requests)
+			OnHalfOpen: func(c *fiber.Ctx) error {
+				return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+					"error":   "Service is recovering",
+					"message": "The service is testing recovery. Please wait.",
+					"code":    "CIRCUIT_BREAKER_HALF_OPEN",
+				})
+			},
+		})
+
+		// Circuit Breaker'ı API route'larına uygula
+		api.Use(circuitbreaker.Middleware(cb))
+	}
 
 	// Auth Routes
 	authRoutes := api.Group("/auth")
@@ -496,6 +686,12 @@ func New(config Config) *Panel {
 	api.Get("/resource/:resource/:id/edit", context.Wrap(p.handleResourceEdit))
 	api.Post("/resource/:resource/:id/fields/:field/resolve", context.Wrap(p.handleFieldResolve))          // Field resolver endpoint
 	api.Post("/resource/:resource/fields/resolve-dependencies", context.Wrap(p.handleResolveDependencies)) // Dependency resolver endpoint
+
+	// Hover card resolver endpoints - Support GET, POST, PATCH, DELETE
+	api.Get("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))    // Hover card resolver (GET)
+	api.Post("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))   // Hover card resolver (POST)
+	api.Patch("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))  // Hover card resolver (PATCH)
+	api.Delete("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve)) // Hover card resolver (DELETE)
 	api.Put("/resource/:resource/:id", context.Wrap(p.handleResourceUpdate))
 	api.Delete("/resource/:resource/:id", context.Wrap(p.handleResourceDestroy))
 	api.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
@@ -506,6 +702,19 @@ func New(config Config) *Panel {
 	api.Get("/notifications", context.Wrap(notificationHandler.HandleGetUnreadNotifications))
 	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
 	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
+
+	// OpenAPI Routes
+	openAPIConfig := openapi.OpenAPIConfig{
+		Title:       config.Name,
+		Version:     "1.0.0",
+		Description: "Panel.go Admin Panel API",
+		BasePath:    "",
+	}
+	p.openAPIHandler = handler.NewOpenAPIHandler(p.resources, openAPIConfig)
+	api.Get("/openapi.json", p.openAPIHandler.GetSpec)
+	api.Get("/docs", p.openAPIHandler.SwaggerUI)
+	api.Get("/docs/redoc", p.openAPIHandler.ReDocUI)
+	api.Get("/docs/rapidoc", p.openAPIHandler.RapidocUI)
 
 	// /resolve endpoint for dynamic routing check
 	api.Get("/resolve", context.Wrap(p.handleResolve))
@@ -1039,6 +1248,33 @@ func (p *Panel) handleResourceEdit(c *context.Context) error {
 func (p *Panel) handleFieldResolve(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleFieldResolve(h, c)
+	})
+}
+
+// / # handleHoverCardResolve Metodu
+// /
+// / Hover card verilerini çözmek için HTTP handler wrapper'ı.
+// /
+// / ## Parametreler
+// / - `c *context.Context`: Fiber context wrapper'ı
+// /
+// / ## Dönüş Değeri
+// / - `error`: İşlem hatası varsa hata, aksi takdirde nil
+// /
+// / ## Davranış
+// / 1. Kaynağı çözer
+// / 2. FieldHandler oluşturur
+// / 3. HandleHoverCardResolve handler'ını çalıştırır
+// / 4. Hover card verilerini döndürür
+// /
+// / ## Endpoint
+// / - GET /api/resource/:resource/resolver/:field
+// / - POST /api/resource/:resource/resolver/:field
+// / - PATCH /api/resource/:resource/resolver/:field
+// / - DELETE /api/resource/:resource/resolver/:field
+func (p *Panel) handleHoverCardResolve(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleHoverCardResolve(h)(c.Ctx)
 	})
 }
 
@@ -1581,3 +1817,4 @@ func (p *Panel) handleResolve(c *context.Context) error {
 		"error": "Page not found",
 	})
 }
+

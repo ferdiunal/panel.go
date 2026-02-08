@@ -683,6 +683,33 @@ func (s *Schema) WithProps(key string, value interface{}) Element {
 	return s
 }
 
+// Tooltip, alana bir tooltip (bilgi balonu) ekler.
+//
+// Tooltip, kullanıcıya alan hakkında ek bilgi sağlamak için kullanılır.
+// Frontend'te label'ın yanında bir info ikonu olarak gösterilir ve üzerine
+// gelindiğinde tooltip metni görüntülenir.
+//
+// # Döndürür
+//
+//   - Element: Zincirleme çağrılar için Schema pointer'ı
+//
+// # Kullanım Örneği
+//
+//	field := Text("Kullanıcı Adı", "username").
+//	    Tooltip("Kullanıcı adınız benzersiz olmalıdır ve en az 3 karakter içermelidir")
+//
+//	field := Email("E-posta", "email").
+//	    Tooltip("Geçerli bir e-posta adresi giriniz").
+//	    Required()
+//
+// # Not
+//
+// Bu metod, arka planda WithProps("tooltip", text) çağrısı yapar.
+// Tooltip özelliği frontend bileşenleri tarafından desteklenmelidir.
+func (s *Schema) Tooltip(text string) Element {
+	return s.WithProps("tooltip", text)
+}
+
 // Disabled, alanı devre dışı bırakır.
 //
 // Devre dışı alanlar, kullanıcı tarafından ne düzenlenebilir ne de etkileşime girebilir.

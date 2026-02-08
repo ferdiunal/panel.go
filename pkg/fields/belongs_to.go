@@ -23,6 +23,7 @@ import (
 // - **Arama Desteği**: İlişkili kayıtlarda arama yapabilme
 // - **Eager/Lazy Loading**: Yükleme stratejisi seçimi
 // - **GORM Yapılandırması**: Foreign key ve references özelleştirme
+// - **Hover Card**: Index ve detail sayfalarında hover card desteği
 //
 // # Kullanım Örneği
 //
@@ -40,6 +41,16 @@ import (
 //	    AutoOptions("name").
 //	    WithEagerLoad()
 //
+//	// Hover card ile
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    DisplayUsing("name").
+//	    WithHoverCard(fields.NewHoverCardConfig().
+//	        WithAvatar("avatar", "").
+//	        WithGrid([]fields.HoverCardGridField{
+//	            {Key: "email", Label: "Email", Type: "email", Icon: "mail"},
+//	            {Key: "role", Label: "Rol", Type: "badge"},
+//	        }, "2-column"))
+//
 // Daha fazla bilgi için docs/Relationships.md dosyasına bakın.
 type BelongsToField struct {
 	Schema
@@ -50,6 +61,7 @@ type BelongsToField struct {
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
 	GormRelationConfig  *RelationshipGormConfig
+	HoverCard           *HoverCardConfig
 }
 
 // BelongsTo, yeni bir BelongsTo ilişki alanı oluşturur.
@@ -386,4 +398,125 @@ func (b *BelongsToField) IsRequired() bool {
 // GetTypes returns the type mappings (not used for BelongsTo)
 func (b *BelongsToField) GetTypes() map[string]string {
 	return make(map[string]string)
+}
+
+// WithHoverCard, hover card konfigürasyonunu ayarlar.
+//
+// Bu metod, index ve detail sayfalarında ilişkili kaydın hover card ile
+// nasıl görüntüleneceğini belirler.
+//
+// # Parametreler
+//
+// - **config**: Hover card konfigürasyonu
+//
+// # Kullanım Örneği (Deprecated - Yeni API kullanın)
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    WithHoverCard(*fields.NewHoverCardConfig())
+//
+// # Yeni API (Önerilen)
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    HoverCard(&AuthorHoverCard{}).
+//	    ResolveHoverCard(func(ctx context.Context, record interface{}, relatedID interface{}, field fields.Field) (interface{}, error) {
+//	        // Custom logic
+//	        return &AuthorHoverCard{...}, nil
+//	    })
+//
+// Döndürür:
+//   - BelongsToField pointer'ı (method chaining için)
+func (b *BelongsToField) WithHoverCard(config HoverCardConfig) *BelongsToField {
+	b.HoverCard = &config
+	b.WithProps("hover_card", config)
+	return b
+}
+
+// HoverCard, hover card struct'ını ayarlar ve hover card'ı etkinleştirir.
+//
+// Bu metod, hover card için kullanılacak struct'ı belirler ve
+// hover card özelliğini aktif eder.
+//
+// # Parametreler
+//
+// - **hoverStruct**: Hover card verisi için kullanılacak struct (örn. &AuthorHoverCard{})
+//
+// # Kullanım Örneği
+//
+//	type AuthorHoverCard struct {
+//	    Avatar string `json:"avatar"`
+//	    Name   string `json:"name"`
+//	    Email  string `json:"email"`
+//	    Phone  string `json:"phone"`
+//	}
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    DisplayUsing("name").
+//	    HoverCard(&AuthorHoverCard{})
+//
+// Döndürür:
+//   - BelongsToField pointer'ı (method chaining için)
+func (b *BelongsToField) HoverCard(hoverStruct interface{}) *BelongsToField {
+	if b.HoverCard == nil {
+		b.HoverCard = NewHoverCardConfig()
+	}
+	b.HoverCard.SetStruct(hoverStruct)
+	b.WithProps("hover_card_enabled", true)
+	return b
+}
+
+// ResolveHoverCard, hover card verilerini çözmek için callback fonksiyonunu ayarlar.
+//
+// Bu metod, hover card açıldığında çağrılacak resolver fonksiyonunu belirler.
+// Resolver, ilişkili kaydın hover card verilerini döndürür.
+//
+// # Parametreler
+//
+// - **resolver**: Hover card resolver callback fonksiyonu
+//
+// # Kullanım Örneği
+//
+//	field := fields.BelongsTo("Author", "author_id", "authors").
+//	    DisplayUsing("name").
+//	    HoverCard(&AuthorHoverCard{}).
+//	    ResolveHoverCard(func(ctx context.Context, record interface{}, relatedID interface{}, field fields.Field) (interface{}, error) {
+//	        // İlişkili kaydı veritabanından al
+//	        author := &Author{}
+//	        if err := db.First(author, relatedID).Error; err != nil {
+//	            return nil, err
+//	        }
+//
+//	        // Hover card verisini döndür
+//	        return &AuthorHoverCard{
+//	            Avatar: author.Avatar,
+//	            Name:   author.Name,
+//	            Email:  author.Email,
+//	            Phone:  author.Phone,
+//	        }, nil
+//	    })
+//
+// # API Endpoint
+//
+// Frontend, hover card açıldığında şu endpoint'e istek atar:
+//
+//	GET /api/resource/{resource}/resolver/{field_name}?id={related_id}
+//	POST /api/resource/{resource}/resolver/{field_name} (body: {id: related_id})
+//
+// Döndürür:
+//   - BelongsToField pointer'ı (method chaining için)
+func (b *BelongsToField) ResolveHoverCard(resolver HoverCardResolver) *BelongsToField {
+	if b.HoverCard == nil {
+		b.HoverCard = NewHoverCardConfig()
+	}
+	b.HoverCard.SetResolver(resolver)
+	return b
+}
+
+// GetHoverCard, hover card konfigürasyonunu döndürür.
+//
+// Bu metod, hover card konfigürasyonunu alır.
+//
+// Döndürür:
+//   - HoverCardConfig pointer'ı (nil olabilir)
+func (b *BelongsToField) GetHoverCard() *HoverCardConfig {
+	return b.HoverCard
 }
