@@ -1,6 +1,7 @@
 - [Home](Home)
 - [Başlarken](Getting-Started)
 - [Kaynaklar](Resources)
+  - [Resource Template](RESOURCE_TEMPLATE)
 - [Alanlar](Fields)
 - [DialogField](DIALOG_FIELD)
 - [Bağımlı Alanlar](Dependent-Fields)
