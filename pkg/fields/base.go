@@ -1088,9 +1088,16 @@ func (s *Schema) SetTextAlign(align string) Element {
 //	    // Alanı göster
 //	}
 func (s *Schema) IsVisible(ctx *core.ResourceContext) bool {
+	// Önce VisibilityCallback kontrolü yap
 	if s.VisibilityCallback != nil {
 		return s.VisibilityCallback(ctx)
 	}
+
+	// Context bazlı görünürlük kontrolü yap
+	if ctx != nil && ctx.VisibilityCtx != "" {
+		return s.IsVisibleInContext(ctx.VisibilityCtx)
+	}
+
 	return true
 }
 

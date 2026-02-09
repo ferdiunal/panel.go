@@ -178,6 +178,11 @@ func HandleFieldList(h *FieldHandler, c *context.Context) error {
 
 	// Her field için işlem yap
 	for _, element := range ctx.Elements {
+		// Context bazlı görünürlük kontrolü - gizli field'ları backend'den gönderme
+		if !element.IsVisible(ctx) {
+			continue
+		}
+
 		// Eğer bir resource instance mevcutsa (örneğin edit/detail sayfası),
 		// field'ın değerini resource'tan extract et
 		// Bu işlem, field'ın Extract() metodunu çağırır ve değeri field struct'ına set eder
