@@ -1760,7 +1760,10 @@ func (p *GormDataProvider) SetRelationshipFields(fields []fields.RelationshipFie
 //
 // - []fields.RelationshipField: Yüklenecek ilişki field'ları
 func (p *GormDataProvider) getRelationshipFields() []fields.RelationshipField {
+	fmt.Printf("[DEBUG] getRelationshipFields - WithRelationships: %v, relationshipFields count: %d\n", p.WithRelationships, len(p.relationshipFields))
+
 	if len(p.WithRelationships) == 0 || len(p.relationshipFields) == 0 {
+		fmt.Printf("[DEBUG] getRelationshipFields - Returning empty (WithRels empty: %v, Fields empty: %v)\n", len(p.WithRelationships) == 0, len(p.relationshipFields) == 0)
 		return []fields.RelationshipField{}
 	}
 
@@ -1769,12 +1772,14 @@ func (p *GormDataProvider) getRelationshipFields() []fields.RelationshipField {
 	for _, relName := range p.WithRelationships {
 		for _, field := range p.relationshipFields {
 			if field.GetRelationshipName() == relName {
+				fmt.Printf("[DEBUG] getRelationshipFields - Matched: %s\n", relName)
 				result = append(result, field)
 				break
 			}
 		}
 	}
 
+	fmt.Printf("[DEBUG] getRelationshipFields - Returning %d fields\n", len(result))
 	return result
 }
 
