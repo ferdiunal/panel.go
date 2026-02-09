@@ -1,5 +1,7 @@
 package fields
 
+import "reflect"
+
 // HasManyField, one-to-many ilişkiyi temsil eder (örn. Author -> Posts).
 //
 // HasMany ilişkisi, bir kaydın birden fazla ilişkili kayda sahip olduğunu belirtir.
@@ -411,4 +413,80 @@ func (h *HasManyField) GetForeignKeyColumn() string {
 //   - Owner key sütun adı
 func (h *HasManyField) GetOwnerKeyColumn() string {
 	return h.OwnerKeyColumn
+}
+
+// Extract, HasMany ilişkisi için özel veri çıkarma metodudur.
+//
+// Bu metod, Schema'nın genel Extract metodunu override eder ve HasMany ilişkisi için
+// özel işlem yapar. İlişkili kayıtlardan sadece ID'leri çıkarır ve bir array olarak döndürür.
+//
+// # İşleyiş
+//
+// 1. Schema'nın Extract metodunu çağırır (mevcut davranışı korumak için)
+// 2. Eğer Data nil ise, boş array olarak ayarlar
+// 3. Eğer Data bir slice ise, her eleman için ID'yi çıkarır
+// 4. ID'leri bir array olarak Data'ya atar
+//
+// # Parametreler
+//
+// - resource: Veri çıkarılacak kaynak (struct veya map)
+//
+// # Kullanım Örneği
+//
+//	// Organization model'inde Addresses field'ı var
+//	type Organization struct {
+//	    ID        uint
+//	    Name      string
+//	    Addresses []Address
+//	}
+//
+//	// HasMany field Extract çağrıldığında
+//	field := fields.HasMany("Addresses", "addresses", "addresses")
+//	field.Extract(&organization)
+//	// field.Data artık [1, 2, 3] gibi bir ID array'i içerir
+func (h *HasManyField) Extract(resource interface{}) {
+	// Önce Schema'nın Extract metodunu çağır
+	h.Schema.Extract(resource)
+
+	// Eğer Data nil ise, boş array olarak ayarla
+	if h.Schema.Data == nil {
+		h.Schema.Data = []interface{}{}
+		return
+	}
+
+	// Eğer Data bir slice ise, her eleman için ID'yi çıkar
+	v := reflect.ValueOf(h.Schema.Data)
+	if v.Kind() == reflect.Slice {
+		ids := make([]interface{}, 0, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			elem := v.Index(i)
+
+			// Eğer eleman bir pointer ise, dereference et
+			if elem.Kind() == reflect.Ptr {
+				elem = elem.Elem()
+			}
+
+			// Eğer eleman bir struct ise, ID field'ını bul
+			if elem.Kind() == reflect.Struct {
+				idField := elem.FieldByName("ID")
+				if !idField.IsValid() {
+					// ID field'ı bulunamadıysa, küçük harfle dene
+					idField = elem.FieldByName("Id")
+				}
+				if idField.IsValid() && idField.CanInterface() {
+					ids = append(ids, idField.Interface())
+				}
+			} else if elem.Kind() == reflect.Map {
+				// Eğer eleman bir map ise, "id" veya "ID" key'ini bul
+				idVal := elem.MapIndex(reflect.ValueOf("id"))
+				if !idVal.IsValid() {
+					idVal = elem.MapIndex(reflect.ValueOf("ID"))
+				}
+				if idVal.IsValid() && idVal.CanInterface() {
+					ids = append(ids, idVal.Interface())
+				}
+			}
+		}
+		h.Schema.Data = ids
+	}
 }
