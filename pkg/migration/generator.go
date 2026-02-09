@@ -1360,6 +1360,11 @@ func (mg *MigrationGenerator) GetFieldInfos(r resource.Resource) []FieldInfo {
 	for _, field := range r.Fields() {
 		// İlişkisel field'ları kontrol et
 		if relField, ok := fields.IsRelationshipField(field); ok {
+			// relField nil olabilir (IsRelationshipField view'a göre true döndürebilir ama nil relField ile)
+			if relField == nil {
+				continue
+			}
+
 			info := mg.buildRelationshipFieldInfo(relField)
 			infos = append(infos, info)
 			continue

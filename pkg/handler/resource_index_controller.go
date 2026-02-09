@@ -329,6 +329,11 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	relationshipFields := []fields.RelationshipField{}
 	for _, element := range elements {
 		if relField, ok := fields.IsRelationshipField(element); ok {
+			// relField nil olabilir (IsRelationshipField view'a göre true döndürebilir ama nil relField ile)
+			if relField == nil {
+				continue
+			}
+
 			relationshipFields = append(relationshipFields, relField)
 		}
 	}
