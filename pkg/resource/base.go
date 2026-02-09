@@ -15,7 +15,6 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
 /// # Base Yapısı
@@ -919,7 +918,7 @@ func (b *Base) SetOpenAPIEnabled(enabled bool) Resource {
 /// - nil döndürülürse varsayılan GORM provider kullanılır
 /// - Repository thread-safe olmalıdır
 /// - Context timeout'larına dikkat edilmelidir
-func (r Base) Repository(db *gorm.DB) data.DataProvider {
+func (r Base) Repository(client interface{}) data.DataProvider {
 	return nil
 }
 

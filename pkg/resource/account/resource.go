@@ -48,8 +48,9 @@ type AccountResource struct {
 // - Policy: AccountPolicy - Erişim kontrol politikasını yönetir
 //
 // Kullanım Örneği:
-//   accountResource := NewAccountResource()
-//   // Resource artık admin panelinde kullanılmaya hazır
+//
+//	accountResource := NewAccountResource()
+//	// Resource artık admin panelinde kullanılmaya hazır
 //
 // Önemli Notlar:
 // - Fonksiyon, resource sisteminin başlatılması sırasında çağrılmalıdır
@@ -114,15 +115,23 @@ func NewAccountResource() *AccountResource {
 // - Tekil Account kaydı alınırken
 //
 // Kullanım Örneği:
-//   repo := accountResource.Repository(db)
-//   accounts, err := repo.Get(ctx, nil)
+//
+//	repo := accountResource.Repository(db)
+//	accounts, err := repo.Get(ctx, nil)
 //
 // Önemli Notlar:
 // - Döndürülen provider, GORM ORM'nin tüm özelliklerini kullanır
 // - Veritabanı bağlantısı (db) geçerli ve açık olmalıdır
 // - Provider, transaction desteği sağlar
-func (r *AccountResource) Repository(db *gorm.DB) data.DataProvider {
-	// GORM provider'ı oluştur ve Account modeli ile başlat
+func (r *AccountResource) Repository(client interface{}) data.DataProvider {
+	// Type assertion to get Ent client
+	db, ok := client.(*gorm.DB)
+	if !ok {
+		// TODO: Add GORM support
+		return nil
+	}
+
+	// Ent provider'ı oluştur ve Account modeli ile başlat
 	return data.NewGormDataProvider(db, &domainAccount.Account{})
 }
 
@@ -141,9 +150,10 @@ func (r *AccountResource) Repository(db *gorm.DB) data.DataProvider {
 // - N+1 sorgu problemini önler (her Account için ayrı User sorgusu yapılmaz)
 //
 // Kullanım Örneği:
-//   with := accountResource.With()
-//   // with = []string{"User"}
-//   // Veritabanı sorgusu: SELECT * FROM accounts WITH User
+//
+//	with := accountResource.With()
+//	// with = []string{"User"}
+//	// Veritabanı sorgusu: SELECT * FROM accounts WITH User
 //
 // Önemli Notlar:
 // - İlişki adları, Account model'inde tanımlanan GORM tag'larıyla eşleşmelidir
@@ -171,12 +181,13 @@ func (r *AccountResource) With() []string {
 // - Gelecekte Account-spesifik lens'ler eklenebilir
 //
 // Kullanım Örneği:
-//   lenses := accountResource.Lenses()
-//   // Şu anda: lenses = []resource.Lens{}
-//   // Gelecekte: lenses = []resource.Lens{
-//   //   {Name: "Aktif", Filter: "status = 'active'"},
-//   //   {Name: "Pasif", Filter: "status = 'inactive'"},
-//   // }
+//
+//	lenses := accountResource.Lenses()
+//	// Şu anda: lenses = []resource.Lens{}
+//	// Gelecekte: lenses = []resource.Lens{
+//	//   {Name: "Aktif", Filter: "status = 'active'"},
+//	//   {Name: "Pasif", Filter: "status = 'inactive'"},
+//	// }
 //
 // Önemli Notlar:
 // - Lens'ler, admin panelinde hızlı filtre seçenekleri olarak görünür
@@ -204,12 +215,13 @@ func (r *AccountResource) Lenses() []resource.Lens {
 // - Gelecekte Account-spesifik action'lar eklenebilir
 //
 // Kullanım Örneği:
-//   actions := accountResource.GetActions()
-//   // Şu anda: actions = []resource.Action{}
-//   // Gelecekte: actions = []resource.Action{
-//   //   {Name: "Sil", Handler: deleteAccounts},
-//   //   {Name: "Aktifleştir", Handler: activateAccounts},
-//   // }
+//
+//	actions := accountResource.GetActions()
+//	// Şu anda: actions = []resource.Action{}
+//	// Gelecekte: actions = []resource.Action{
+//	//   {Name: "Sil", Handler: deleteAccounts},
+//	//   {Name: "Aktifleştir", Handler: activateAccounts},
+//	// }
 //
 // Önemli Notlar:
 // - Action'lar, admin panelinde toplu işlem düğmeleri olarak görünür
@@ -237,12 +249,13 @@ func (r *AccountResource) GetActions() []resource.Action {
 // - Gelecekte Account-spesifik filtreler eklenebilir
 //
 // Kullanım Örneği:
-//   filters := accountResource.GetFilters()
-//   // Şu anda: filters = []resource.Filter{}
-//   // Gelecekte: filters = []resource.Filter{
-//   //   {Name: "Durum", Field: "status", Type: "select"},
-//   //   {Name: "Oluşturma Tarihi", Field: "created_at", Type: "date"},
-//   // }
+//
+//	filters := accountResource.GetFilters()
+//	// Şu anda: filters = []resource.Filter{}
+//	// Gelecekte: filters = []resource.Filter{
+//	//   {Name: "Durum", Field: "status", Type: "select"},
+//	//   {Name: "Oluşturma Tarihi", Field: "created_at", Type: "date"},
+//	// }
 //
 // Önemli Notlar:
 // - Filtreler, admin panelinde filtreleme paneli olarak görünür
@@ -269,11 +282,12 @@ func (r *AccountResource) GetFilters() []resource.Filter {
 // - Varsayılan sıralama, en sık kullanılan sıralamadır
 //
 // Kullanım Örneği:
-//   sortable := accountResource.GetSortable()
-//   // sortable = []resource.Sortable{
-//   //   {Column: "created_at", Direction: "desc"},
-//   // }
-//   // Veritabanı sorgusu: SELECT * FROM accounts ORDER BY created_at DESC
+//
+//	sortable := accountResource.GetSortable()
+//	// sortable = []resource.Sortable{
+//	//   {Column: "created_at", Direction: "desc"},
+//	// }
+//	// Veritabanı sorgusu: SELECT * FROM accounts ORDER BY created_at DESC
 //
 // Önemli Notlar:
 // - Sıralama alanı, Account model'inde mevcut olmalıdır

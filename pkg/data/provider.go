@@ -195,82 +195,127 @@ type QueryResponse struct {
 
 // DataProvider, veri sağlayıcıları için standart CRUD operasyonlarını tanımlayan interface'dir.
 //
-// Bu interface, farklı veri kaynaklarıyla (GORM, MongoDB, REST API vb.) çalışabilen
+// Bu interface, farklı veri kaynaklarıyla (GORM, Ent, MongoDB, REST API vb.) çalışabilen
 // soyut bir katman sağlar. Repository pattern'in bir uygulamasıdır ve veri erişim
 // mantığını iş mantığından ayırır.
 //
 // # Metodlar
 //
-// ## Index
+// ## CRUD Operasyonları
+//
+// ### Index
 // Sayfalanmış, filtrelenmiş ve sıralanmış veri listesi döndürür.
 //
-// Parametreler:
-// - `ctx`: İstek bağlamı (kullanıcı, yetkilendirme, transaction vb.)
-// - `req`: Sorgu parametreleri (sayfalama, filtreleme, sıralama, arama)
-//
-// Döndürür:
-// - `*QueryResponse`: Sayfalanmış veri ve meta bilgiler
-// - `error`: Hata durumunda hata mesajı
-//
-// ## Show
+// ### Show
 // Belirli bir kaydı ID'sine göre getirir.
 //
-// Parametreler:
-// - `ctx`: İstek bağlamı
-// - `id`: Kaydın benzersiz kimliği (string formatında)
-//
-// Döndürür:
-// - `interface{}`: Bulunan kayıt (tip dönüşümü gerekebilir)
-// - `error`: Kayıt bulunamazsa veya hata durumunda hata mesajı
-//
-// ## Create
+// ### Create
 // Yeni bir kayıt oluşturur.
 //
-// Parametreler:
-// - `ctx`: İstek bağlamı
-// - `data`: Oluşturulacak kaydın verileri (key-value map)
-//
-// Döndürür:
-// - `interface{}`: Oluşturulan kayıt (genellikle ID ile birlikte)
-// - `error`: Validasyon hatası veya veritabanı hatası
-//
-// ## Update
+// ### Update
 // Mevcut bir kaydı günceller.
 //
-// Parametreler:
-// - `ctx`: İstek bağlamı
-// - `id`: Güncellenecek kaydın ID'si
-// - `data`: Güncellenecek alanlar (key-value map, sadece değişen alanlar)
-//
-// Döndürür:
-// - `interface{}`: Güncellenmiş kayıt
-// - `error`: Kayıt bulunamazsa veya güncelleme başarısız olursa hata
-//
-// ## Delete
+// ### Delete
 // Bir kaydı siler (soft delete veya hard delete olabilir).
 //
-// Parametreler:
-// - `ctx`: İstek bağlamı
-// - `id`: Silinecek kaydın ID'si
+// ## Configuration Metodları
 //
-// Döndürür:
-// - `error`: Kayıt bulunamazsa veya silme başarısız olursa hata
-//
-// ## SetSearchColumns
+// ### SetSearchColumns
 // Arama işleminde kullanılacak kolonları ayarlar.
 //
-// Parametreler:
-// - `cols`: Arama yapılacak kolon isimleri dizisi
-//
-// Örnek: `[]string{"name", "email", "description"}`
-//
-// ## SetWith
+// ### SetWith
 // Eager loading için ilişkileri ayarlar (JOIN veya preload).
 //
-// Parametreler:
-// - `rels`: Yüklenecek ilişki isimleri dizisi
+// ### SetRelationshipFields
+// Relationship field'larını ayarlar.
 //
-// Örnek: `[]string{"User", "Category", "Tags"}`
+// ## Dinamik Query Metodları
+//
+// ### QueryTable
+// Dinamik tablo query'leri için kullanılır (MorphTo, HasOne, BelongsTo için).
+//
+// Parametreler:
+// - `ctx`: İstek bağlamı
+// - `table`: Tablo adı
+// - `conditions`: WHERE koşulları (key-value map)
+//
+// Döndürür:
+// - `[]map[string]interface{}`: Sorgu sonuçları
+// - `error`: Hata durumunda hata mesajı
+//
+// Örnek:
+// ```go
+// results, err := provider.QueryTable(ctx, "users", map[string]interface{}{
+//     "id": "123",
+//     "status": "active",
+// })
+// ```
+//
+// ### QueryRelationship
+// Relationship query'leri için kullanılır (display field çekmek için).
+//
+// Parametreler:
+// - `ctx`: İstek bağlamı
+// - `relationshipType`: İlişki tipi (tablo adı)
+// - `foreignKey`: Foreign key kolon adı
+// - `foreignValue`: Foreign key değeri
+// - `displayField`: Gösterilecek field adı
+//
+// Döndürür:
+// - `interface{}`: Display field değeri
+// - `error`: Hata durumunda hata mesajı
+//
+// Örnek:
+// ```go
+// displayValue, err := provider.QueryRelationship(ctx, "users", "id", "123", "name")
+// ```
+//
+// ## Transaction Metodları
+//
+// ### BeginTx
+// Yeni bir transaction başlatır ve transaction içinde çalışan yeni bir Provider döndürür.
+//
+// ### Commit
+// Aktif transaction'ı commit eder.
+//
+// ### Rollback
+// Aktif transaction'ı rollback eder.
+//
+// Örnek:
+// ```go
+// txProvider, err := provider.BeginTx(ctx)
+// if err != nil {
+//     return err
+// }
+//
+// _, err = txProvider.Create(ctx, data1)
+// if err != nil {
+//     txProvider.Rollback()
+//     return err
+// }
+//
+// _, err = txProvider.Create(ctx, data2)
+// if err != nil {
+//     txProvider.Rollback()
+//     return err
+// }
+//
+// return txProvider.Commit()
+// ```
+//
+// ## Raw Query Metodları
+//
+// ### Raw
+// Raw SQL query çalıştırır ve sonuçları döndürür (SELECT için).
+//
+// ### Exec
+// Raw SQL query çalıştırır (INSERT, UPDATE, DELETE için).
+//
+// Örnek:
+// ```go
+// results, err := provider.Raw(ctx, "SELECT * FROM users WHERE status = ?", "active")
+// err := provider.Exec(ctx, "UPDATE users SET status = ? WHERE id = ?", "inactive", "123")
+// ```
 //
 // # Kullanım Senaryoları
 //
@@ -279,112 +324,26 @@ type QueryResponse struct {
 // - Farklı veritabanı sistemleri arasında geçiş yapabilme
 // - Test edilebilir kod yazma (mock implementasyonlar)
 // - Mikroservis mimarisinde veri katmanı soyutlama
-//
-// # Örnek Implementasyon
-//
-// ```go
-// type UserProvider struct {
-//     db *gorm.DB
-//     searchColumns []string
-//     withRelations []string
-// }
-//
-// func (p *UserProvider) Index(ctx *context.Context, req QueryRequest) (*QueryResponse, error) {
-//     query := p.db.Model(&User{})
-//
-//     // Arama uygula
-//     if req.Search != "" {
-//         // searchColumns kullanarak arama yap
-//     }
-//
-//     // Filtreleri uygula
-//     for _, filter := range req.Filters {
-//         // Filter uygula
-//     }
-//
-//     // Sıralama uygula
-//     for _, sort := range req.Sorts {
-//         query = query.Order(sort.Column + " " + sort.Direction)
-//     }
-//
-//     // Sayfalama uygula
-//     offset := (req.Page - 1) * req.PerPage
-//     query = query.Offset(offset).Limit(req.PerPage)
-//
-//     var users []User
-//     var total int64
-//
-//     p.db.Model(&User{}).Count(&total)
-//     query.Find(&users)
-//
-//     return &QueryResponse{
-//         Items:   convertToInterface(users),
-//         Total:   total,
-//         Page:    req.Page,
-//         PerPage: req.PerPage,
-//     }, nil
-// }
-// ```
-//
-// # Örnek Kullanım
-//
-// ```go
-// // Provider oluşturma
-// provider := NewGormProvider(db, &User{})
-// provider.SetSearchColumns([]string{"name", "email"})
-// provider.SetWith([]string{"Profile", "Posts"})
-//
-// // Liste getirme
-// response, err := provider.Index(ctx, QueryRequest{
-//     Page:    1,
-//     PerPage: 20,
-//     Search:  "john",
-//     Sorts: []Sort{{Column: "created_at", Direction: "desc"}},
-// })
-//
-// // Tekil kayıt getirme
-// user, err := provider.Show(ctx, "123")
-//
-// // Yeni kayıt oluşturma
-// newUser, err := provider.Create(ctx, map[string]interface{}{
-//     "name":  "John Doe",
-//     "email": "john@example.com",
-// })
-//
-// // Güncelleme
-// updated, err := provider.Update(ctx, "123", map[string]interface{}{
-//     "name": "Jane Doe",
-// })
-//
-// // Silme
-// err := provider.Delete(ctx, "123")
-// ```
+// - Dinamik query'ler (MorphTo, HasOne, BelongsTo)
+// - Transaction yönetimi
+// - Raw SQL query'ler
 //
 // # Avantajlar
 //
-// - **Soyutlama**: Veri kaynağından bağımsız kod yazma
+// - **Tam Soyutlama**: ORM'den tamamen bağımsız kod yazma
 // - **Test Edilebilirlik**: Mock implementasyonlar ile kolay test
 // - **Esneklik**: Farklı veri kaynakları için aynı interface
 // - **Bakım Kolaylığı**: Veri erişim mantığı tek yerde
 // - **Yeniden Kullanılabilirlik**: Aynı interface farklı modeller için kullanılabilir
-//
-// # Dezavantajlar
-//
-// - **Performans**: Soyutlama katmanı minimal overhead ekler
-// - **Karmaşıklık**: Basit uygulamalar için fazla soyutlama olabilir
-// - **Tip Güvenliği**: interface{} kullanımı tip dönüşümü gerektirir
+// - **Güvenlik**: Handler'lar ORM'e direkt erişemez
 //
 // # Önemli Notlar
 //
+// - **GetClient() Yok**: Interface'de GetClient() metodu YOK! Handler'lar ORM'e direkt erişemez.
+// - **Private getClient()**: Implementasyonlar internal olarak private getClient() kullanabilir.
 // - **Thread Safety**: Implementasyonlar thread-safe olmalıdır
-// - **Transaction Desteği**: Context üzerinden transaction yönetimi yapılabilir
+// - **Transaction Desteği**: BeginTx, Commit, Rollback metodları ile transaction yönetimi
 // - **Error Handling**: Standart error tipleri kullanılmalıdır (NotFound, ValidationError vb.)
-// - **Validation**: Create ve Update metodları veri validasyonu yapmalıdır
-// - **Authorization**: Context üzerinden yetkilendirme kontrolleri yapılabilir
-// - **Soft Delete**: Delete metodu soft delete destekleyebilir
-// - **Audit Log**: Tüm operasyonlar audit log'a kaydedilebilir
-// - **Caching**: Implementasyonlar cache katmanı ekleyebilir
-// - **Rate Limiting**: Context üzerinden rate limiting uygulanabilir
 //
 // # İlgili Tipler
 //
@@ -394,12 +353,33 @@ type QueryResponse struct {
 // - `query.Filter`: Filtreleme bilgisi
 // - `context.Context`: İstek bağlamı
 type DataProvider interface {
+	// CRUD Operasyonları
 	Index(ctx *context.Context, req QueryRequest) (*QueryResponse, error)
 	Show(ctx *context.Context, id string) (interface{}, error)
 	Create(ctx *context.Context, data map[string]interface{}) (interface{}, error)
 	Update(ctx *context.Context, id string, data map[string]interface{}) (interface{}, error)
 	Delete(ctx *context.Context, id string) error
+
+	// Configuration
 	SetSearchColumns(cols []string)
 	SetWith(rels []string)
 	SetRelationshipFields(fields []fields.RelationshipField)
+
+	// Dinamik Query'ler (Card, MorphTo, HasOne için)
+	QueryTable(ctx *context.Context, table string, conditions map[string]interface{}) ([]map[string]interface{}, error)
+	QueryRelationship(ctx *context.Context, relationshipType string, foreignKey string, foreignValue interface{}, displayField string) (interface{}, error)
+
+	// Transaction (Action'lar için)
+	BeginTx(ctx *context.Context) (DataProvider, error)
+	Commit() error
+	Rollback() error
+
+	// Raw Query (özel durumlar için)
+	Raw(ctx *context.Context, sql string, args ...interface{}) ([]map[string]interface{}, error)
+	Exec(ctx *context.Context, sql string, args ...interface{}) error
+
+	// ORM Client (Card.Resolve ve Action.Execute için)
+	// UYARI: Bu metod sadece Card.Resolve() ve Action.Execute() gibi özel durumlar için kullanılmalıdır.
+	// Normal işlemler için Provider metodlarını (Raw, Exec, QueryTable, vb.) kullanın.
+	GetClient() interface{}
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
-	"gorm.io/gorm"
 )
 
 /// # Action Interface
@@ -387,7 +386,9 @@ type Filter interface {
 	/// - Type assertion ile değer tipini kontrol edin
 	/// - Geçersiz değerler için orijinal db nesnesini döndürün
 	/// - İndeksli sütunlarda filtreleme yapın
-	Apply(db *gorm.DB, value any) *gorm.DB
+	// TODO: Ent'e geçiş sonrası bu metod güncellenecek
+	// Apply(db *gorm.DB, value any) *gorm.DB
+	Apply(db any, value any) any
 }
 
 /// # Sortable Struct
@@ -1271,7 +1272,7 @@ type Resource interface {
 	/// - OptimizedBase varsayılan GormDataProvider kullanır
 	/// - Özel repository thread-safe olmalıdır
 	/// - Transaction desteği sağlanmalıdır
-	Repository(db *gorm.DB) data.DataProvider
+	Repository(client interface{}) data.DataProvider
 
 	/// Cards, kaynak dashboard'unda gösterilecek widget/card'ları döner.
 	///

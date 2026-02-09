@@ -11,7 +11,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/data/orm"
 	"github.com/ferdiunal/panel.go/pkg/domain/account"
-	domainUser "github.com/ferdiunal/panel.go/pkg/domain/user"
+	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -31,36 +31,38 @@ import (
 //
 // Alanlar:
 // - *data.GormDataProvider: Temel GORM veri sağlayıcısı (gömülü)
-// - accountRepo: Hesap (Account) işlemleri için repository
+// - client: GORM DB instance'ı (account oluşturma için)
 type UserDataProvider struct {
 	*data.GormDataProvider
-	accountRepo account.Repository
+	client            *gorm.DB
+	accountRepository *orm.AccountRepository
 }
 
 // Bu fonksiyon, yeni bir UserDataProvider örneği oluşturur ve başlatır.
 //
 // Parametreler:
-// - db (*gorm.DB): GORM veritabanı bağlantısı
+// - client (*gorm.DB): Ent client instance'ı
 //
 // Dönüş Değeri:
 // - *UserDataProvider: Yapılandırılmış UserDataProvider pointer'ı
 //
 // Kullanım Örneği:
-//   db := gorm.Open(sqlite.Open("test.db"))
-//   provider := NewUserDataProvider(db)
-//   user, err := provider.Create(ctx, map[string]interface{}{
-//       "email": "user@example.com",
-//       "password": "securepassword123",
-//   })
+//
+//	db, _ := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+//	provider := NewUserDataProvider(db)
+//	user, err := provider.Create(ctx, map[string]interface{}{
+//	    "email": "user@example.com",
+//	    "password": "securepassword123",
+//	})
 //
 // Önemli Notlar:
-// - Fonksiyon otomatik olarak AccountRepository'yi başlatır
-// - GORM veri sağlayıcısı domainUser.User modeli ile yapılandırılır
-// - Veritabanı bağlantısı nil ise panic oluşabilir
-func NewUserDataProvider(db *gorm.DB) *UserDataProvider {
+// - GORM veri sağlayıcısı user.User modeli ile yapılandırılır
+// - Client nil ise panic oluşabilir
+func NewUserDataProvider(client *gorm.DB) *UserDataProvider {
 	return &UserDataProvider{
-		GormDataProvider: data.NewGormDataProvider(db, &domainUser.User{}),
-		accountRepo:      orm.NewAccountRepository(db),
+		GormDataProvider:  data.NewGormDataProvider(client, &user.User{}),
+		client:            client,
+		accountRepository: orm.NewAccountRepository(client),
 	}
 }
 
@@ -76,8 +78,8 @@ func NewUserDataProvider(db *gorm.DB) *UserDataProvider {
 // Parametreler:
 // - ctx (*context.Context): İstek bağlamı (context), işlem izleme ve iptal için kullanılır
 // - data (map[string]interface{}): Kullanıcı bilgileri
-//   * "password" (string): Kullanıcının şifresi (zorunlu)
-//   * Diğer alanlar: email, name, vb. kullanıcı özellikleri
+//   - "password" (string): Kullanıcının şifresi (zorunlu)
+//   - Diğer alanlar: email, name, vb. kullanıcı özellikleri
 //
 // Dönüş Değerleri:
 // - interface{}: Başarılı olursa oluşturulan User nesnesi
@@ -87,28 +89,29 @@ func NewUserDataProvider(db *gorm.DB) *UserDataProvider {
 // - "password is required": Şifre alanı boş veya eksik
 // - bcrypt.GenerateFromPassword hatası: Şifre hashleme başarısız
 // - GORM Create hatası: Kullanıcı kaydı başarısız
-// - accountRepo.Create hatası: Hesap kaydı başarısız (kullanıcı kaydı geri alınır)
+// - Account Create hatası: Hesap kaydı başarısız (kullanıcı kaydı geri alınır)
 //
 // Kullanım Örneği:
-//   provider := NewUserDataProvider(db)
-//   ctx := context.New()
-//   user, err := provider.Create(ctx, map[string]interface{}{
-//       "email": "john@example.com",
-//       "name": "John Doe",
-//       "password": "MySecurePassword123!",
-//   })
-//   if err != nil {
-//       log.Printf("Kullanıcı oluşturma hatası: %v", err)
-//       return
-//   }
-//   log.Printf("Kullanıcı başarıyla oluşturuldu: %d", user.ID)
+//
+//	provider := NewUserDataProvider(client)
+//	ctx := context.New()
+//	user, err := provider.Create(ctx, map[string]interface{}{
+//	    "email": "john@example.com",
+//	    "name": "John Doe",
+//	    "password": "MySecurePassword123!",
+//	})
+//	if err != nil {
+//	    log.Printf("Kullanıcı oluşturma hatası: %v", err)
+//	    return
+//	}
+//	log.Printf("Kullanıcı başarıyla oluşturuldu: %d", user.ID)
 //
 // Önemli Notlar:
 // - Şifre hiçbir zaman veritabanında düz metin olarak kaydedilmez
 // - Şifre hashleme için bcrypt.DefaultCost (12) kullanılır
 // - Hesap oluşturma başarısız olursa, kullanıcı kaydı otomatik olarak silinir
 // - ProviderID "credential" olarak sabitlenmiştir (yerel kimlik doğrulama)
-// - AccountID nil olarak ayarlanır (harici sağlayıcı kimliği yoktur)
+// - AccountID boş string olarak ayarlanır (harici sağlayıcı kimliği yoktur)
 // - Başarılı olursa, oluşturulan User nesnesi döndürülür
 // - Başarısız olursa, nil ve hata mesajı döndürülür
 func (p *UserDataProvider) Create(ctx *context.Context, data map[string]interface{}) (interface{}, error) {
@@ -127,9 +130,10 @@ func (p *UserDataProvider) Create(ctx *context.Context, data map[string]interfac
 		return nil, err
 	}
 
-	// Şifreyi verilerden kaldırır
+	// Şifreyi verilerden kaldırır ve hashlenmişini ekler
 	// Böylece düz metin şifre veritabanına kaydedilmez
 	delete(data, "password")
+	data["password"] = string(hashed)
 
 	// Adım 3: Kullanıcı kaydını GORM veri sağlayıcısı ile veritabanına kaydeder
 	// Bu işlem, User modelinin tüm alanlarını veritabanına ekler
@@ -140,26 +144,24 @@ func (p *UserDataProvider) Create(ctx *context.Context, data map[string]interfac
 
 	// Döndürülen sonucu User türüne dönüştürür
 	// Eğer dönüşüm başarısız olursa, sonuç olduğu gibi döndürülür
-	user, ok := result.(*domainUser.User)
+	user, ok := result.(*user.User)
 	if !ok {
 		return result, nil
 	}
 
 	// Adım 4: Oluşturulan kullanıcı için hesap (Account) kaydı oluşturur
-	// AccountRepository tarafından ID otomatik olarak oluşturulur
-	acc := &account.Account{
-		UserID:     user.ID,                    // Kullanıcı ID'si
-		ProviderID: "credential",               // Kimlik doğrulama sağlayıcısı (yerel)
-		AccountID:  nil,                        // Harici sağlayıcı kimliği (yerel için nil)
-		Password:   string(hashed),             // Hashlenen şifre
-		CreatedAt:  time.Now(),                 // Oluşturulma zamanı
-		UpdatedAt:  time.Now(),                 // Son güncelleme zamanı
-	}
-
-	// Context wrapper'ından standart Go context'i alır
-	// Bu, GORM işlemleri için gereklidir
+	// GORM kullanarak Account oluşturulur
 	stdCtx := ctx.Context()
-	if err := p.accountRepo.Create(stdCtx, acc); err != nil {
+	err = p.accountRepository.Create(stdCtx, &account.Account{
+		ProviderID: "credential",
+		Password:   string(hashed),
+		UserID:     user.ID,
+		AccountID:  nil,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	})
+
+	if err != nil {
 		// Adım 5: Hesap oluşturma başarısız olursa, kullanıcı kaydını geri alır (rollback)
 		// Bu, veri tutarlılığını sağlar ve yetim kayıtların oluşmasını önler
 		_ = p.GormDataProvider.Delete(ctx, fmt.Sprint(user.ID))

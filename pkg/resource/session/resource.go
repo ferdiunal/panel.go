@@ -48,8 +48,9 @@ type SessionResource struct {
 // - Field, Card ve Policy resolver'larını bağlar
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   // sessionResource artık admin panelde kullanılmaya hazırdır
+//
+//	sessionResource := NewSessionResource()
+//	// sessionResource artık admin panelde kullanılmaya hazırdır
 //
 // Önemli Notlar:
 // - Bu fonksiyon singleton pattern ile kullanılmalıdır
@@ -115,17 +116,25 @@ func NewSessionResource() *SessionResource {
 // CRUD işlemleri (Create, Read, Update, Delete) için kullanılır.
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   provider := sessionResource.Repository(db)
-//   sessions, err := provider.Get(ctx)
+//
+//	sessionResource := NewSessionResource()
+//	provider := sessionResource.Repository(db)
+//	sessions, err := provider.Get(ctx)
 //
 // Önemli Notlar:
 // - Her çağrıda yeni bir DataProvider instance'ı oluşturulur
 // - GORM bağlantısı nil olmamalıdır
 // - DataProvider, veritabanı işlemlerini optimize eder
 // - Lazy loading yerine eager loading tercih edilir (With() metodu ile)
-func (r *SessionResource) Repository(db *gorm.DB) data.DataProvider {
-	// GORM veri sağlayıcısını oluştur ve döndür
+func (r *SessionResource) Repository(client interface{}) data.DataProvider {
+	// Type assertion to get Ent client
+	db, ok := client.(*gorm.DB)
+	if !ok {
+		// TODO: Add GORM support
+		return nil
+	}
+
+	// Ent veri sağlayıcısını oluştur ve döndür
 	// Bu sağlayıcı Session entity'si için tüm veritabanı işlemlerini yönetir
 	return data.NewGormDataProvider(db, &domainSession.Session{})
 }
@@ -143,10 +152,11 @@ func (r *SessionResource) Repository(db *gorm.DB) data.DataProvider {
 // artırır. Döndürülen string'ler GORM'un Preload() metoduna geçirilir.
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   relations := sessionResource.With()
-//   // relations = []string{"User"}
-//   // GORM: db.Preload("User").Find(&sessions)
+//
+//	sessionResource := NewSessionResource()
+//	relations := sessionResource.With()
+//	// relations = []string{"User"}
+//	// GORM: db.Preload("User").Find(&sessions)
 //
 // Önemli Notlar:
 // - "User" ilişkisi her Session yüklemesinde otomatik olarak yüklenir
@@ -173,9 +183,10 @@ func (r *SessionResource) With() []string {
 // gibi filtrelenmiş görünümler oluşturabilir.
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   lenses := sessionResource.Lenses()
-//   // Şu anda boş, gelecekte özel görünümler eklenebilir
+//
+//	sessionResource := NewSessionResource()
+//	lenses := sessionResource.Lenses()
+//	// Şu anda boş, gelecekte özel görünümler eklenebilir
 //
 // Önemli Notlar:
 // - Şu anda hiçbir özel görünüm tanımlanmamıştır
@@ -201,17 +212,18 @@ func (r *SessionResource) Lenses() []resource.Lens {
 // custom action'lar eklenebilir.
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   actions := sessionResource.GetActions()
-//   // Şu anda boş, gelecekte özel işlemler eklenebilir
+//
+//	sessionResource := NewSessionResource()
+//	actions := sessionResource.GetActions()
+//	// Şu anda boş, gelecekte özel işlemler eklenebilir
 //
 // Önemli Notlar:
-// - Şu anda hiçbir özel işlem tanımlanmamıştır
-// - Gelecekte "Oturumu Sonlandır", "Oturumu Doğrula", "Güvenlik Taraması" gibi
-//   action'lar eklenebilir
-// - Her action, belirli bir işlemi gerçekleştiren bir handler içerir
-// - Boş slice döndürülmesi, sadece standart CRUD işlemlerinin kullanılacağı
-//   anlamına gelir
+//   - Şu anda hiçbir özel işlem tanımlanmamıştır
+//   - Gelecekte "Oturumu Sonlandır", "Oturumu Doğrula", "Güvenlik Taraması" gibi
+//     action'lar eklenebilir
+//   - Her action, belirli bir işlemi gerçekleştiren bir handler içerir
+//   - Boş slice döndürülmesi, sadece standart CRUD işlemlerinin kullanılacağı
+//     anlamına gelir
 func (r *SessionResource) GetActions() []resource.Action {
 	// Şu anda özel işlem tanımlanmamıştır
 	// Gelecekte Session'lar üzerinde gerçekleştirilebilecek custom action'lar
@@ -232,16 +244,17 @@ func (r *SessionResource) GetActions() []resource.Action {
 // "Tarih Aralığına Göre" gibi filtreler eklenebilir.
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   filters := sessionResource.GetFilters()
-//   // Şu anda boş, gelecekte filtreler eklenebilir
+//
+//	sessionResource := NewSessionResource()
+//	filters := sessionResource.GetFilters()
+//	// Şu anda boş, gelecekte filtreler eklenebilir
 //
 // Önemli Notlar:
-// - Şu anda hiçbir filtre tanımlanmamıştır
-// - Gelecekte "Kullanıcı", "Durum", "Oluşturulma Tarihi", "Son Aktivite" gibi
-//   filtreler eklenebilir
-// - Her filtre, belirli bir alan üzerinde filtreleme sağlar
-// - Boş slice döndürülmesi, filtreleme özelliğinin devre dışı olduğu anlamına gelir
+//   - Şu anda hiçbir filtre tanımlanmamıştır
+//   - Gelecekte "Kullanıcı", "Durum", "Oluşturulma Tarihi", "Son Aktivite" gibi
+//     filtreler eklenebilir
+//   - Her filtre, belirli bir alan üzerinde filtreleme sağlar
+//   - Boş slice döndürülmesi, filtreleme özelliğinin devre dışı olduğu anlamına gelir
 func (r *SessionResource) GetFilters() []resource.Filter {
 	// Şu anda filtre tanımlanmamıştır
 	// Gelecekte Session'ları filtrelemek için filtreler eklenebilir
@@ -262,11 +275,12 @@ func (r *SessionResource) GetFilters() []resource.Filter {
 // Döndürülen slice'daki sıra, sıralama önceliğini belirtir.
 //
 // Kullanım Örneği:
-//   sessionResource := NewSessionResource()
-//   sortables := sessionResource.GetSortable()
-//   // sortables[0].Column = "created_at"
-//   // sortables[0].Direction = "desc"
-//   // GORM: db.Order("created_at DESC")
+//
+//	sessionResource := NewSessionResource()
+//	sortables := sessionResource.GetSortable()
+//	// sortables[0].Column = "created_at"
+//	// sortables[0].Direction = "desc"
+//	// GORM: db.Order("created_at DESC")
 //
 // Önemli Notlar:
 // - Varsayılan sıralama "created_at" alanına göre azalan (desc) sırada yapılır

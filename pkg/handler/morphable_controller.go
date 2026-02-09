@@ -304,8 +304,15 @@ func HandleMorphable(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
-	// Query the related resource table
-	options, err := queryMorphableResources(h.DB, resourceSlug, search, perPage, current)
+	// Query the related resource table - Get GORM DB from provider
+	db, ok := h.Provider.GetClient().(*gorm.DB)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Database client not available",
+		})
+	}
+
+	options, err := queryMorphableResources(db, resourceSlug, search, perPage, current)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch resources",
