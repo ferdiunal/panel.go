@@ -490,3 +490,6 @@ func (h *HasManyField) Extract(resource interface{}) {
 		h.Schema.Data = ids
 	}
 }
+
+// Compile-time check: HasManyField implements RelationshipField interface
+var _ RelationshipField = (*HasManyField)(nil)

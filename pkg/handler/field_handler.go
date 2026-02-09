@@ -279,7 +279,11 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	// Relationship field'larını topla
 	var relationshipFields []fields.RelationshipField
 
+	fmt.Printf("[DEBUG] NewResourceHandler - Scanning %d fields\n", len(res.Fields()))
+
 	for _, element := range res.Fields() {
+		fmt.Printf("[DEBUG] NewResourceHandler - Field: %s, Type: %T\n", element.GetKey(), element)
+
 		if relField, ok := fields.IsRelationshipField(element); ok {
 			// Relationship field'ı listeye ekle
 			relationshipFields = append(relationshipFields, relField)
