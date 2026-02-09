@@ -432,6 +432,11 @@ func (mg *MigrationGenerator) applyFieldConstraints(r resource.Resource) error {
 	for _, field := range r.Fields() {
 		// İlişkisel field'ları kontrol et
 		if relField, ok := fields.IsRelationshipField(field); ok {
+			// relField nil olabilir (IsRelationshipField view'a göre true döndürebilir ama nil relField ile)
+			if relField == nil {
+				continue
+			}
+
 			// BelongsTo için foreign key index'i
 			if relField.GetRelationshipType() == "belongsTo" {
 				if bt, ok := relField.(*fields.BelongsToField); ok {
