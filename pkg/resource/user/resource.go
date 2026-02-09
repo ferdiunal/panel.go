@@ -3,9 +3,7 @@ package user
 import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	domainUser "github.com/ferdiunal/panel.go/pkg/domain/user"
-	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/resource"
-	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
