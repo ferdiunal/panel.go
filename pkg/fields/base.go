@@ -206,10 +206,10 @@ func (s *Schema) GetType() core.ElementType {
 //
 // # Özel Durumlar
 //
-// - **ID Suffix Uyumsuzluğu**: "author_id" gibi bir key için, önce "AuthorId" aranır,
-//   bulunamazsa "AuthorID" aranır (Go naming convention)
-// - **JSON Tag Desteği**: Struct field'ları JSON tag'leri ile de eşleştirilebilir
-// - **Nil Güvenliği**: Resource nil ise hiçbir işlem yapılmaz
+//   - **ID Suffix Uyumsuzluğu**: "author_id" gibi bir key için, önce "AuthorId" aranır,
+//     bulunamazsa "AuthorID" aranır (Go naming convention)
+//   - **JSON Tag Desteği**: Struct field'ları JSON tag'leri ile de eşleştirilebilir
+//   - **Nil Güvenliği**: Resource nil ise hiçbir işlem yapılmaz
 //
 // Parametreler:
 //   - resource: Veri çıkarılacak kaynak (struct veya map)
@@ -315,8 +315,29 @@ func (s *Schema) Extract(resource interface{}) {
 //	// json["name"] == "E-posta"
 //	// json["view"] == "email-field"
 func (s *Schema) JsonSerialize() map[string]interface{} {
+	// Context'e göre view suffix'i ekle (Form/Index/Detail pattern)
+	// Bu, frontend'deki view-specific field component'leri ile uyumlu hale getirir
+	view := s.View
+	if view != "" && s.Context != "" {
+		// Eğer view zaten suffix içeriyorsa (örn: "text-field-form"), duplicate ekleme
+		hasSuffix := strings.HasSuffix(view, "-form") ||
+			strings.HasSuffix(view, "-index") ||
+			strings.HasSuffix(view, "-detail")
+
+		if !hasSuffix {
+			switch s.Context {
+			case CONTEXT_FORM, SHOW_ON_FORM, ONLY_ON_FORM, ONLY_ON_CREATE, ONLY_ON_UPDATE:
+				view = view + "-form"
+			case CONTEXT_LIST, SHOW_ON_LIST, ONLY_ON_LIST:
+				view = view + "-index"
+			case CONTEXT_DETAIL, SHOW_ON_DETAIL, ONLY_ON_DETAIL:
+				view = view + "-detail"
+			}
+		}
+	}
+
 	return map[string]interface{}{
-		"view":        s.View,
+		"view":        view,
 		"type":        s.Type,
 		"key":         s.Key,
 		"name":        s.Name,

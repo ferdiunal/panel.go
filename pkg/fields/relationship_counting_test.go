@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipCounting tests creating a new relationship counting handler
 func TestNewRelationshipCounting(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	counting := NewRelationshipCounting(field)
 
 	if counting == nil {
@@ -21,7 +21,7 @@ func TestNewRelationshipCounting(t *testing.T) {
 
 // TestCountBelongsTo tests counting BelongsTo relationships
 func TestCountBelongsTo(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	counting := NewRelationshipCounting(field)
 
 	ctx := context.Background()
@@ -38,7 +38,7 @@ func TestCountBelongsTo(t *testing.T) {
 
 // TestCountHasMany tests counting HasMany relationships
 func TestCountHasMany(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	counting := NewRelationshipCounting(field)
 
 	ctx := context.Background()
@@ -55,7 +55,7 @@ func TestCountHasMany(t *testing.T) {
 
 // TestCountHasOne tests counting HasOne relationships
 func TestCountHasOne(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	counting := NewRelationshipCounting(field)
 
 	ctx := context.Background()
@@ -72,7 +72,7 @@ func TestCountHasOne(t *testing.T) {
 
 // TestCountBelongsToMany tests counting BelongsToMany relationships
 func TestCountBelongsToMany(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	counting := NewRelationshipCounting(field)
 
 	ctx := context.Background()
@@ -88,7 +88,7 @@ func TestCountBelongsToMany(t *testing.T) {
 }
 
 // TestCountMorphTo tests counting MorphTo relationships
-func TestCountMorphTo(t *testing.T) {
+func TestCountNewMorphTo(t *testing.T) {
 	field := NewMorphTo("Commentable", "commentable")
 	counting := NewRelationshipCounting(field)
 

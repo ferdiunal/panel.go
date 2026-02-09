@@ -261,6 +261,11 @@ import (
 func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	ctx := c.Resource()
 
+	// Set visibility context for proper field filtering
+	if ctx != nil {
+		ctx.VisibilityCtx = fields.ContextIndex
+	}
+
 	if h.Policy != nil && !h.Policy.ViewAny(c) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
 	}

@@ -3,6 +3,7 @@ package fields
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // BelongsToField, ters one-to-one ilişkiyi temsil eder (örn. Post -> Author).
@@ -607,4 +608,117 @@ func (b *BelongsToField) GetOwnerKeyColumn() string {
 		return b.GormRelationConfig.References
 	}
 	return "id"
+}
+
+// Extract, BelongsTo ilişkisini minimal formatta serialize eder.
+//
+// Bu metod, ilişkili kaydı {"id": ..., "title": ...} formatında döndürür.
+// Laravel Nova'nın title pattern'ini takip eder.
+//
+// # Çalışma Mantığı
+//
+// 1. Schema.Extract ile foreign key değerini alır
+// 2. İlişki eager loaded ise ve RelatedResource varsa:
+//    - İlişkili kaydın ID'sini alır
+//    - RelatedResource.RecordTitle ile başlığı alır
+//    - {"id": foreignKey, "title": recordTitle} formatında döndürür
+// 3. İlişki yüklenmemişse veya nil ise null döndürür
+//
+// # Önemli Notlar
+//
+// - İlişki eager loaded olmalı (WithEagerLoad veya Preload kullanılmalı)
+// - RelatedResource nil ise sadece foreign key değeri döner
+// - DisplayUsing callback'i varsa öncelik verilir
+//
+// # Kullanım Örneği
+//
+//	// Post -> Author ilişkisi
+//	post := &Post{
+//	    ID: 1,
+//	    AuthorID: 5,
+//	    Author: &User{ID: 5, Name: "John Doe"},
+//	}
+//	field.Extract(&post)
+//	// field.Data = {"id": 5, "title": "John Doe"}
+//
+//	// İlişki yüklenmemiş
+//	post := &Post{ID: 1, AuthorID: 5, Author: nil}
+//	field.Extract(&post)
+//	// field.Data = nil
+//
+// Parametreler:
+//   - record: Kayıt instance'ı (pointer olmalı)
+func (b *BelongsToField) Extract(record any) {
+	// Schema.Extract ile foreign key değerini al
+	b.Schema.Extract(record)
+
+	// DisplayUsing callback'i varsa onu kullan
+	if b.DisplayUsing != nil {
+		return
+	}
+
+	// RelatedResource yoksa sadece foreign key değerini döndür
+	if b.RelatedResource == nil {
+		return
+	}
+
+	// Record'un reflection değerini al
+	v := reflect.ValueOf(record)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// Struct değilse çık
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	// İlişki field'ını bul (Schema.Key değeri)
+	var relationField reflect.Value
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Type().Field(i)
+		// Schema.Key'daki foreign key field adını kullan (örn: "author_id" -> "Author")
+		// GORM convention: "author_id" -> "Author" field'ı
+		relationName := strings.TrimSuffix(b.Schema.Key, "_id")
+		relationName = strings.TrimSuffix(relationName, "Id")
+		relationName = strings.TrimSuffix(relationName, "ID")
+
+		if strings.EqualFold(field.Name, relationName) {
+			relationField = v.Field(i)
+			break
+		}
+	}
+
+	// İlişki field'ı bulunamadıysa veya nil ise çık
+	if !relationField.IsValid() || relationField.IsNil() {
+		b.Data = nil
+		return
+	}
+
+	// İlişkili kaydı al
+	relatedRecord := relationField.Interface()
+
+	// Foreign key değerini al
+	foreignKeyValue := b.Schema.Data
+
+	// RelatedResource'dan RecordTitle metodunu çağır (type assertion ile)
+	// RelatedResource interface{} tipinde olduğu için type assertion gerekli
+	type ResourceWithTitle interface {
+		RecordTitle(any) string
+	}
+
+	res, ok := b.RelatedResource.(ResourceWithTitle)
+	if !ok {
+		// RelatedResource RecordTitle metoduna sahip değilse sadece foreign key döndür
+		return
+	}
+
+	// İlişkili kaydın title'ını al
+	recordTitle := res.RecordTitle(relatedRecord)
+
+	// Minimal format: {"id": foreignKey, "title": recordTitle}
+	b.Data = map[string]any{
+		"id":    foreignKeyValue,
+		"title": recordTitle,
+	}
 }

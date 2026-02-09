@@ -6,7 +6,7 @@ import (
 
 // TestHasOneCreation tests HasOne field creation
 func TestHasOneCreation(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	if field.Name != "Profile" {
 		t.Errorf("Expected name 'Profile', got '%s'", field.Name)
@@ -31,7 +31,7 @@ func TestHasOneCreation(t *testing.T) {
 
 // TestHasOneForeignKey tests ForeignKey method
 func TestHasOneForeignKey(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	result := field.ForeignKey("user_id")
 
 	if result != field {
@@ -45,7 +45,7 @@ func TestHasOneForeignKey(t *testing.T) {
 
 // TestHasOneOwnerKey tests OwnerKey method
 func TestHasOneOwnerKey(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	result := field.OwnerKey("id")
 
 	if result != field {
@@ -59,7 +59,7 @@ func TestHasOneOwnerKey(t *testing.T) {
 
 // TestHasOneQuery tests Query method
 func TestHasOneQuery(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	queryFn := func(q interface{}) interface{} {
 		return q
@@ -78,7 +78,7 @@ func TestHasOneQuery(t *testing.T) {
 
 // TestHasOneLoadingStrategies tests loading strategy methods
 func TestHasOneLoadingStrategies(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	// Test WithEagerLoad
 	result := field.WithEagerLoad()
@@ -101,7 +101,7 @@ func TestHasOneLoadingStrategies(t *testing.T) {
 
 // TestHasOneGetRelationshipType tests GetRelationshipType method
 func TestHasOneGetRelationshipType(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	relType := field.GetRelationshipType()
 
 	if relType != "hasOne" {
@@ -111,7 +111,7 @@ func TestHasOneGetRelationshipType(t *testing.T) {
 
 // TestHasOneGetRelatedResource tests GetRelatedResource method
 func TestHasOneGetRelatedResource(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	resource := field.GetRelatedResource()
 
 	if resource != "profiles" {
@@ -121,7 +121,7 @@ func TestHasOneGetRelatedResource(t *testing.T) {
 
 // TestHasOneGetRelationshipName tests GetRelationshipName method
 func TestHasOneGetRelationshipName(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	name := field.GetRelationshipName()
 
 	if name != "Profile" {
@@ -131,7 +131,7 @@ func TestHasOneGetRelationshipName(t *testing.T) {
 
 // TestHasOneResolveRelationship tests ResolveRelationship method
 func TestHasOneResolveRelationship(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	// Test with nil item
 	result, err := field.ResolveRelationship(nil)
@@ -155,7 +155,7 @@ func TestHasOneResolveRelationship(t *testing.T) {
 
 // TestHasOneValidateRelationship tests ValidateRelationship method
 func TestHasOneValidateRelationship(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	// Test with nil value
 	err := field.ValidateRelationship(nil)
@@ -172,7 +172,7 @@ func TestHasOneValidateRelationship(t *testing.T) {
 
 // TestHasOneGetQueryCallback tests GetQueryCallback method
 func TestHasOneGetQueryCallback(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	// Test with nil callback
 	callback := field.GetQueryCallback()
@@ -190,7 +190,7 @@ func TestHasOneGetQueryCallback(t *testing.T) {
 
 // TestHasOneGetLoadingStrategy tests GetLoadingStrategy method
 func TestHasOneGetLoadingStrategy(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	strategy := field.GetLoadingStrategy()
 
 	if strategy != EAGER_LOADING {
@@ -207,7 +207,7 @@ func TestHasOneGetLoadingStrategy(t *testing.T) {
 
 // TestHasOneFluentChaining tests fluent API chaining
 func TestHasOneFluentChaining(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles").
+	field := HasOne("Profile", "profile", "profiles").
 		ForeignKey("user_id").
 		OwnerKey("id").
 		WithLazyLoad()
@@ -227,7 +227,7 @@ func TestHasOneFluentChaining(t *testing.T) {
 
 // TestHasOneNilQueryCallback tests nil query callback handling
 func TestHasOneNilQueryCallback(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	field.QueryCallback = nil
 
 	callback := field.GetQueryCallback()
@@ -245,7 +245,7 @@ func TestHasOneNilQueryCallback(t *testing.T) {
 
 // TestHasOneImplementsRelationshipField tests that HasOne implements RelationshipField interface
 func TestHasOneImplementsRelationshipField(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	// Test relationship field methods
 	if field.GetRelationshipType() != "hasOne" {

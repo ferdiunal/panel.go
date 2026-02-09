@@ -6,7 +6,7 @@ import (
 
 // TestBelongsToManyCreation tests BelongsToMany field creation
 func TestBelongsToManyCreation(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	if field.Name != "Tags" {
 		t.Errorf("Expected name 'Tags', got '%s'", field.Name)
@@ -31,7 +31,7 @@ func TestBelongsToManyCreation(t *testing.T) {
 
 // TestBelongsToManyPivotTable tests PivotTable method
 func TestBelongsToManyPivotTable(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	result := field.PivotTable("post_tag")
 
 	if result != field {
@@ -45,7 +45,7 @@ func TestBelongsToManyPivotTable(t *testing.T) {
 
 // TestBelongsToManyForeignKey tests ForeignKey method
 func TestBelongsToManyForeignKey(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	result := field.ForeignKey("post_id")
 
 	if result != field {
@@ -59,7 +59,7 @@ func TestBelongsToManyForeignKey(t *testing.T) {
 
 // TestBelongsToManyRelatedKey tests RelatedKey method
 func TestBelongsToManyRelatedKey(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	result := field.RelatedKey("tag_id")
 
 	if result != field {
@@ -73,7 +73,7 @@ func TestBelongsToManyRelatedKey(t *testing.T) {
 
 // TestBelongsToManyQuery tests Query method
 func TestBelongsToManyQuery(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	queryFn := func(q interface{}) interface{} {
 		return q
@@ -92,7 +92,7 @@ func TestBelongsToManyQuery(t *testing.T) {
 
 // TestBelongsToManyLoadingStrategies tests loading strategy methods
 func TestBelongsToManyLoadingStrategies(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	// Test WithEagerLoad
 	result := field.WithEagerLoad()
@@ -115,7 +115,7 @@ func TestBelongsToManyLoadingStrategies(t *testing.T) {
 
 // TestBelongsToManyGetRelationshipType tests GetRelationshipType method
 func TestBelongsToManyGetRelationshipType(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	relType := field.GetRelationshipType()
 
 	if relType != "belongsToMany" {
@@ -125,7 +125,7 @@ func TestBelongsToManyGetRelationshipType(t *testing.T) {
 
 // TestBelongsToManyGetRelatedResource tests GetRelatedResource method
 func TestBelongsToManyGetRelatedResource(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	resource := field.GetRelatedResource()
 
 	if resource != "tags" {
@@ -135,7 +135,7 @@ func TestBelongsToManyGetRelatedResource(t *testing.T) {
 
 // TestBelongsToManyGetRelationshipName tests GetRelationshipName method
 func TestBelongsToManyGetRelationshipName(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	name := field.GetRelationshipName()
 
 	if name != "Tags" {
@@ -145,7 +145,7 @@ func TestBelongsToManyGetRelationshipName(t *testing.T) {
 
 // TestBelongsToManyResolveRelationship tests ResolveRelationship method
 func TestBelongsToManyResolveRelationship(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	// Test with nil item
 	result, err := field.ResolveRelationship(nil)
@@ -169,7 +169,7 @@ func TestBelongsToManyResolveRelationship(t *testing.T) {
 
 // TestBelongsToManyValidateRelationship tests ValidateRelationship method
 func TestBelongsToManyValidateRelationship(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	// Test with nil value
 	err := field.ValidateRelationship(nil)
@@ -186,7 +186,7 @@ func TestBelongsToManyValidateRelationship(t *testing.T) {
 
 // TestBelongsToManyGetQueryCallback tests GetQueryCallback method
 func TestBelongsToManyGetQueryCallback(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	// Test with nil callback
 	callback := field.GetQueryCallback()
@@ -204,7 +204,7 @@ func TestBelongsToManyGetQueryCallback(t *testing.T) {
 
 // TestBelongsToManyGetLoadingStrategy tests GetLoadingStrategy method
 func TestBelongsToManyGetLoadingStrategy(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	strategy := field.GetLoadingStrategy()
 
 	if strategy != EAGER_LOADING {
@@ -221,7 +221,7 @@ func TestBelongsToManyGetLoadingStrategy(t *testing.T) {
 
 // TestBelongsToManyFluentChaining tests fluent API chaining
 func TestBelongsToManyFluentChaining(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags").
+	field := BelongsToMany("Tags", "tags", "tags").
 		PivotTable("post_tag").
 		ForeignKey("post_id").
 		RelatedKey("tag_id").
@@ -246,7 +246,7 @@ func TestBelongsToManyFluentChaining(t *testing.T) {
 
 // TestBelongsToManyCount tests Count method
 func TestBelongsToManyCount(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	count := field.Count()
 
 	if count != 0 {
@@ -256,7 +256,7 @@ func TestBelongsToManyCount(t *testing.T) {
 
 // TestBelongsToManyNilQueryCallback tests nil query callback handling
 func TestBelongsToManyNilQueryCallback(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	field.QueryCallback = nil
 
 	callback := field.GetQueryCallback()
@@ -274,7 +274,7 @@ func TestBelongsToManyNilQueryCallback(t *testing.T) {
 
 // TestBelongsToManyImplementsRelationshipField tests that BelongsToMany implements RelationshipField interface
 func TestBelongsToManyImplementsRelationshipField(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	// Test relationship field methods
 	if field.GetRelationshipType() != "belongsToMany" {
@@ -292,7 +292,7 @@ func TestBelongsToManyImplementsRelationshipField(t *testing.T) {
 
 // TestBelongsToManyPivotTableNaming tests pivot table naming convention
 func TestBelongsToManyPivotTableNaming(t *testing.T) {
-	field := NewBelongsToMany("Tags", "posts", "tags")
+	field := BelongsToMany("Tags", "posts", "tags")
 
 	// Pivot table should be alphabetically sorted
 	if field.PivotTableName != "posts_tags" {

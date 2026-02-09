@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipSearch tests creating a new relationship search handler
 func TestNewRelationshipSearch(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	search := NewRelationshipSearch(field)
 
 	if search == nil {
@@ -21,7 +21,7 @@ func TestNewRelationshipSearch(t *testing.T) {
 
 // TestSearchEmptyTerm tests search with empty term
 func TestSearchEmptyTerm(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	search := NewRelationshipSearch(field)
 
 	ctx := context.Background()
@@ -38,7 +38,7 @@ func TestSearchEmptyTerm(t *testing.T) {
 
 // TestSearchWithTerm tests search with term
 func TestSearchWithTerm(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.WithSearchableColumns("name", "email")
 	search := NewRelationshipSearch(field)
 
@@ -56,7 +56,7 @@ func TestSearchWithTerm(t *testing.T) {
 
 // TestSearchInColumns tests search in specific columns
 func TestSearchInColumns(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	search := NewRelationshipSearch(field)
 
 	ctx := context.Background()
@@ -73,7 +73,7 @@ func TestSearchInColumns(t *testing.T) {
 
 // TestSearchInColumnsEmpty tests search in columns with empty columns
 func TestSearchInColumnsEmpty(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	search := NewRelationshipSearch(field)
 
 	ctx := context.Background()
@@ -90,7 +90,7 @@ func TestSearchInColumnsEmpty(t *testing.T) {
 
 // TestGetSearchableColumns tests getting searchable columns
 func TestGetSearchableColumns(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.WithSearchableColumns("name", "email")
 	search := NewRelationshipSearch(field)
 
@@ -107,7 +107,7 @@ func TestGetSearchableColumns(t *testing.T) {
 
 // TestGetSearchableColumnsHasMany tests getting searchable columns for HasMany
 func TestGetSearchableColumnsHasMany(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	search := NewRelationshipSearch(field)
 
 	columns := search.GetSearchableColumns()
@@ -119,7 +119,7 @@ func TestGetSearchableColumnsHasMany(t *testing.T) {
 
 // TestCaseInsensitiveSearch tests case-insensitive search
 func TestCaseInsensitiveSearch(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	search := NewRelationshipSearch(field)
 
 	ctx := context.Background()

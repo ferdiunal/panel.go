@@ -214,6 +214,13 @@ import (
 /// ```
 func HandleResourceEdit(h *FieldHandler, c *context.Context) error {
 	id := c.Params("id")
+
+	// Set visibility context for proper field filtering
+	ctx := c.Resource()
+	if ctx != nil {
+		ctx.VisibilityCtx = fields.ContextUpdate
+	}
+
 	item, err := h.Provider.Show(c, id)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Not found"})

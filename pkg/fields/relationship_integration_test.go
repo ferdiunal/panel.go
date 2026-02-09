@@ -23,7 +23,7 @@ func TestBelongsToRelationship(t *testing.T) {
 		}
 
 		// Create BelongsTo field
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 
 		// Verify field properties
 		if field.GetRelationshipType() != "belongsTo" {
@@ -52,7 +52,7 @@ func TestBelongsToRelationship(t *testing.T) {
 	})
 
 	t.Run("BelongsTo with custom display key", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		field.DisplayUsing("email")
 
 		if field.GetDisplayKey() != "email" {
@@ -61,7 +61,7 @@ func TestBelongsToRelationship(t *testing.T) {
 	})
 
 	t.Run("BelongsTo with searchable columns", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		field.WithSearchableColumns("name", "email")
 
 		columns := field.GetSearchableColumns()
@@ -78,7 +78,7 @@ func TestHasManyRelationship(t *testing.T) {
 
 	t.Run("HasMany resolves all posts for a user", func(t *testing.T) {
 		// Create HasMany field
-		field := NewHasMany("Posts", "posts", "posts")
+		field := HasMany("Posts", "posts", "posts")
 
 		if field.GetRelationshipType() != "hasMany" {
 			t.Errorf("Expected relationship type 'hasMany', got '%s'", field.GetRelationshipType())
@@ -112,7 +112,7 @@ func TestHasManyRelationship(t *testing.T) {
 	})
 
 	t.Run("HasMany with custom foreign key", func(t *testing.T) {
-		field := NewHasMany("Posts", "posts", "posts")
+		field := HasMany("Posts", "posts", "posts")
 		field.ForeignKey("author_id")
 
 		if field.ForeignKeyColumn != "author_id" {
@@ -128,7 +128,7 @@ func TestHasOneRelationship(t *testing.T) {
 
 	t.Run("HasOne resolves single profile for a user", func(t *testing.T) {
 		// Create HasOne field
-		field := NewHasOne("Profile", "profile", "profiles")
+		field := HasOne("Profile", "profile", "profiles")
 
 		if field.GetRelationshipType() != "hasOne" {
 			t.Errorf("Expected relationship type 'hasOne', got '%s'", field.GetRelationshipType())
@@ -170,7 +170,7 @@ func TestBelongsToManyRelationship(t *testing.T) {
 
 	t.Run("BelongsToMany resolves all tags for a post", func(t *testing.T) {
 		// Create BelongsToMany field
-		field := NewBelongsToMany("Tags", "post_tag", "tags")
+		field := BelongsToMany("Tags", "post_tag", "tags")
 
 		if field.GetRelationshipType() != "belongsToMany" {
 			t.Errorf("Expected relationship type 'belongsToMany', got '%s'", field.GetRelationshipType())
@@ -208,7 +208,7 @@ func TestBelongsToManyRelationship(t *testing.T) {
 	})
 
 	t.Run("BelongsToMany with custom pivot table", func(t *testing.T) {
-		field := NewBelongsToMany("Tags", "post_tag", "tags")
+		field := BelongsToMany("Tags", "post_tag", "tags")
 		field.PivotTable("custom_pivot")
 
 		if field.PivotTableName != "custom_pivot" {
@@ -269,7 +269,7 @@ func TestRelationshipLoading(t *testing.T) {
 	defer tdb.Close()
 
 	t.Run("Eager loading strategy", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		field.WithEagerLoad()
 
 		if field.GetLoadingStrategy() != EAGER_LOADING {
@@ -278,7 +278,7 @@ func TestRelationshipLoading(t *testing.T) {
 	})
 
 	t.Run("Lazy loading strategy", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		field.WithLazyLoad()
 
 		if field.GetLoadingStrategy() != LAZY_LOADING {
@@ -293,7 +293,7 @@ func TestRelationshipValidation(t *testing.T) {
 	defer tdb.Close()
 
 	t.Run("Validate required BelongsTo relationship", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		field.Required()
 
 		validator := NewRelationshipValidator()
@@ -313,7 +313,7 @@ func TestRelationshipValidation(t *testing.T) {
 	})
 
 	t.Run("Validate optional BelongsTo relationship", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 
 		validator := NewRelationshipValidator()
 		ctx := context.Background()
@@ -368,7 +368,7 @@ func TestRelationshipDisplay(t *testing.T) {
 	defer tdb.Close()
 
 	t.Run("Display BelongsTo relationship", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		display := NewRelationshipDisplay(field)
 
 		// Get a user
@@ -390,7 +390,7 @@ func TestRelationshipDisplay(t *testing.T) {
 	})
 
 	t.Run("Display multiple relationships", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		display := NewRelationshipDisplay(field)
 
 		// Get all users
@@ -427,7 +427,7 @@ func TestRelationshipSerialization(t *testing.T) {
 	defer tdb.Close()
 
 	t.Run("Serialize BelongsTo relationship", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		serialization := NewRelationshipSerialization(field)
 
 		// Get a user
@@ -453,7 +453,7 @@ func TestRelationshipSerialization(t *testing.T) {
 	})
 
 	t.Run("Serialize to JSON string", func(t *testing.T) {
-		field := NewBelongsTo("Author", "user_id", "users")
+		field := BelongsTo("Author", "user_id", "users")
 		serialization := NewRelationshipSerialization(field)
 
 		// Get a user

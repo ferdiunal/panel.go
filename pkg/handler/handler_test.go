@@ -58,8 +58,9 @@ func (m *MockDataProvider) Delete(ctx *appContext.Context, id string) error {
 	return nil
 }
 
-func (m *MockDataProvider) SetSearchColumns(cols []string) {}
-func (m *MockDataProvider) SetWith(rels []string)          {}
+func (m *MockDataProvider) SetSearchColumns(cols []string)                    {}
+func (m *MockDataProvider) SetWith(rels []string)                             {}
+func (m *MockDataProvider) SetRelationshipFields(fields []fields.RelationshipField) {}
 
 func TestFieldHandler_List(t *testing.T) {
 	app := fiber.New()
@@ -220,6 +221,9 @@ func (m *MockResource) Slug() string                                          { 
 func (m *MockResource) GetDialogType() resource.DialogType                    { return resource.DialogTypeSheet }
 func (m *MockResource) SetDialogType(t resource.DialogType) resource.Resource { return m }
 func (m *MockResource) Repository(db *gorm.DB) data.DataProvider              { return nil }
+func (m *MockResource) GetRecordTitleKey() string                             { return "full_name" }
+func (m *MockResource) SetRecordTitleKey(key string) resource.Resource        { return m }
+func (m *MockResource) OpenAPIEnabled() bool                                  { return false }
 
 func (m *MockResource) Cards() []widget.Card {
 	return []widget.Card{
@@ -259,6 +263,16 @@ func (m *MockResource) GetActions() []resource.Action {
 
 func (m *MockResource) GetFilters() []resource.Filter {
 	return []resource.Filter{}
+}
+
+func (m *MockResource) RecordTitle(record interface{}) string {
+	if user, ok := record.(*User); ok {
+		return user.FullName
+	}
+	if user, ok := record.(User); ok {
+		return user.FullName
+	}
+	return ""
 }
 
 func TestResourceHandler(t *testing.T) {

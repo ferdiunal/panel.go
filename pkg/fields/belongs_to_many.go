@@ -1,6 +1,7 @@
 package fields
 
 import (
+	"reflect"
 	"strings"
 )
 
@@ -281,4 +282,133 @@ func (b *BelongsToManyField) IsRequired() bool {
 // GetTypes returns the type mappings (not used for BelongsToMany)
 func (b *BelongsToManyField) GetTypes() map[string]string {
 	return make(map[string]string)
+}
+
+// Extract, BelongsToMany ilişkisini minimal formatta serialize eder.
+//
+// Bu metod, ilişkili kayıtları [{"id": ..., "title": ...}, ...] formatında döndürür.
+// Laravel Nova'nın title pattern'ini takip eder.
+//
+// # Çalışma Mantığı
+//
+// 1. Schema.Extract ile ilişki verilerini alır
+// 2. Data nil ise boş array döndürür
+// 3. RelatedResource varsa her kayıt için:
+//    - ID field'ını alır
+//    - RelatedResource.RecordTitle ile başlığı alır
+//    - {"id": ..., "title": ...} formatında ekler
+// 4. İlişki yüklenmemişse boş array döndürür
+//
+// # Önemli Notlar
+//
+// - İlişki eager loaded olmalı (WithEagerLoad veya Preload kullanılmalı)
+// - RelatedResource nil ise mevcut veri döner
+// - HasMany ile aynı mantıkta çalışır
+//
+// # Kullanım Örneği
+//
+//	// User -> Roles ilişkisi
+//	user := &User{
+//	    ID: 1,
+//	    Roles: []Role{
+//	        {ID: 1, Name: "Admin"},
+//	        {ID: 2, Name: "Editor"},
+//	    },
+//	}
+//	field.Extract(&user)
+//	// field.Data = [{"id": 1, "title": "Admin"}, {"id": 2, "title": "Editor"}]
+//
+//	// İlişki yüklenmemiş
+//	user := &User{ID: 1, Roles: nil}
+//	field.Extract(&user)
+//	// field.Data = []
+//
+// Parametreler:
+//   - record: Kayıt instance'ı (pointer olmalı)
+func (b *BelongsToManyField) Extract(resource interface{}) {
+	// Schema.Extract ile ilişki verilerini al
+	b.Schema.Extract(resource)
+
+	// Data nil ise boş array olarak ayarla
+	if b.Schema.Data == nil {
+		b.Schema.Data = []interface{}{}
+		return
+	}
+
+	// RelatedResource yoksa mevcut veriyi kullan
+	if b.RelatedResource == nil {
+		// Data bir slice değilse boş array döndür
+		v := reflect.ValueOf(b.Schema.Data)
+		if v.Kind() != reflect.Slice {
+			b.Schema.Data = []interface{}{}
+		}
+		return
+	}
+
+	// Data'yı slice olarak işle
+	v := reflect.ValueOf(b.Schema.Data)
+	if v.Kind() != reflect.Slice {
+		b.Schema.Data = []interface{}{}
+		return
+	}
+
+	// Her kayıt için minimal format oluştur: {"id": ..., "title": ...}
+	serializedRecords := make([]interface{}, 0, v.Len())
+
+	for i := 0; i < v.Len(); i++ {
+		elem := v.Index(i)
+
+		// Pointer ise dereference et
+		if elem.Kind() == reflect.Ptr {
+			if elem.IsNil() {
+				continue
+			}
+			elem = elem.Elem()
+		}
+
+		// Struct değilse atla
+		if elem.Kind() != reflect.Struct {
+			continue
+		}
+
+		record := elem.Interface()
+
+		// ID field'ını bul
+		var idValue interface{}
+		for j := 0; j < elem.NumField(); j++ {
+			field := elem.Type().Field(j)
+			if field.Name == "ID" || field.Name == "Id" {
+				idValue = elem.Field(j).Interface()
+				break
+			}
+		}
+
+		// ID bulunamadıysa atla
+		if idValue == nil {
+			continue
+		}
+
+		// RelatedResource'dan RecordTitle metodunu çağır (type assertion ile)
+		// RelatedResource interface{} tipinde olduğu için type assertion gerekli
+		type ResourceWithTitle interface {
+			RecordTitle(any) string
+		}
+
+		res, ok := b.RelatedResource.(ResourceWithTitle)
+		if !ok {
+			// RelatedResource RecordTitle metoduna sahip değilse atla
+			continue
+		}
+
+		// RecordTitle ile başlığı al
+		recordTitle := res.RecordTitle(record)
+
+		// Minimal format: {"id": ..., "title": ...}
+		serializedRecords = append(serializedRecords, map[string]interface{}{
+			"id":    idValue,
+			"title": recordTitle,
+		})
+	}
+
+	b.Schema.Data = serializedRecords
 }
