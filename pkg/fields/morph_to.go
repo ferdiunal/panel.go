@@ -116,10 +116,11 @@ type MorphTo struct {
 func NewMorphTo(name, key string) *MorphTo {
 	m := &MorphTo{
 		Schema: Schema{
-			Name: name,
-			Key:  key,
-			View: "morph-to-field",
-			Type: TYPE_RELATIONSHIP,
+			LabelText: name,
+			Name:      name,
+			Key:       key,
+			View:      "morph-to-field",
+			Type:      TYPE_RELATIONSHIP,
 			Props: map[string]interface{}{
 				"types":    []map[string]string{},
 				"displays": map[string]string{},

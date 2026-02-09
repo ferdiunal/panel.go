@@ -124,11 +124,12 @@ func BelongsToMany(name, key string, relatedResource interface{}) *BelongsToMany
 
 	b := &BelongsToManyField{
 		Schema: Schema{
-			Name:  name,
-			Key:   key,
-			View:  "belongs-to-many-field",
-			Type:  TYPE_RELATIONSHIP,
-			Props: make(map[string]interface{}),
+			LabelText: name,
+			Name:      name,
+			Key:       key,
+			View:      "belongs-to-many-field",
+			Type:      TYPE_RELATIONSHIP,
+			Props:     make(map[string]interface{}),
 		},
 		RelatedResourceSlug: slug,
 		RelatedResource:     resourceInstance,

@@ -137,11 +137,12 @@ func BelongsTo(name, key string, relatedResource interface{}) *BelongsToField {
 
 	b := &BelongsToField{
 		Schema: Schema{
-			Name:  name,
-			Key:   key,
-			View:  "belongs-to-field",
-			Type:  TYPE_RELATIONSHIP,
-			Props: make(map[string]interface{}),
+			LabelText: name,
+			Name:      name,
+			Key:       key,
+			View:      "belongs-to-field",
+			Type:      TYPE_RELATIONSHIP,
+			Props:     make(map[string]interface{}),
 		},
 		RelatedResourceSlug: slug,
 		RelatedResource:     resourceInstance,

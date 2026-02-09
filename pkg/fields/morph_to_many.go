@@ -70,10 +70,11 @@ func NewMorphToMany(name, key string) *MorphToMany {
 
 	m := &MorphToMany{
 		Schema: Schema{
-			Name: name,
-			Key:  key,
-			View: "morph-to-many-field",
-			Type: TYPE_RELATIONSHIP,
+			Name:      name,
+			LabelText: name,
+			Key:       key,
+			View:      "morph-to-many-field",
+			Type:      TYPE_RELATIONSHIP,
 			Props: map[string]interface{}{
 				"types":    []map[string]string{},
 				"displays": map[string]string{},
