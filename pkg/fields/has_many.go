@@ -1,6 +1,9 @@
 package fields
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // HasManyField, one-to-many ilişkiyi temsil eder (örn. Author -> Posts).
 //
@@ -445,25 +448,34 @@ func (h *HasManyField) GetOwnerKeyColumn() string {
 //	field.Extract(&organization)
 //	// field.Data artık [1, 2, 3] gibi bir ID array'i içerir
 func (h *HasManyField) Extract(resource interface{}) {
+	fmt.Printf("[DEBUG] HasMany.Extract - Field: %s, Resource type: %T\n", h.Key, resource)
+
 	// Önce Schema'nın Extract metodunu çağır
 	h.Schema.Extract(resource)
 
+	fmt.Printf("[DEBUG] HasMany.Extract - After Schema.Extract, Data: %v (type: %T)\n", h.Schema.Data, h.Schema.Data)
+
 	// Eğer Data nil ise, boş array olarak ayarla
 	if h.Schema.Data == nil {
+		fmt.Printf("[DEBUG] HasMany.Extract - Data is nil, setting empty array\n")
 		h.Schema.Data = []interface{}{}
 		return
 	}
 
 	// Eğer Data bir slice ise, her eleman için ID'yi çıkar
 	v := reflect.ValueOf(h.Schema.Data)
+	fmt.Printf("[DEBUG] HasMany.Extract - Data kind: %v, Len: %d\n", v.Kind(), v.Len())
+
 	if v.Kind() == reflect.Slice {
 		ids := make([]interface{}, 0, v.Len())
 		for i := 0; i < v.Len(); i++ {
 			elem := v.Index(i)
+			fmt.Printf("[DEBUG] HasMany.Extract - Element %d: kind=%v, type=%T\n", i, elem.Kind(), elem.Interface())
 
 			// Eğer eleman bir pointer ise, dereference et
 			if elem.Kind() == reflect.Ptr {
 				elem = elem.Elem()
+				fmt.Printf("[DEBUG] HasMany.Extract - After deref: kind=%v\n", elem.Kind())
 			}
 
 			// Eğer eleman bir struct ise, ID field'ını bul
@@ -474,7 +486,11 @@ func (h *HasManyField) Extract(resource interface{}) {
 					idField = elem.FieldByName("Id")
 				}
 				if idField.IsValid() && idField.CanInterface() {
-					ids = append(ids, idField.Interface())
+					idValue := idField.Interface()
+					fmt.Printf("[DEBUG] HasMany.Extract - Found ID: %v (type: %T)\n", idValue, idValue)
+					ids = append(ids, idValue)
+				} else {
+					fmt.Printf("[DEBUG] HasMany.Extract - ID field not found or not accessible\n")
 				}
 			} else if elem.Kind() == reflect.Map {
 				// Eğer eleman bir map ise, "id" veya "ID" key'ini bul
@@ -483,10 +499,13 @@ func (h *HasManyField) Extract(resource interface{}) {
 					idVal = elem.MapIndex(reflect.ValueOf("ID"))
 				}
 				if idVal.IsValid() && idVal.CanInterface() {
-					ids = append(ids, idVal.Interface())
+					idValue := idVal.Interface()
+					fmt.Printf("[DEBUG] HasMany.Extract - Found ID from map: %v (type: %T)\n", idValue, idValue)
+					ids = append(ids, idValue)
 				}
 			}
 		}
+		fmt.Printf("[DEBUG] HasMany.Extract - Extracted IDs: %v (count: %d)\n", ids, len(ids))
 		h.Schema.Data = ids
 	}
 }
