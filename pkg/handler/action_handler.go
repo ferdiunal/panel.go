@@ -8,6 +8,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/action"
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // HandleActionList, bir kaynak için kullanılabilir action'ların listesini döndüren HTTP handler fonksiyonudur.
@@ -35,23 +36,25 @@ import (
 // # Yanıt Formatı
 //
 // ```json
-// {
-//   "actions": [
-//     {
-//       "name": "Kullanıcıları Aktifleştir",
-//       "slug": "activate-users",
-//       "icon": "check-circle",
-//       "confirmText": "Seçili kullanıcıları aktifleştirmek istediğinizden emin misiniz?",
-//       "confirmButtonText": "Evet, Aktifleştir",
-//       "cancelButtonText": "İptal",
-//       "destructive": false,
-//       "onlyOnIndex": true,
-//       "onlyOnDetail": false,
-//       "showInline": false,
-//       "fields": [...]
-//     }
-//   ]
-// }
+//
+//	{
+//	  "actions": [
+//	    {
+//	      "name": "Kullanıcıları Aktifleştir",
+//	      "slug": "activate-users",
+//	      "icon": "check-circle",
+//	      "confirmText": "Seçili kullanıcıları aktifleştirmek istediğinizden emin misiniz?",
+//	      "confirmButtonText": "Evet, Aktifleştir",
+//	      "cancelButtonText": "İptal",
+//	      "destructive": false,
+//	      "onlyOnIndex": true,
+//	      "onlyOnDetail": false,
+//	      "showInline": false,
+//	      "fields": [...]
+//	    }
+//	  ]
+//	}
+//
 // ```
 //
 // # Güvenlik
@@ -77,13 +80,15 @@ import (
 //
 // ```go
 // // Router tanımlaması
-// router.Get("/api/:resource/actions", func(c *fiber.Ctx) error {
-//     handler := &FieldHandler{
-//         Resource: userResource,
-//         Policy:   userPolicy,
-//     }
-//     return HandleActionList(handler, context.New(c))
-// })
+//
+//	router.Get("/api/:resource/actions", func(c *fiber.Ctx) error {
+//	    handler := &FieldHandler{
+//	        Resource: userResource,
+//	        Policy:   userPolicy,
+//	    }
+//	    return HandleActionList(handler, context.New(c))
+//	})
+//
 // ```
 func HandleActionList(h *FieldHandler, c *context.Context) error {
 	// Policy check - user must have view permission
@@ -107,17 +112,17 @@ func HandleActionList(h *FieldHandler, c *context.Context) error {
 			}
 
 			serialized = append(serialized, map[string]interface{}{
-				"name":               newAction.GetName(),
-				"slug":               newAction.GetSlug(),
-				"icon":               newAction.GetIcon(),
-				"confirmText":        newAction.GetConfirmText(),
-				"confirmButtonText":  newAction.GetConfirmButtonText(),
-				"cancelButtonText":   newAction.GetCancelButtonText(),
-				"destructive":        newAction.IsDestructive(),
-				"onlyOnIndex":        newAction.OnlyOnIndex(),
-				"onlyOnDetail":       newAction.OnlyOnDetail(),
-				"showInline":         newAction.ShowInline(),
-				"fields":             fields,
+				"name":              newAction.GetName(),
+				"slug":              newAction.GetSlug(),
+				"icon":              newAction.GetIcon(),
+				"confirmText":       newAction.GetConfirmText(),
+				"confirmButtonText": newAction.GetConfirmButtonText(),
+				"cancelButtonText":  newAction.GetCancelButtonText(),
+				"destructive":       newAction.IsDestructive(),
+				"onlyOnIndex":       newAction.OnlyOnIndex(),
+				"onlyOnDetail":      newAction.OnlyOnDetail(),
+				"showInline":        newAction.ShowInline(),
+				"fields":            fields,
 			})
 		}
 	}
@@ -150,14 +155,16 @@ func HandleActionList(h *FieldHandler, c *context.Context) error {
 // # Request Body Formatı
 //
 // ```json
-// {
-//   "ids": ["uuid-1", "uuid-2", "uuid-3"],
-//   "fields": {
-//     "status": "active",
-//     "reason": "Bulk activation",
-//     "notify": true
-//   }
-// }
+//
+//	{
+//	  "ids": ["uuid-1", "uuid-2", "uuid-3"],
+//	  "fields": {
+//	    "status": "active",
+//	    "reason": "Bulk activation",
+//	    "notify": true
+//	  }
+//	}
+//
 // ```
 //
 // # Döndürür
@@ -173,17 +180,21 @@ func HandleActionList(h *FieldHandler, c *context.Context) error {
 //
 // Başarılı:
 // ```json
-// {
-//   "message": "Action executed successfully on 3 item(s)",
-//   "count": 3
-// }
+//
+//	{
+//	  "message": "Action executed successfully on 3 item(s)",
+//	  "count": 3
+//	}
+//
 // ```
 //
 // Hata:
 // ```json
-// {
-//   "error": "Hata mesajı"
-// }
+//
+//	{
+//	  "error": "Hata mesajı"
+//	}
+//
 // ```
 //
 // # Güvenlik
@@ -225,9 +236,10 @@ func HandleActionList(h *FieldHandler, c *context.Context) error {
 // 3. Action bulunur ve doğrulanır
 // 4. Request body parse edilir (IDs ve Fields)
 // 5. **Paralel model yükleme başlatılır**:
-//    - Her ID için goroutine oluşturulur
-//    - Modeller eşzamanlı olarak veritabanından yüklenir
-//    - Sonuçlar channel'a gönderilir
+//   - Her ID için goroutine oluşturulur
+//   - Modeller eşzamanlı olarak veritabanından yüklenir
+//   - Sonuçlar channel'a gönderilir
+//
 // 6. Sonuçlar toplanır ve hatalar kontrol edilir
 // 7. ActionContext oluşturulur
 // 8. Action'ın CanRun() kontrolü yapılır
@@ -267,27 +279,30 @@ func HandleActionList(h *FieldHandler, c *context.Context) error {
 //
 // ```go
 // // Router tanımlaması
-// router.Post("/api/:resource/actions/:action", func(c *fiber.Ctx) error {
-//     handler := &FieldHandler{
-//         Resource: userResource,
-//         Policy:   userPolicy,
-//         DB:       db,
-//     }
-//     return HandleActionExecute(handler, context.New(c))
-// })
+//
+//	router.Post("/api/:resource/actions/:action", func(c *fiber.Ctx) error {
+//	    handler := &FieldHandler{
+//	        Resource: userResource,
+//	        Policy:   userPolicy,
+//	        DB:       db,
+//	    }
+//	    return HandleActionExecute(handler, context.New(c))
+//	})
 //
 // // Client-side request
-// fetch('/api/users/actions/activate-users', {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({
-//         ids: ['uuid-1', 'uuid-2', 'uuid-3'],
-//         fields: {
-//             reason: 'Bulk activation',
-//             notify: true
-//         }
-//     })
-// })
+//
+//	fetch('/api/users/actions/activate-users', {
+//	    method: 'POST',
+//	    headers: { 'Content-Type': 'application/json' },
+//	    body: JSON.stringify({
+//	        ids: ['uuid-1', 'uuid-2', 'uuid-3'],
+//	        fields: {
+//	            reason: 'Bulk activation',
+//	            notify: true
+//	        }
+//	    })
+//	})
+//
 // ```
 //
 // # Avantajlar
@@ -350,6 +365,14 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
+	// Get GORM DB from provider
+	db, ok := h.Provider.GetClient().(*gorm.DB)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Database client not available",
+		})
+	}
+
 	// Load models in parallel using async fan-out/fan-in pattern
 	modelType := reflect.TypeOf(h.Resource.Model())
 
@@ -378,7 +401,7 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 			defer wg.Done() // Mark goroutine as done when finished
 
 			model := reflect.New(modelType).Interface()
-			err := h.DB.First(model, "id = ?", id).Error
+			err := db.First(model, "id = ?", id).Error
 
 			// Send result to channel
 			results <- modelResult{model: model, err: err, id: id}
@@ -409,9 +432,10 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	// Store fields and DB in context locals for action execution
+	// Store fields, DB and Provider in context locals for action execution
 	c.Locals("action_fields", body.Fields)
-	c.Locals("db", h.DB)
+	c.Locals("db", db)
+	c.Locals("provider", h.Provider)
 
 	// Create action context for CanRun check
 	ctx := &action.ActionContext{
@@ -419,7 +443,7 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		Fields:   body.Fields,
 		User:     c.Locals("user"),
 		Resource: h.Resource.Slug(),
-		DB:       h.DB,
+		DB:       db,
 		Ctx:      c.Ctx,
 	}
 

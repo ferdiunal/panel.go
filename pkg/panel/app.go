@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/data/orm"
 	"github.com/ferdiunal/panel.go/pkg/domain/account"
 	notificationDomain "github.com/ferdiunal/panel.go/pkg/domain/notification"
@@ -699,7 +700,8 @@ func New(config Config) *Panel {
 	api.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
 
 	// Notification Routes
-	notificationService := notification.NewService(db)
+	notificationProvider := data.NewGormDataProvider(db, &notificationDomain.Notification{})
+	notificationService := notification.NewService(notificationProvider)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
 	api.Get("/notifications", context.Wrap(notificationHandler.HandleGetUnreadNotifications))
 	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
