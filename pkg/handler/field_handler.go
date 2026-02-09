@@ -283,6 +283,7 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 		if relField, ok := fields.IsRelationshipField(element); ok {
 			// Relationship field'ı listeye ekle
 			relationshipFields = append(relationshipFields, relField)
+			fmt.Printf("[DEBUG] NewResourceHandler - Found relationship field: %s (type: %s)\n", relField.GetKey(), relField.GetRelationshipType())
 
 			if relField.GetLoadingStrategy() == fields.EAGER_LOADING {
 				// Use the field key as the relationship name for GORM Preload
@@ -304,6 +305,10 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 			}
 		}
 	}
+
+	fmt.Printf("[DEBUG] NewResourceHandler - Total relationship fields: %d\n", len(relationshipFields))
+	fmt.Printf("[DEBUG] NewResourceHandler - WithRels: %v\n", withRels)
+
 	provider.SetWith(withRels)
 	provider.SetRelationshipFields(relationshipFields)
 
