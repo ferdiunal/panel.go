@@ -90,16 +90,9 @@ func NewUserResource() *UserResource {
 	// Model, slug, başlık, ikon ve grup gibi temel özellikleri tanımla
 	r.SetModel(&domainUser.User{})
 	r.SetSlug("users")
-
-	// i18n destekli başlık ve grup ayarları
-	// Başlık ve grup, kullanıcının diline göre otomatik olarak çevrilir
-	r.SetTitleFunc(func(c *fiber.Ctx) string {
-		return i18n.Trans(c, "resources.users.title")
-	})
+	r.SetTitle("Users")
 	r.SetIcon("users")
-	r.SetGroupFunc(func(c *fiber.Ctx) string {
-		return i18n.Trans(c, "resources.groups.system")
-	})
+	r.SetGroup("System")
 	r.SetVisible(true)
 	r.SetNavigationOrder(1)
 
