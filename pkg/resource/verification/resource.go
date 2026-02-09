@@ -50,8 +50,9 @@ type VerificationResource struct {
 // - Policy: VerificationPolicy (erişim kontrol politikası)
 //
 // Kullanım Örneği:
-//   resource := NewVerificationResource()
-//   // resource artık panel uygulamasında kullanılmaya hazırdır
+//
+//	resource := NewVerificationResource()
+//	// resource artık panel uygulamasında kullanılmaya hazırdır
 //
 // Önemli Notlar:
 // - Fonksiyon her çağrıldığında yeni bir resource örneği oluşturur
@@ -115,16 +116,24 @@ func NewVerificationResource() *VerificationResource {
 // - Doğrulama kayıtlarını filtrelemek ve sıralamak
 //
 // Kullanım Örneği:
-//   db := gorm.Open(...)
-//   resource := NewVerificationResource()
-//   provider := resource.Repository(db)
-//   // provider artık veritabanı işlemleri için kullanılabilir
+//
+//	db := gorm.Open(...)
+//	resource := NewVerificationResource()
+//	provider := resource.Repository(db)
+//	// provider artık veritabanı işlemleri için kullanılabilir
 //
 // Önemli Notlar:
 // - Her çağrıda yeni bir DataProvider örneği oluşturulur
 // - GORM ORM'i kullanarak veritabanı işlemleri gerçekleştirilir
 // - Verification modeli otomatik olarak tablo adı ve yapısını belirler
-func (r *VerificationResource) Repository(db *gorm.DB) data.DataProvider {
+func (r *VerificationResource) Repository(client interface{}) data.DataProvider {
+	// Type assertion to get Ent client
+	db, ok := client.(*gorm.DB)
+	if !ok {
+		// TODO: Add GORM support
+		return nil
+	}
+
 	return data.NewGormDataProvider(db, &domainVerification.Verification{})
 }
 
@@ -146,9 +155,10 @@ func (r *VerificationResource) Repository(db *gorm.DB) data.DataProvider {
 // - Gelecekte özel görünümler eklenebilir
 //
 // Kullanım Örneği:
-//   resource := NewVerificationResource()
-//   lenses := resource.Lenses()
-//   // lenses şu anda boş bir dilim içerir
+//
+//	resource := NewVerificationResource()
+//	lenses := resource.Lenses()
+//	// lenses şu anda boş bir dilim içerir
 //
 // Önemli Notlar:
 // - Lens'ler, kullanıcıya hızlı erişim sağlayan önceden tanımlanmış filtrelerdir
@@ -176,9 +186,10 @@ func (r *VerificationResource) Lenses() []resource.Lens {
 // - Gelecekte özel işlemler eklenebilir
 //
 // Kullanım Örneği:
-//   resource := NewVerificationResource()
-//   actions := resource.GetActions()
-//   // actions şu anda boş bir dilim içerir
+//
+//	resource := NewVerificationResource()
+//	actions := resource.GetActions()
+//	// actions şu anda boş bir dilim içerir
 //
 // Önemli Notlar:
 // - Action'lar, UI'da butonlar veya menü öğeleri olarak görüntülenir
@@ -207,9 +218,10 @@ func (r *VerificationResource) GetActions() []resource.Action {
 // - Gelecekte özel filtreler eklenebilir
 //
 // Kullanım Örneği:
-//   resource := NewVerificationResource()
-//   filters := resource.GetFilters()
-//   // filters şu anda boş bir dilim içerir
+//
+//	resource := NewVerificationResource()
+//	filters := resource.GetFilters()
+//	// filters şu anda boş bir dilim içerir
 //
 // Önemli Notlar:
 // - Filtreler, UI'da dropdown veya checkbox'lar olarak görüntülenir
@@ -237,10 +249,11 @@ func (r *VerificationResource) GetFilters() []resource.Filter {
 // - Varsayılan olarak en güncel verileri sunmak
 //
 // Kullanım Örneği:
-//   resource := NewVerificationResource()
-//   sortables := resource.GetSortable()
-//   // sortables: [{Column: "created_at", Direction: "desc"}]
-//   // Kayıtlar oluşturulma tarihine göre en yeniden en eskiye sıralanır
+//
+//	resource := NewVerificationResource()
+//	sortables := resource.GetSortable()
+//	// sortables: [{Column: "created_at", Direction: "desc"}]
+//	// Kayıtlar oluşturulma tarihine göre en yeniden en eskiye sıralanır
 //
 // Önemli Notlar:
 // - Sıralama, liste görünümünde varsayılan olarak uygulanır

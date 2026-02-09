@@ -123,8 +123,8 @@ func NewUserResource() *UserResource {
 //
 // # Parametreler
 //
-// - db (*gorm.DB): GORM veritabanı bağlantısı. Bu bağlantı, veri sağlayıcı
-//   tarafından tüm veritabanı işlemleri için kullanılır.
+//   - db (*gorm.DB): GORM veritabanı bağlantısı. Bu bağlantı, veri sağlayıcı
+//     tarafından tüm veritabanı işlemleri için kullanılır.
 //
 // # Dönüş Değeri
 //
@@ -153,6 +153,13 @@ func NewUserResource() *UserResource {
 // - Veritabanı bağlantısı geçerli ve açık olmalıdır
 // - Bağlantı kapatıldıktan sonra veri sağlayıcı kullanılamaz
 // - Hata yönetimi, veri sağlayıcı tarafından yapılır
-func (r *UserResource) Repository(db *gorm.DB) data.DataProvider {
+func (r *UserResource) Repository(client interface{}) data.DataProvider {
+	// Type assertion to get Ent client
+	db, ok := client.(*gorm.DB)
+	if !ok {
+		// TODO: Add GORM support
+		return nil
+	}
+
 	return NewUserDataProvider(db)
 }

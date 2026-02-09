@@ -232,7 +232,7 @@ type OptimizedResource interface {
 	//   func (r *ProductResource) Repository(db *gorm.DB) data.DataProvider {
 	//       return data.NewGormProvider(db, r.Model())
 	//   }
-	Repository(db *gorm.DB) data.DataProvider
+	Repository(client interface{}) data.DataProvider
 
 	// Cards, resource'un dashboard widget'larını döner.
 	//
@@ -1440,7 +1440,13 @@ func (b *OptimizedBase) SetRepository(r data.DataProvider) {
 // /   items, err := repo.List(ctx, query)
 // /
 // / Detaylı ilişki örnekleri için bkz: [Relationships.md](../../docs/Relationships.md)
-func (b *OptimizedBase) Repository(db *gorm.DB) data.DataProvider {
+func (b *OptimizedBase) Repository(client interface{}) data.DataProvider {
+	// Type assertion to get GORM DB
+	db, ok := client.(*gorm.DB)
+	if !ok {
+		return nil
+	}
+
 	// Create new GormDataProvider instance
 	provider := data.NewGormDataProvider(db, b.Model())
 
