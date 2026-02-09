@@ -910,9 +910,14 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 	}
 
 	// Handle AutoOptions via Config (works even if element is *Schema due to fluent API)
+	// NOT: AutoOptions artık opsiyonel - frontend async search kullanıyorsa AutoOptions çalıştırma
+	// Backward compatibility için korunuyor ama varsayılan olarak devre dışı
 	config := element.GetAutoOptionsConfig()
 	fmt.Printf("[DEBUG] ResolveFieldOptions - Key: %s, View: %s, Enabled: %v\n", element.GetKey(), element.GetView(), config.Enabled)
-	if config.Enabled {
+
+	// AutoOptions'ı devre dışı bırak - frontend her zaman async search kullanacak
+	// Backward compatibility için config.Enabled kontrolü korunuyor
+	if false && config.Enabled {
 		if _, hasOpts := props["options"]; !hasOpts {
 			table, _ := props["related_resource"].(string)
 			display := config.DisplayField
