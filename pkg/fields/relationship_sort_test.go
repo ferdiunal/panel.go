@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipSort tests creating a new relationship sort handler
 func TestNewRelationshipSort(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	if sort == nil {
@@ -25,7 +25,7 @@ func TestNewRelationshipSort(t *testing.T) {
 
 // TestApplySort tests applying a sort
 func TestApplySort(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -50,7 +50,7 @@ func TestApplySort(t *testing.T) {
 
 // TestApplySortEmptyColumn tests applying a sort with empty column
 func TestApplySortEmptyColumn(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -67,7 +67,7 @@ func TestApplySortEmptyColumn(t *testing.T) {
 
 // TestApplySortDescending tests applying a descending sort
 func TestApplySortDescending(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -84,7 +84,7 @@ func TestApplySortDescending(t *testing.T) {
 
 // TestApplySortInvalidDirection tests applying a sort with invalid direction
 func TestApplySortInvalidDirection(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -101,7 +101,7 @@ func TestApplySortInvalidDirection(t *testing.T) {
 
 // TestApplyMultipleSorts tests applying multiple sorts
 func TestApplyMultipleSorts(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -127,7 +127,7 @@ func TestApplyMultipleSorts(t *testing.T) {
 
 // TestApplyMultipleSortsEmpty tests applying multiple sorts with empty sorts
 func TestApplyMultipleSortsEmpty(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -144,7 +144,7 @@ func TestApplyMultipleSortsEmpty(t *testing.T) {
 
 // TestRemoveSort tests removing sorts
 func TestRemoveSort(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()
@@ -171,7 +171,7 @@ func TestRemoveSort(t *testing.T) {
 
 // TestGetSorts tests getting sorts
 func TestGetSorts(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	sort := NewRelationshipSort(field)
 
 	ctx := context.Background()

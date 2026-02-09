@@ -1,7 +1,6 @@
 package fields
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -421,14 +420,28 @@ func (h *HasManyField) GetOwnerKeyColumn() string {
 // Extract, HasMany ilişkisi için özel veri çıkarma metodudur.
 //
 // Bu metod, Schema'nın genel Extract metodunu override eder ve HasMany ilişkisi için
-// özel işlem yapar. İlişkili kayıtlardan sadece ID'leri çıkarır ve bir array olarak döndürür.
+// özel işlem yapar. İlişkili kayıtları JSON tag'lere göre serialize eder.
 //
 // # İşleyiş
 //
 // 1. Schema'nın Extract metodunu çağırır (mevcut davranışı korumak için)
 // 2. Eğer Data nil ise, boş array olarak ayarlar
-// 3. Eğer Data bir slice ise, her eleman için ID'yi çıkarır
-// 4. ID'leri bir array olarak Data'ya atar
+// 3. Eğer Data bir slice ise:
+//    a. Her kayıt için JSON marshaling yapar (JSON tag'ler otomatik kullanılır)
+//    b. JSON'dan map[string]interface{}'e unmarshal eder
+//    c. Bu map'leri data array'ine ekler
+//
+// # JSON Tag Kullanımı
+//
+// Model'de tanımlı JSON tag'ler otomatik olarak kullanılır:
+//
+//	type Address struct {
+//	    ID             uint   `json:"id"`
+//	    OrganizationID uint   `json:"organization_id"`
+//	    Name           string `json:"name"`
+//	}
+//
+// Sonuç: {"id": 1, "organization_id": 16, "name": "Adres"}
 //
 // # Parametreler
 //
@@ -446,68 +459,93 @@ func (h *HasManyField) GetOwnerKeyColumn() string {
 //	// HasMany field Extract çağrıldığında
 //	field := fields.HasMany("Addresses", "addresses", "addresses")
 //	field.Extract(&organization)
-//	// field.Data artık [1, 2, 3] gibi bir ID array'i içerir
+//	// field.Data artık [{"id": 1, "organization_id": 16, ...}] gibi JSON tag'lere göre serialize edilmiş kayıtlar içerir
 func (h *HasManyField) Extract(resource interface{}) {
-	fmt.Printf("[DEBUG] HasMany.Extract - Field: %s, Resource type: %T\n", h.Key, resource)
-
-	// Önce Schema'nın Extract metodunu çağır
+	// Schema.Extract ile ilişki verilerini al
 	h.Schema.Extract(resource)
 
-	fmt.Printf("[DEBUG] HasMany.Extract - After Schema.Extract, Data: %v (type: %T)\n", h.Schema.Data, h.Schema.Data)
-
-	// Eğer Data nil ise, boş array olarak ayarla
+	// Data nil ise boş array olarak ayarla
 	if h.Schema.Data == nil {
-		fmt.Printf("[DEBUG] HasMany.Extract - Data is nil, setting empty array\n")
 		h.Schema.Data = []interface{}{}
 		return
 	}
 
-	// Eğer Data bir slice ise, her eleman için ID'yi çıkar
+	// RelatedResource yoksa mevcut veriyi kullan
+	if h.RelatedResource == nil {
+		// Data bir slice değilse boş array döndür
+		v := reflect.ValueOf(h.Schema.Data)
+		if v.Kind() != reflect.Slice {
+			h.Schema.Data = []interface{}{}
+		}
+		return
+	}
+
+	// Data'yı slice olarak işle
 	v := reflect.ValueOf(h.Schema.Data)
-	fmt.Printf("[DEBUG] HasMany.Extract - Data kind: %v, Len: %d\n", v.Kind(), v.Len())
+	if v.Kind() != reflect.Slice {
+		h.Schema.Data = []interface{}{}
+		return
+	}
 
-	if v.Kind() == reflect.Slice {
-		ids := make([]interface{}, 0, v.Len())
-		for i := 0; i < v.Len(); i++ {
-			elem := v.Index(i)
-			fmt.Printf("[DEBUG] HasMany.Extract - Element %d: kind=%v, type=%T\n", i, elem.Kind(), elem.Interface())
+	// Her kayıt için minimal format oluştur: {"id": ..., "title": ...}
+	serializedRecords := make([]interface{}, 0, v.Len())
 
-			// Eğer eleman bir pointer ise, dereference et
-			if elem.Kind() == reflect.Ptr {
-				elem = elem.Elem()
-				fmt.Printf("[DEBUG] HasMany.Extract - After deref: kind=%v\n", elem.Kind())
+	for i := 0; i < v.Len(); i++ {
+		elem := v.Index(i)
+
+		// Pointer ise dereference et
+		if elem.Kind() == reflect.Ptr {
+			if elem.IsNil() {
+				continue
 			}
+			elem = elem.Elem()
+		}
 
-			// Eğer eleman bir struct ise, ID field'ını bul
-			if elem.Kind() == reflect.Struct {
-				idField := elem.FieldByName("ID")
-				if !idField.IsValid() {
-					// ID field'ı bulunamadıysa, küçük harfle dene
-					idField = elem.FieldByName("Id")
-				}
-				if idField.IsValid() && idField.CanInterface() {
-					idValue := idField.Interface()
-					fmt.Printf("[DEBUG] HasMany.Extract - Found ID: %v (type: %T)\n", idValue, idValue)
-					ids = append(ids, idValue)
-				} else {
-					fmt.Printf("[DEBUG] HasMany.Extract - ID field not found or not accessible\n")
-				}
-			} else if elem.Kind() == reflect.Map {
-				// Eğer eleman bir map ise, "id" veya "ID" key'ini bul
-				idVal := elem.MapIndex(reflect.ValueOf("id"))
-				if !idVal.IsValid() {
-					idVal = elem.MapIndex(reflect.ValueOf("ID"))
-				}
-				if idVal.IsValid() && idVal.CanInterface() {
-					idValue := idVal.Interface()
-					fmt.Printf("[DEBUG] HasMany.Extract - Found ID from map: %v (type: %T)\n", idValue, idValue)
-					ids = append(ids, idValue)
-				}
+		// Struct değilse atla
+		if elem.Kind() != reflect.Struct {
+			continue
+		}
+
+		record := elem.Interface()
+
+		// ID field'ını bul
+		var idValue interface{}
+		for j := 0; j < elem.NumField(); j++ {
+			field := elem.Type().Field(j)
+			if field.Name == "ID" || field.Name == "Id" {
+				idValue = elem.Field(j).Interface()
+				break
 			}
 		}
-		fmt.Printf("[DEBUG] HasMany.Extract - Extracted IDs: %v (count: %d)\n", ids, len(ids))
-		h.Schema.Data = ids
+
+		// ID bulunamadıysa atla
+		if idValue == nil {
+			continue
+		}
+
+		// RelatedResource'dan RecordTitle metodunu çağır (type assertion ile)
+		// RelatedResource interface{} tipinde olduğu için type assertion gerekli
+		type ResourceWithTitle interface {
+			RecordTitle(any) string
+		}
+
+		res, ok := h.RelatedResource.(ResourceWithTitle)
+		if !ok {
+			// RelatedResource RecordTitle metoduna sahip değilse atla
+			continue
+		}
+
+		// RecordTitle ile başlığı al
+		recordTitle := res.RecordTitle(record)
+
+		// Minimal format: {"id": ..., "title": ...}
+		serializedRecords = append(serializedRecords, map[string]interface{}{
+			"id":    idValue,
+			"title": recordTitle,
+		})
 	}
+
+	h.Schema.Data = serializedRecords
 }
 
 // Compile-time check: HasManyField implements RelationshipField interface

@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipPagination tests creating a new relationship pagination handler
 func TestNewRelationshipPagination(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	if pagination == nil {
@@ -29,7 +29,7 @@ func TestNewRelationshipPagination(t *testing.T) {
 
 // TestApplyPagination tests applying pagination
 func TestApplyPagination(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -54,7 +54,7 @@ func TestApplyPagination(t *testing.T) {
 
 // TestApplyPaginationInvalidPage tests applying pagination with invalid page
 func TestApplyPaginationInvalidPage(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -71,7 +71,7 @@ func TestApplyPaginationInvalidPage(t *testing.T) {
 
 // TestApplyPaginationInvalidPerPage tests applying pagination with invalid per-page
 func TestApplyPaginationInvalidPerPage(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -88,7 +88,7 @@ func TestApplyPaginationInvalidPerPage(t *testing.T) {
 
 // TestApplyPaginationMaxPerPage tests applying pagination with per-page exceeding maximum
 func TestApplyPaginationMaxPerPage(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -105,7 +105,7 @@ func TestApplyPaginationMaxPerPage(t *testing.T) {
 
 // TestGetPageInfo tests getting page info
 func TestGetPageInfo(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -141,7 +141,7 @@ func TestGetPageInfo(t *testing.T) {
 
 // TestGetPageInfoFirstPage tests getting page info for first page
 func TestGetPageInfoFirstPage(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -161,7 +161,7 @@ func TestGetPageInfoFirstPage(t *testing.T) {
 
 // TestSetTotal tests setting total count
 func TestSetTotal(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	pagination.SetTotal(50)
@@ -173,7 +173,7 @@ func TestSetTotal(t *testing.T) {
 
 // TestGetPage tests getting page
 func TestGetPage(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()
@@ -186,7 +186,7 @@ func TestGetPage(t *testing.T) {
 
 // TestGetPerPage tests getting per-page count
 func TestGetPerPage(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	pagination := NewRelationshipPagination(field)
 
 	ctx := context.Background()

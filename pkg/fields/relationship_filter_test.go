@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipFilter tests creating a new relationship filter handler
 func TestNewRelationshipFilter(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	if filter == nil {
@@ -25,7 +25,7 @@ func TestNewRelationshipFilter(t *testing.T) {
 
 // TestApplyFilter tests applying a filter
 func TestApplyFilter(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	ctx := context.Background()
@@ -46,7 +46,7 @@ func TestApplyFilter(t *testing.T) {
 
 // TestApplyFilterEmptyColumn tests applying a filter with empty column
 func TestApplyFilterEmptyColumn(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	ctx := context.Background()
@@ -63,7 +63,7 @@ func TestApplyFilterEmptyColumn(t *testing.T) {
 
 // TestApplyMultipleFilters tests applying multiple filters
 func TestApplyMultipleFilters(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	ctx := context.Background()
@@ -95,7 +95,7 @@ func TestApplyMultipleFilters(t *testing.T) {
 
 // TestApplyMultipleFiltersEmpty tests applying multiple filters with empty filters
 func TestApplyMultipleFiltersEmpty(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	ctx := context.Background()
@@ -112,7 +112,7 @@ func TestApplyMultipleFiltersEmpty(t *testing.T) {
 
 // TestRemoveFilter tests removing filters
 func TestRemoveFilter(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	ctx := context.Background()
@@ -139,7 +139,7 @@ func TestRemoveFilter(t *testing.T) {
 
 // TestGetFilters tests getting filters
 func TestGetFilters(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	filter := NewRelationshipFilter(field)
 
 	ctx := context.Background()

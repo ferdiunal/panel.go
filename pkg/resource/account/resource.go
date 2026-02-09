@@ -79,6 +79,10 @@ func NewAccountResource() *AccountResource {
 	// Admin panelinde görünür olmasını sağla
 	r.SetVisible(true)
 
+	// Kayıt başlığı için "name" field'ını kullan
+	// İlişki fieldlarında hesaplar "Account Name" gibi okunabilir şekilde gösterilir
+	r.SetRecordTitleKey("name")
+
 	// Field resolver'ı ayarla - Account alanlarının tanımını yönetir
 	// AccountFieldResolver, her alanın türünü, validasyonunu ve görünümünü belirler
 	r.SetFieldResolver(&AccountFieldResolver{})

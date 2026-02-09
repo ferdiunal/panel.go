@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipSerialization tests creating a new relationship serialization handler
 func TestNewRelationshipSerialization(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	if serialization == nil {
@@ -21,7 +21,7 @@ func TestNewRelationshipSerialization(t *testing.T) {
 
 // TestSerializeRelationshipNil tests serializing a nil relationship
 func TestSerializeRelationshipNil(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	jsonData, err := serialization.SerializeRelationship(nil)
@@ -37,7 +37,7 @@ func TestSerializeRelationshipNil(t *testing.T) {
 
 // TestSerializeRelationship tests serializing a relationship
 func TestSerializeRelationship(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	jsonData, err := serialization.SerializeRelationship(map[string]interface{}{"id": 1, "name": "John"})
@@ -61,7 +61,7 @@ func TestSerializeRelationship(t *testing.T) {
 
 // TestSerializeRelationships tests serializing multiple relationships
 func TestSerializeRelationships(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	items := []interface{}{
@@ -82,7 +82,7 @@ func TestSerializeRelationships(t *testing.T) {
 
 // TestSerializeRelationshipsEmpty tests serializing empty relationships
 func TestSerializeRelationshipsEmpty(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	jsonData, err := serialization.SerializeRelationships([]interface{}{})
@@ -98,7 +98,7 @@ func TestSerializeRelationshipsEmpty(t *testing.T) {
 
 // TestSerializeRelationshipsNil tests serializing nil relationships
 func TestSerializeRelationshipsNil(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	jsonData, err := serialization.SerializeRelationships(nil)
@@ -114,7 +114,7 @@ func TestSerializeRelationshipsNil(t *testing.T) {
 
 // TestToJSON tests converting relationship to JSON string
 func TestToJSON(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	jsonStr, err := serialization.ToJSON(map[string]interface{}{"id": 1, "name": "John"})
@@ -137,7 +137,7 @@ func TestToJSON(t *testing.T) {
 
 // TestToJSONArray tests converting relationships to JSON array string
 func TestToJSONArray(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	serialization := NewRelationshipSerialization(field)
 
 	items := []interface{}{

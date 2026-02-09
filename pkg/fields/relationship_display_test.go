@@ -6,7 +6,7 @@ import (
 
 // TestNewRelationshipDisplay tests creating a new relationship display handler
 func TestNewRelationshipDisplay(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	if display == nil {
@@ -20,7 +20,7 @@ func TestNewRelationshipDisplay(t *testing.T) {
 
 // TestDisplayBelongsTo tests displaying a BelongsTo relationship
 func TestDisplayBelongsTo(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	displayValue, err := display.GetDisplayValue(nil)
@@ -36,7 +36,7 @@ func TestDisplayBelongsTo(t *testing.T) {
 
 // TestDisplayHasMany tests displaying a HasMany relationship
 func TestDisplayHasMany(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	display := NewRelationshipDisplay(field)
 
 	displayValue, err := display.GetDisplayValue(map[string]interface{}{})
@@ -52,7 +52,7 @@ func TestDisplayHasMany(t *testing.T) {
 
 // TestDisplayHasOne tests displaying a HasOne relationship
 func TestDisplayHasOne(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	display := NewRelationshipDisplay(field)
 
 	displayValue, err := display.GetDisplayValue(map[string]interface{}{})
@@ -68,7 +68,7 @@ func TestDisplayHasOne(t *testing.T) {
 
 // TestDisplayBelongsToMany tests displaying a BelongsToMany relationship
 func TestDisplayBelongsToMany(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	display := NewRelationshipDisplay(field)
 
 	displayValue, err := display.GetDisplayValue(map[string]interface{}{})
@@ -83,7 +83,7 @@ func TestDisplayBelongsToMany(t *testing.T) {
 }
 
 // TestDisplayMorphTo tests displaying a MorphTo relationship
-func TestDisplayMorphTo(t *testing.T) {
+func TestDisplayNewMorphTo(t *testing.T) {
 	field := NewMorphTo("Commentable", "commentable")
 	display := NewRelationshipDisplay(field)
 
@@ -100,7 +100,7 @@ func TestDisplayMorphTo(t *testing.T) {
 
 // TestGetDisplayValues tests getting display values for multiple items
 func TestGetDisplayValues(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	items := []interface{}{nil, nil, nil}
@@ -117,7 +117,7 @@ func TestGetDisplayValues(t *testing.T) {
 
 // TestGetDisplayValuesEmpty tests getting display values for empty items
 func TestGetDisplayValuesEmpty(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	displayValues, err := display.GetDisplayValues([]interface{}{})
@@ -133,7 +133,7 @@ func TestGetDisplayValuesEmpty(t *testing.T) {
 
 // TestGetDisplayValuesNil tests getting display values for nil items
 func TestGetDisplayValuesNil(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	displayValues, err := display.GetDisplayValues(nil)
@@ -149,7 +149,7 @@ func TestGetDisplayValuesNil(t *testing.T) {
 
 // TestFormatDisplayValue tests formatting a display value
 func TestFormatDisplayValue(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	formattedValue := display.FormatDisplayValue("John Doe")
@@ -161,7 +161,7 @@ func TestFormatDisplayValue(t *testing.T) {
 
 // TestFormatDisplayValueNil tests formatting a nil display value
 func TestFormatDisplayValueNil(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	display := NewRelationshipDisplay(field)
 
 	formattedValue := display.FormatDisplayValue(nil)
@@ -173,7 +173,7 @@ func TestFormatDisplayValueNil(t *testing.T) {
 
 // TestDisplayWithCustomDisplayKey tests displaying with custom display key
 func TestDisplayWithCustomDisplayKey(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.DisplayUsing("email")
 	display := NewRelationshipDisplay(field)
 

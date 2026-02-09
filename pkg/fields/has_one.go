@@ -798,29 +798,73 @@ func (h *HasOneField) WithLazyLoad() *HasOneField {
 // Parametreler:
 //   - resource: Extract edilecek resource (struct veya pointer)
 func (h *HasOneField) Extract(resource interface{}) {
+	// Schema.Extract ile ilişki verilerini al
 	h.Schema.Extract(resource)
 
-	if h.Schema.Data != nil {
-		v := reflect.ValueOf(h.Schema.Data)
-		if v.Kind() == reflect.Ptr {
-			if v.IsNil() {
-				h.Schema.Data = nil
-				return
-			}
-			v = v.Elem()
-		}
+	// Data nil ise çık
+	if h.Schema.Data == nil {
+		return
+	}
 
-		if v.Kind() == reflect.Struct {
-			// Try to find ID or Id field
-			idField := v.FieldByName("ID")
-			if !idField.IsValid() {
-				idField = v.FieldByName("Id")
-			}
+	// RelatedResource yoksa mevcut veriyi kullan
+	if h.RelatedResource == nil {
+		return
+	}
 
-			if idField.IsValid() && idField.CanInterface() {
-				h.Schema.Data = idField.Interface()
-			}
+	// Data'yı reflection ile işle
+	v := reflect.ValueOf(h.Schema.Data)
+
+	// Pointer ise dereference et
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			h.Schema.Data = nil
+			return
 		}
+		v = v.Elem()
+	}
+
+	// Struct değilse çık
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	record := v.Interface()
+
+	// ID field'ını bul
+	var idValue interface{}
+	idField := v.FieldByName("ID")
+	if !idField.IsValid() {
+		idField = v.FieldByName("Id")
+	}
+
+	if idField.IsValid() && idField.CanInterface() {
+		idValue = idField.Interface()
+	}
+
+	// ID bulunamadıysa çık
+	if idValue == nil {
+		return
+	}
+
+	// RelatedResource'dan RecordTitle metodunu çağır (type assertion ile)
+	// RelatedResource interface{} tipinde olduğu için type assertion gerekli
+	type ResourceWithTitle interface {
+		RecordTitle(any) string
+	}
+
+	res, ok := h.RelatedResource.(ResourceWithTitle)
+	if !ok {
+		// RelatedResource RecordTitle metoduna sahip değilse çık
+		return
+	}
+
+	// RecordTitle ile başlığı al
+	recordTitle := res.RecordTitle(record)
+
+	// Minimal format: {"id": ..., "title": ...}
+	h.Schema.Data = map[string]interface{}{
+		"id":    idValue,
+		"title": recordTitle,
 	}
 }
 

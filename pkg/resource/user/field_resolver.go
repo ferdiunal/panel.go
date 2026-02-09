@@ -45,17 +45,18 @@ type UserFieldResolver struct{}
 //   - []fields.Element: Tanımlanan form alanlarının dilimi
 //
 // Alanlar:
-//   1. ID: Arama yapılabilir, otomatik olarak oluşturulan benzersiz tanımlayıcı
-//   2. Image: Profil resmi, dosya yükleme desteği ile
-//   3. Name: Kullanıcı adı, arama yapılabilir
-//   4. Email: E-posta adresi, arama yapılabilir
-//   5. Role: Kullanıcı rolü, dinamik seçenekler ile
-//   6. Password: Şifre, sadece form görünümünde, boş bırakılabilir
+//  1. ID: Arama yapılabilir, otomatik olarak oluşturulan benzersiz tanımlayıcı
+//  2. Image: Profil resmi, dosya yükleme desteği ile
+//  3. Name: Kullanıcı adı, arama yapılabilir
+//  4. Email: E-posta adresi, arama yapılabilir
+//  5. Role: Kullanıcı rolü, dinamik seçenekler ile
+//  6. Password: Şifre, sadece form görünümünde, boş bırakılabilir
 //
 // Kullanım Örneği:
-//   resolver := &UserFieldResolver{}
-//   fields := resolver.ResolveFields(ctx)
-//   // fields dilimi form oluşturmak için kullanılır
+//
+//	resolver := &UserFieldResolver{}
+//	fields := resolver.ResolveFields(ctx)
+//	// fields dilimi form oluşturmak için kullanılır
 //
 // Önemli Notlar:
 //   - Resim dosyaları UnixNano timestamp ile adlandırılır (çakışma riski düşük)

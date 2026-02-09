@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipExistence tests creating a new relationship existence handler
 func TestNewRelationshipExistence(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	existence := NewRelationshipExistence(field)
 
 	if existence == nil {
@@ -21,7 +21,7 @@ func TestNewRelationshipExistence(t *testing.T) {
 
 // TestExistsBelongsTo tests checking if BelongsTo relationship exists
 func TestExistsBelongsTo(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	existence := NewRelationshipExistence(field)
 
 	ctx := context.Background()
@@ -38,7 +38,7 @@ func TestExistsBelongsTo(t *testing.T) {
 
 // TestExistsHasMany tests checking if HasMany relationships exist
 func TestExistsHasMany(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	existence := NewRelationshipExistence(field)
 
 	ctx := context.Background()
@@ -55,7 +55,7 @@ func TestExistsHasMany(t *testing.T) {
 
 // TestExistsHasOne tests checking if HasOne relationship exists
 func TestExistsHasOne(t *testing.T) {
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 	existence := NewRelationshipExistence(field)
 
 	ctx := context.Background()
@@ -72,7 +72,7 @@ func TestExistsHasOne(t *testing.T) {
 
 // TestExistsBelongsToMany tests checking if BelongsToMany relationships exist
 func TestExistsBelongsToMany(t *testing.T) {
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 	existence := NewRelationshipExistence(field)
 
 	ctx := context.Background()
@@ -88,7 +88,7 @@ func TestExistsBelongsToMany(t *testing.T) {
 }
 
 // TestExistsMorphTo tests checking if MorphTo relationship exists
-func TestExistsMorphTo(t *testing.T) {
+func TestExistsNewMorphTo(t *testing.T) {
 	field := NewMorphTo("Commentable", "commentable")
 	existence := NewRelationshipExistence(field)
 
@@ -106,7 +106,7 @@ func TestExistsMorphTo(t *testing.T) {
 
 // TestDoesntExist tests checking if no related resources exist
 func TestDoesntExist(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	existence := NewRelationshipExistence(field)
 
 	ctx := context.Background()

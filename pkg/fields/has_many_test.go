@@ -6,7 +6,7 @@ import (
 
 // TestHasManyCreation tests HasMany field creation
 func TestHasManyCreation(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	if field.Name != "Posts" {
 		t.Errorf("Expected name 'Posts', got '%s'", field.Name)
@@ -31,7 +31,7 @@ func TestHasManyCreation(t *testing.T) {
 
 // TestHasManyForeignKey tests ForeignKey method
 func TestHasManyForeignKey(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	result := field.ForeignKey("author_id")
 
 	if result != field {
@@ -45,7 +45,7 @@ func TestHasManyForeignKey(t *testing.T) {
 
 // TestHasManyOwnerKey tests OwnerKey method
 func TestHasManyOwnerKey(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	result := field.OwnerKey("user_id")
 
 	if result != field {
@@ -59,7 +59,7 @@ func TestHasManyOwnerKey(t *testing.T) {
 
 // TestHasManyQuery tests Query method
 func TestHasManyQuery(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	queryFn := func(q interface{}) interface{} {
 		return q
@@ -78,7 +78,7 @@ func TestHasManyQuery(t *testing.T) {
 
 // TestHasManyLoadingStrategies tests loading strategy methods
 func TestHasManyLoadingStrategies(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	// Test WithEagerLoad
 	result := field.WithEagerLoad()
@@ -101,7 +101,7 @@ func TestHasManyLoadingStrategies(t *testing.T) {
 
 // TestHasManyGetRelationshipType tests GetRelationshipType method
 func TestHasManyGetRelationshipType(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	relType := field.GetRelationshipType()
 
 	if relType != "hasMany" {
@@ -111,7 +111,7 @@ func TestHasManyGetRelationshipType(t *testing.T) {
 
 // TestHasManyGetRelatedResource tests GetRelatedResource method
 func TestHasManyGetRelatedResource(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	resource := field.GetRelatedResource()
 
 	if resource != "posts" {
@@ -121,7 +121,7 @@ func TestHasManyGetRelatedResource(t *testing.T) {
 
 // TestHasManyGetRelationshipName tests GetRelationshipName method
 func TestHasManyGetRelationshipName(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	name := field.GetRelationshipName()
 
 	if name != "Posts" {
@@ -131,7 +131,7 @@ func TestHasManyGetRelationshipName(t *testing.T) {
 
 // TestHasManyResolveRelationship tests ResolveRelationship method
 func TestHasManyResolveRelationship(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	// Test with nil item
 	result, err := field.ResolveRelationship(nil)
@@ -155,7 +155,7 @@ func TestHasManyResolveRelationship(t *testing.T) {
 
 // TestHasManyValidateRelationship tests ValidateRelationship method
 func TestHasManyValidateRelationship(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	// Test with nil value
 	err := field.ValidateRelationship(nil)
@@ -172,7 +172,7 @@ func TestHasManyValidateRelationship(t *testing.T) {
 
 // TestHasManyGetQueryCallback tests GetQueryCallback method
 func TestHasManyGetQueryCallback(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	// Test with nil callback
 	callback := field.GetQueryCallback()
@@ -190,7 +190,7 @@ func TestHasManyGetQueryCallback(t *testing.T) {
 
 // TestHasManyGetLoadingStrategy tests GetLoadingStrategy method
 func TestHasManyGetLoadingStrategy(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	strategy := field.GetLoadingStrategy()
 
 	if strategy != EAGER_LOADING {
@@ -207,7 +207,7 @@ func TestHasManyGetLoadingStrategy(t *testing.T) {
 
 // TestHasManyFluentChaining tests fluent API chaining
 func TestHasManyFluentChaining(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts").
+	field := HasMany("Posts", "posts", "posts").
 		ForeignKey("author_id").
 		OwnerKey("id").
 		WithLazyLoad()
@@ -227,7 +227,7 @@ func TestHasManyFluentChaining(t *testing.T) {
 
 // TestHasManyCount tests Count method
 func TestHasManyCount(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	count := field.Count()
 
 	if count != 0 {
@@ -237,7 +237,7 @@ func TestHasManyCount(t *testing.T) {
 
 // TestHasManyNilQueryCallback tests nil query callback handling
 func TestHasManyNilQueryCallback(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 	field.QueryCallback = nil
 
 	callback := field.GetQueryCallback()
@@ -255,7 +255,7 @@ func TestHasManyNilQueryCallback(t *testing.T) {
 
 // TestHasManyImplementsRelationshipField tests that HasMany implements RelationshipField interface
 func TestHasManyImplementsRelationshipField(t *testing.T) {
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	// Test relationship field methods
 	if field.GetRelationshipType() != "hasMany" {
