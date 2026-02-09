@@ -2,6 +2,7 @@ package data
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/query"
 )
 
@@ -400,4 +401,5 @@ type DataProvider interface {
 	Delete(ctx *context.Context, id string) error
 	SetSearchColumns(cols []string)
 	SetWith(rels []string)
+	SetRelationshipFields(fields []fields.RelationshipField)
 }
