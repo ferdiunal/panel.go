@@ -115,11 +115,12 @@ func HasOne(name, key string, relatedResource interface{}) *HasOneField {
 
 	h := &HasOneField{
 		Schema: Schema{
-			Name:  name,
-			Key:   key,
-			View:  "has-one-field",
-			Type:  TYPE_RELATIONSHIP,
-			Props: make(map[string]interface{}),
+			LabelText: name,
+			Name:      name,
+			Key:       key,
+			View:      "has-one-field",
+			Type:      TYPE_RELATIONSHIP,
+			Props:     make(map[string]interface{}),
 		},
 		RelatedResourceSlug: slug,
 		RelatedResource:     resourceInstance,
