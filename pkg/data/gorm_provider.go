@@ -703,8 +703,6 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		fmt.Printf("[DEBUG] Index - Preload: %s\n", relName)
 		db = db.Preload(relName)
 	}
-		}
-	}
 
 	// Apply Advanced Filters
 	if len(req.Filters) > 0 {
