@@ -1892,4 +1892,47 @@ type Resource interface {
 	/// - Public API'yi daha temiz gösterir
 	/// - API versiyonlama stratejisini destekler
 	OpenAPIEnabled() bool
+
+	/// RecordTitle, bir kayıt için okunabilir başlık döndürür.
+	///
+	/// Bu metod, ilişki fieldlarında kayıtların kullanıcı dostu şekilde gösterilmesi için kullanılır.
+	/// Laravel Nova'nın title() pattern'ini takip eder.
+	///
+	/// Parametreler:
+	/// - record: Başlığı alınacak kayıt (genellikle model instance'ı)
+	///
+	/// Dönüş:
+	/// - string: Kaydın okunabilir başlığı
+	///
+	/// Örnek:
+	///   user := &User{ID: 1, Name: "John Doe"}
+	///   title := resource.RecordTitle(user) // "John Doe"
+	RecordTitle(record any) string
+
+	/// GetRecordTitleKey, kayıt başlığı için kullanılacak field adını döndürür.
+	///
+	/// Bu metod, RecordTitle metodunun hangi field'ı kullanacağını belirler.
+	/// Varsayılan değer "id"'dir.
+	///
+	/// Dönüş:
+	/// - string: Başlık için kullanılacak field adı
+	///
+	/// Örnek:
+	///   key := resource.GetRecordTitleKey() // "name"
+	GetRecordTitleKey() string
+
+	/// SetRecordTitleKey, kayıt başlığı için kullanılacak field adını ayarlar.
+	///
+	/// Bu metod, RecordTitle metodunun hangi field'ı kullanacağını belirler.
+	/// Fluent interface için Resource döndürür.
+	///
+	/// Parametreler:
+	/// - key: Başlık için kullanılacak field adı
+	///
+	/// Dönüş:
+	/// - Resource: Fluent interface için resource instance'ı
+	///
+	/// Örnek:
+	///   resource.SetRecordTitleKey("name")
+	SetRecordTitleKey(key string) Resource
 }

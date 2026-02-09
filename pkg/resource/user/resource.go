@@ -94,6 +94,10 @@ func NewUserResource() *UserResource {
 	r.SetVisible(true)
 	r.SetNavigationOrder(1)
 
+	// Kayıt başlığı için "name" field'ını kullan
+	// İlişki fieldlarında kullanıcılar "John Doe" gibi okunabilir şekilde gösterilir
+	r.SetRecordTitleKey("name")
+
 	// Yetkilendirme politikasını ayarla
 	// UserPolicy, bu kaynağa erişim kontrolü sağlar
 	r.SetPolicy(&UserPolicy{})

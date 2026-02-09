@@ -189,6 +189,12 @@ func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 
 	// Determine elements to use (before Provider.Show to extract relationship fields)
 	ctx := context.FromFiber(c.Ctx)
+
+	// Set visibility context for proper field filtering
+	if ctx != nil {
+		ctx.VisibilityCtx = fields.ContextDetail
+	}
+
 	var elements []fields.Element
 	if ctx != nil && len(ctx.Elements) > 0 {
 		elements = ctx.Elements

@@ -17,7 +17,7 @@ func TestNewRelationshipValidator(t *testing.T) {
 // TestValidateExistsNilValue tests ValidateExists with nil value
 func TestValidateExistsNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	ctx := context.Background()
 	err := validator.ValidateExists(ctx, nil, field)
@@ -30,7 +30,7 @@ func TestValidateExistsNilValue(t *testing.T) {
 // TestValidateExistsRequiredField tests ValidateExists with required field
 func TestValidateExistsRequiredField(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.Required()
 
 	ctx := context.Background()
@@ -44,7 +44,7 @@ func TestValidateExistsRequiredField(t *testing.T) {
 // TestValidateForeignKeyNilValue tests ValidateForeignKey with nil value
 func TestValidateForeignKeyNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	ctx := context.Background()
 	err := validator.ValidateForeignKey(ctx, nil, field)
@@ -57,7 +57,7 @@ func TestValidateForeignKeyNilValue(t *testing.T) {
 // TestValidatePivotNilValue tests ValidatePivot with nil value
 func TestValidatePivotNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	ctx := context.Background()
 	err := validator.ValidatePivot(ctx, nil, field)
@@ -96,7 +96,7 @@ func TestValidateMorphTypeNoTypesRegistered(t *testing.T) {
 // TestValidateBelongsToNilValue tests ValidateBelongsTo with nil value
 func TestValidateBelongsToNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	ctx := context.Background()
 	err := validator.ValidateBelongsTo(ctx, nil, field)
@@ -109,7 +109,7 @@ func TestValidateBelongsToNilValue(t *testing.T) {
 // TestValidateBelongsToRequiredField tests ValidateBelongsTo with required field
 func TestValidateBelongsToRequiredField(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.Required()
 
 	ctx := context.Background()
@@ -123,7 +123,7 @@ func TestValidateBelongsToRequiredField(t *testing.T) {
 // TestValidateHasManyNilValue tests ValidateHasMany with nil value
 func TestValidateHasManyNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewHasMany("Posts", "posts", "posts")
+	field := HasMany("Posts", "posts", "posts")
 
 	ctx := context.Background()
 	err := validator.ValidateHasMany(ctx, nil, field)
@@ -136,7 +136,7 @@ func TestValidateHasManyNilValue(t *testing.T) {
 // TestValidateHasOneNilValue tests ValidateHasOne with nil value
 func TestValidateHasOneNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewHasOne("Profile", "profile", "profiles")
+	field := HasOne("Profile", "profile", "profiles")
 
 	ctx := context.Background()
 	err := validator.ValidateHasOne(ctx, nil, field)
@@ -149,7 +149,7 @@ func TestValidateHasOneNilValue(t *testing.T) {
 // TestValidateBelongsToManyNilValue tests ValidateBelongsToMany with nil value
 func TestValidateBelongsToManyNilValue(t *testing.T) {
 	validator := NewRelationshipValidator()
-	field := NewBelongsToMany("Tags", "tags", "tags")
+	field := BelongsToMany("Tags", "tags", "tags")
 
 	ctx := context.Background()
 	err := validator.ValidateBelongsToMany(ctx, nil, field)

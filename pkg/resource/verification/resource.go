@@ -81,6 +81,10 @@ func NewVerificationResource() *VerificationResource {
 	// Resource'u menüde görünür yap
 	r.SetVisible(true)
 
+	// Kayıt başlığı için "id" field'ını kullan
+	// Verification kayıtları için varsayılan olarak ID gösterilir
+	r.SetRecordTitleKey("id")
+
 	// Alan çözümleyicisini ayarla - alanların nasıl gösterileceğini belirler
 	r.SetFieldResolver(&VerificationFieldResolver{})
 

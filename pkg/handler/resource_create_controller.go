@@ -149,6 +149,12 @@ import (
 /// ❌ AutoOptions callback'leri N+1 sorgu problemine yol açabilir
 /// ❌ Büyük seçenek listeleri için bellek kullanımı artabilir
 func HandleResourceCreate(h *FieldHandler, c *context.Context) error {
+	// Set visibility context for proper field filtering
+	ctx := c.Resource()
+	if ctx != nil {
+		ctx.VisibilityCtx = fields.ContextCreate
+	}
+
 	// Adım 1: Yetkilendirme Kontrolü
 	// Policy tanımlıysa, kullanıcının Create yetkisi olup olmadığını kontrol et
 	// Yetki yoksa 403 Forbidden hatası döndür

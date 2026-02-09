@@ -48,6 +48,9 @@ func NewCategoryResource() *CategoryResource {
 	r.SetIcon("folder")
 	r.SetGroup("İçerik")
 
+	// Kayıt başlığı olarak "name" field'ını kullan
+	r.SetRecordTitleKey("name")
+
 	// Alanları tanımla
 	r.SetFieldResolver(&CategoryFieldResolver{})
 
@@ -186,6 +189,97 @@ Diğer resource'larla ilişkili alanlar:
 }).OnList().OnDetail().OnForm()
 ```
 
+### Kayıt Başlıkları (Record Title)
+
+Resource'lar için kayıt başlığı ayarlayarak, ilişki fieldlarında kayıtların okunabilir şekilde gösterilmesini sağlayabilirsiniz. Bu özellik Laravel Nova'nın title pattern'ini takip eder.
+
+#### Basit Kullanım
+
+```go
+func NewUserResource() *UserResource {
+	r := &UserResource{}
+
+	r.SetModel(&User{})
+	r.SetSlug("users")
+	r.SetTitle("Kullanıcılar")
+
+	// "name" field'ını kayıt başlığı olarak ayarla
+	r.SetRecordTitleKey("name")
+
+	return r
+}
+```
+
+Artık ilişki fieldlarında kullanıcılar şu formatta gösterilir:
+```json
+{"id": 1, "title": "John Doe"}
+```
+
+#### Özel Başlık Fonksiyonu
+
+Daha karmaşık başlıklar için özel fonksiyon kullanabilirsiniz:
+
+```go
+func NewUserResource() *UserResource {
+	r := &UserResource{}
+
+	r.SetModel(&User{})
+	r.SetSlug("users")
+
+	// Özel başlık fonksiyonu
+	r.SetRecordTitleFunc(func(record any) string {
+		user := record.(*User)
+		return user.FirstName + " " + user.LastName
+	})
+
+	return r
+}
+```
+
+#### İlişki Fieldlarında Kullanım
+
+Kayıt başlıkları tüm ilişki fieldlarında otomatik olarak kullanılır:
+
+**BelongsTo (Tekil İlişki):**
+```json
+{"id": 5, "title": "John Doe"}
+```
+
+**HasMany (Çoklu İlişki):**
+```json
+[
+  {"id": 1, "title": "First Post"},
+  {"id": 2, "title": "Second Post"}
+]
+```
+
+**HasOne (Tekil İlişki):**
+```json
+{"id": 1, "title": "User Profile"}
+```
+
+**BelongsToMany (Çoklu İlişki):**
+```json
+[
+  {"id": 1, "title": "Admin"},
+  {"id": 2, "title": "Editor"}
+]
+```
+
+#### Varsayılan Davranış
+
+Eğer `SetRecordTitleKey` veya `SetRecordTitleFunc` kullanmazsanız, varsayılan olarak `id` field'ı kullanılır:
+
+```json
+{"id": 1, "title": "1"}
+```
+
+#### Önemli Notlar
+
+1. **Eager Loading Zorunlu**: İlişki fieldlarında eager loading yapılmalı, aksi halde title null olur
+2. **Case-Insensitive**: Field adları büyük/küçük harf duyarsızdır
+3. **DisplayUsing Korundu**: Mevcut DisplayUsing() callback'leri çalışmaya devam eder
+
 ## Örnek: Tam E-ticaret Resource'ları
 
 ### Ürün Resource'u
@@ -214,6 +308,9 @@ func NewProductResource() *ProductResource {
 	r.SetTitle("Ürünler")
 	r.SetIcon("shopping-bag")
 	r.SetGroup("Satış")
+
+	// Kayıt başlığı olarak "name" field'ını kullan
+	r.SetRecordTitleKey("name")
 
 	r.SetFieldResolver(&ProductFieldResolver{})
 	r.SetPolicy(&ProductPolicy{})
@@ -348,6 +445,9 @@ func NewOrderResource() *OrderResource {
 	r.SetTitle("Siparişler")
 	r.SetIcon("package")
 	r.SetGroup("Satış")
+
+	// Kayıt başlığı olarak "order_no" field'ını kullan
+	r.SetRecordTitleKey("order_no")
 
 	r.SetFieldResolver(&OrderFieldResolver{})
 	r.SetPolicy(&OrderPolicy{})

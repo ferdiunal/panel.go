@@ -7,7 +7,7 @@ import (
 
 // TestNewRelationshipConstraints tests creating a new relationship constraints handler
 func TestNewRelationshipConstraints(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	if constraints == nil {
@@ -29,7 +29,7 @@ func TestNewRelationshipConstraints(t *testing.T) {
 
 // TestApplyLimit tests applying a limit constraint
 func TestApplyLimit(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -50,7 +50,7 @@ func TestApplyLimit(t *testing.T) {
 
 // TestApplyLimitNegative tests applying a negative limit
 func TestApplyLimitNegative(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -67,7 +67,7 @@ func TestApplyLimitNegative(t *testing.T) {
 
 // TestApplyOffset tests applying an offset constraint
 func TestApplyOffset(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -88,7 +88,7 @@ func TestApplyOffset(t *testing.T) {
 
 // TestApplyOffsetNegative tests applying a negative offset
 func TestApplyOffsetNegative(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -105,7 +105,7 @@ func TestApplyOffsetNegative(t *testing.T) {
 
 // TestApplyWhere tests applying a WHERE constraint
 func TestApplyWhere(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -126,7 +126,7 @@ func TestApplyWhere(t *testing.T) {
 
 // TestApplyWhereIn tests applying a WHERE IN constraint
 func TestApplyWhereIn(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -148,7 +148,7 @@ func TestApplyWhereIn(t *testing.T) {
 
 // TestGetLimit tests getting limit
 func TestGetLimit(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -161,7 +161,7 @@ func TestGetLimit(t *testing.T) {
 
 // TestGetOffset tests getting offset
 func TestGetOffset(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()
@@ -174,7 +174,7 @@ func TestGetOffset(t *testing.T) {
 
 // TestGetConstraints tests getting constraints
 func TestGetConstraints(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	constraints := NewRelationshipConstraints(field)
 
 	ctx := context.Background()

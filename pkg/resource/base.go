@@ -5,6 +5,8 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/auth"
@@ -136,6 +138,12 @@ type Base struct {
 
 	/// OpenAPI görünürlük kontrolü - false ise OpenAPI spec'te görünür (varsayılan)
 	openAPIDisabled bool
+
+	/// Kayıt başlığı için kullanılacak field adı - İlişki fieldlarında gösterilir
+	recordTitleKey string
+
+	/// Kayıt başlığını özel fonksiyon ile hesaplamak için kullanılır
+	recordTitleFunc func(record any) string
 }
 
 /// # SettingsSeed Yapısı
@@ -736,7 +744,7 @@ func (r Base) GetDialogType() DialogType {
 ///
 /// - Method chaining için Resource interface'i döndürür
 /// - Çalışma zamanında diyalog tipini değiştirmek için kullanılabilir
-func (r Base) SetDialogType(dialogType DialogType) Resource {
+func (r *Base) SetDialogType(dialogType DialogType) Resource {
 	r.DialogType = dialogType
 	return r
 }
@@ -829,7 +837,7 @@ func (b *Base) SetGroupFunc(fn func(*fiber.Ctx) string) Resource {
 	return b
 }
 
-func (b Base) SetOpenAPIEnabled(enabled bool) Resource {
+func (b *Base) SetOpenAPIEnabled(enabled bool) Resource {
 	b.openAPIDisabled = !enabled
 	return b
 }
@@ -2855,4 +2863,145 @@ func (r Base) GetFilters() []Filter {
 		return r.FiltersVal
 	}
 	return []Filter{}
+}
+
+// SetRecordTitleKey, kayıt başlığı için kullanılacak field adını ayarlar.
+//
+// Bu metod, RecordTitle metodunun hangi field'ı kullanacağını belirler.
+// İlişki fieldlarında kayıtların okunabilir şekilde gösterilmesi için kullanılır.
+//
+// Parametreler:
+// - key: Başlık için kullanılacak field adı (örn: "name", "title", "email")
+//
+// Döndürür:
+// - Resource pointer'ı (method chaining için)
+//
+// Örnek:
+//
+//	r.SetRecordTitleKey("name") // User kayıtları için "name" field'ını kullan
+//	r.SetRecordTitleKey("title") // Post kayıtları için "title" field'ını kullan
+func (b *Base) SetRecordTitleKey(key string) Resource {
+	b.recordTitleKey = key
+	return b
+}
+
+// GetRecordTitleKey, kayıt başlığı için kullanılacak field adını döndürür.
+//
+// Bu metod, RecordTitle metodunun hangi field'ı kullanacağını belirler.
+// Eğer SetRecordTitleKey ile bir değer ayarlanmamışsa varsayılan olarak "id" döner.
+//
+// Döndürür:
+// - string: Başlık için kullanılacak field adı (varsayılan: "id")
+//
+// Örnek:
+//
+//	key := r.GetRecordTitleKey() // "name" veya varsayılan "id"
+func (b *Base) GetRecordTitleKey() string {
+	if b.recordTitleKey == "" {
+		return "id"
+	}
+	return b.recordTitleKey
+}
+
+// SetRecordTitleFunc, kayıt başlığını özel bir fonksiyon ile hesaplamak için kullanılır.
+//
+// Bu metod, karmaşık başlık formatları için kullanılır. Örneğin, birden fazla field'ı
+// birleştirerek başlık oluşturmak için kullanılabilir.
+//
+// Parametreler:
+// - fn: Kayıt alıp başlık döndüren fonksiyon
+//
+// Döndürür:
+// - Resource pointer'ı (method chaining için)
+//
+// Örnek:
+//
+//	r.SetRecordTitleFunc(func(record any) string {
+//	    user := record.(*User)
+//	    return user.FirstName + " " + user.LastName
+//	})
+func (b *Base) SetRecordTitleFunc(fn func(record any) string) Resource {
+	b.recordTitleFunc = fn
+	return b
+}
+
+// RecordTitle, bir kayıt için okunabilir başlık döndürür.
+//
+// Bu metod, ilişki fieldlarında kayıtların kullanıcı dostu şekilde gösterilmesi için kullanılır.
+// Önce SetRecordTitleFunc ile ayarlanmış özel fonksiyonu kontrol eder, yoksa
+// GetRecordTitleKey ile belirtilen field'ın değerini reflection ile alır.
+//
+// Parametreler:
+// - record: Başlığı alınacak kayıt (genellikle model instance'ı)
+//
+// Döndürür:
+// - string: Kaydın okunabilir başlığı
+//
+// Örnek:
+//
+//	user := &User{ID: 1, Name: "John Doe"}
+//	title := resource.RecordTitle(user) // "John Doe"
+//
+//	post := &Post{ID: 1, Title: "Hello World"}
+//	title := resource.RecordTitle(post) // "Hello World"
+func (b *Base) RecordTitle(record any) string {
+	// Özel fonksiyon varsa onu kullan
+	if b.recordTitleFunc != nil {
+		return b.recordTitleFunc(record)
+	}
+
+	// Reflection ile field değerini al
+	titleKey := b.GetRecordTitleKey()
+
+	// Nil kontrolü
+	if record == nil {
+		return ""
+	}
+
+	// Reflection ile field'a eriş
+	v := reflect.ValueOf(record)
+
+	// Pointer ise dereference et
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return ""
+		}
+		v = v.Elem()
+	}
+
+	// Struct değilse boş string döndür
+	if v.Kind() != reflect.Struct {
+		return ""
+	}
+
+	// Field'ı bul (case-insensitive)
+	var fieldValue reflect.Value
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Type().Field(i)
+		if strings.EqualFold(field.Name, titleKey) {
+			fieldValue = v.Field(i)
+			break
+		}
+	}
+
+	// Field bulunamadıysa boş string döndür
+	if !fieldValue.IsValid() {
+		return ""
+	}
+
+	// Field değerini string'e çevir
+	switch fieldValue.Kind() {
+	case reflect.String:
+		return fieldValue.String()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return fmt.Sprintf("%d", fieldValue.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return fmt.Sprintf("%d", fieldValue.Uint())
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%f", fieldValue.Float())
+	case reflect.Bool:
+		return fmt.Sprintf("%t", fieldValue.Bool())
+	default:
+		return fmt.Sprintf("%v", fieldValue.Interface())
+	}
 }

@@ -84,6 +84,10 @@ func NewSessionResource() *SessionResource {
 	// Resource'un admin panelinde görünür olup olmayacağını belirle
 	r.SetVisible(true)
 
+	// Kayıt başlığı için "id" field'ını kullan
+	// Session kayıtları için varsayılan olarak ID gösterilir
+	r.SetRecordTitleKey("id")
+
 	// Field resolver'ı ayarla - form alanlarının nasıl render edileceğini tanımlar
 	r.SetFieldResolver(&SessionFieldResolver{})
 

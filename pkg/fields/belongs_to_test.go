@@ -6,7 +6,7 @@ import (
 
 // TestBelongsToCreation tests BelongsTo field creation
 func TestBelongsToCreation(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	if field.Name != "Author" {
 		t.Errorf("Expected name 'Author', got '%s'", field.Name)
@@ -35,7 +35,7 @@ func TestBelongsToCreation(t *testing.T) {
 
 // TestBelongsToDisplayUsing tests DisplayUsing method
 func TestBelongsToDisplayUsing(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	result := field.DisplayUsing("email")
 
 	if result != field {
@@ -49,7 +49,7 @@ func TestBelongsToDisplayUsing(t *testing.T) {
 
 // TestBelongsToSearchable tests Searchable method
 func TestBelongsToSearchable(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	result := field.WithSearchableColumns("name", "email")
 
 	if result != field {
@@ -67,7 +67,7 @@ func TestBelongsToSearchable(t *testing.T) {
 
 // TestBelongsToQuery tests Query method
 func TestBelongsToQuery(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	queryFn := func(q interface{}) interface{} {
 		return q
@@ -86,7 +86,7 @@ func TestBelongsToQuery(t *testing.T) {
 
 // TestBelongsToLoadingStrategies tests loading strategy methods
 func TestBelongsToLoadingStrategies(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	// Test WithEagerLoad
 	result := field.WithEagerLoad()
@@ -109,7 +109,7 @@ func TestBelongsToLoadingStrategies(t *testing.T) {
 
 // TestBelongsToGetRelationshipType tests GetRelationshipType method
 func TestBelongsToGetRelationshipType(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	relType := field.GetRelationshipType()
 
 	if relType != "belongsTo" {
@@ -119,7 +119,7 @@ func TestBelongsToGetRelationshipType(t *testing.T) {
 
 // TestBelongsToGetRelatedResource tests GetRelatedResource method
 func TestBelongsToGetRelatedResource(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	resource := field.GetRelatedResource()
 
 	if resource != "authors" {
@@ -129,7 +129,7 @@ func TestBelongsToGetRelatedResource(t *testing.T) {
 
 // TestBelongsToGetRelationshipName tests GetRelationshipName method
 func TestBelongsToGetRelationshipName(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	name := field.GetRelationshipName()
 
 	if name != "Author" {
@@ -139,7 +139,7 @@ func TestBelongsToGetRelationshipName(t *testing.T) {
 
 // TestBelongsToGetDisplayKey tests GetDisplayKey method
 func TestBelongsToGetDisplayKey(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	displayKey := field.GetDisplayKey()
 
 	if displayKey != "name" {
@@ -156,7 +156,7 @@ func TestBelongsToGetDisplayKey(t *testing.T) {
 
 // TestBelongsToGetSearchableColumns tests GetSearchableColumns method
 func TestBelongsToGetSearchableColumns(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	columns := field.GetSearchableColumns()
 
 	if len(columns) != 1 || columns[0] != "name" {
@@ -173,7 +173,7 @@ func TestBelongsToGetSearchableColumns(t *testing.T) {
 
 // TestBelongsToGetQueryCallback tests GetQueryCallback method
 func TestBelongsToGetQueryCallback(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	// Test with nil callback
 	callback := field.GetQueryCallback()
@@ -202,7 +202,7 @@ func TestBelongsToGetQueryCallback(t *testing.T) {
 
 // TestBelongsToGetLoadingStrategy tests GetLoadingStrategy method
 func TestBelongsToGetLoadingStrategy(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	strategy := field.GetLoadingStrategy()
 
 	if strategy != EAGER_LOADING {
@@ -219,7 +219,7 @@ func TestBelongsToGetLoadingStrategy(t *testing.T) {
 
 // TestBelongsToImplementsRelationshipField tests that BelongsTo implements RelationshipField interface
 func TestBelongsToImplementsRelationshipField(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 
 	// Test relationship field methods
 	if field.GetRelationshipType() != "belongsTo" {
@@ -237,7 +237,7 @@ func TestBelongsToImplementsRelationshipField(t *testing.T) {
 
 // TestBelongsToNilSearchableColumns tests nil searchable columns handling
 func TestBelongsToNilSearchableColumns(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.SearchableColumns = nil
 
 	columns := field.GetSearchableColumns()
@@ -252,7 +252,7 @@ func TestBelongsToNilSearchableColumns(t *testing.T) {
 
 // TestBelongsToNilQueryCallback tests nil query callback handling
 func TestBelongsToNilQueryCallback(t *testing.T) {
-	field := NewBelongsTo("Author", "author_id", "authors")
+	field := BelongsTo("Author", "author_id", "authors")
 	field.QueryCallback = nil
 
 	callback := field.GetQueryCallback()
