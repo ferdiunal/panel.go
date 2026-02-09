@@ -242,7 +242,38 @@ type RelationshipQuery interface {
 }
 
 // IsRelationshipField checks if an element is a relationship field
+//
+// Bu fonksiyon, bir element'in relationship field olup olmadığını kontrol eder.
+// core.Element interface'i RelationshipField interface'ini embed etmediği için,
+// direkt type assertion yerine view field'ına bakarak kontrol yaparız.
+//
+// Relationship field view'ları:
+// - "has-many-field": HasMany ilişkisi
+// - "belongs-to-field": BelongsTo ilişkisi
+// - "has-one-field": HasOne ilişkisi
+// - "morph-to-field": MorphTo ilişkisi
+// - "morph-to-many-field": MorphToMany ilişkisi
+// - "belongs-to-many-field": BelongsToMany ilişkisi
 func IsRelationshipField(e Element) (RelationshipField, bool) {
-	rf, ok := e.(RelationshipField)
-	return rf, ok
+	// Önce direkt type assertion dene (eğer concrete type erişilebilirse)
+	if rf, ok := e.(RelationshipField); ok {
+		return rf, true
+	}
+
+	// Type assertion başarısız olduysa, view field'ına bak
+	view := e.GetView()
+	switch view {
+	case "has-many-field", "belongs-to-field", "has-one-field",
+		 "morph-to-field", "morph-to-many-field", "belongs-to-many-field":
+		// View'a göre relationship field olduğunu biliyoruz
+		// Ama RelationshipField interface'ini döndüremeyiz çünkü type assertion başarısız
+		// Bu durumda nil döndürüp, caller'ın view'a göre işlem yapmasını sağlayabiliriz
+		// VEYA: Element'i RelationshipField'a cast etmeye çalışabiliriz
+
+		// Workaround: Element'ten gerekli bilgileri alıp bir wrapper oluştur
+		// Ama bu karmaşık olur. Daha iyi bir çözüm: caller'ın view'a göre işlem yapması
+		return nil, true
+	default:
+		return nil, false
+	}
 }

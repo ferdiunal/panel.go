@@ -696,11 +696,13 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
 
 	// Apply Eager Loading with GORM Preload
-	// Sadece EAGER_LOADING stratejisine sahip relationship'ler için Preload kullan
-	relationshipFields := p.getRelationshipFields()
-	for _, field := range relationshipFields {
-		if field.GetLoadingStrategy() == fields.EAGER_LOADING {
-			db = db.Preload(field.GetRelationshipName())
+	// WORKAROUND: Direkt olarak WithRelationships kullan çünkü relationshipFields boş olabilir
+	// (field type detection sorunu nedeniyle)
+	fmt.Printf("[DEBUG] Index - Preloading relationships: %v\n", p.WithRelationships)
+	for _, relName := range p.WithRelationships {
+		fmt.Printf("[DEBUG] Index - Preload: %s\n", relName)
+		db = db.Preload(relName)
+	}
 		}
 	}
 
@@ -926,12 +928,12 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
 
 	// Apply Eager Loading with GORM Preload
-	// Sadece EAGER_LOADING stratejisine sahip relationship'ler için Preload kullan
-	relationshipFields := p.getRelationshipFields()
-	for _, field := range relationshipFields {
-		if field.GetLoadingStrategy() == fields.EAGER_LOADING {
-			db = db.Preload(field.GetRelationshipName())
-		}
+	// WORKAROUND: Direkt olarak WithRelationships kullan çünkü relationshipFields boş olabilir
+	// (field type detection sorunu nedeniyle)
+	fmt.Printf("[DEBUG] Show - Preloading relationships: %v\n", p.WithRelationships)
+	for _, relName := range p.WithRelationships {
+		fmt.Printf("[DEBUG] Show - Preload: %s\n", relName)
+		db = db.Preload(relName)
 	}
 
 	if err := db.Where("id = ?", id).First(result).Error; err != nil {
