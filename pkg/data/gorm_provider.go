@@ -710,6 +710,11 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	}
 
 	// Apply Search with column validation
+	if len(req.Filters) > 0 {
+		db = p.applyFilters(db, req.Filters)
+	}
+
+	// Apply Search with column validation
 	fmt.Printf("[GORM] Search: %q, SearchColumns: %v\n", req.Search, p.SearchColumns)
 	if req.Search != "" && len(p.SearchColumns) > 0 {
 		searchQuery := p.DB.WithContext(stdCtx).Session(&gorm.Session{NewDB: true})
@@ -797,6 +802,9 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 
 	// Load lazy relationships manually (LAZY_LOADING strategy)
 	// Eager loading relationships are already loaded via GORM Preload above
+	// NOT: relationshipFields boş olabilir (field type detection sorunu nedeniyle)
+	// Bu durumda lazy loading çalışmayacak, sadece eager loading çalışacak
+	relationshipFields := p.getRelationshipFields()
 	if len(items) > 0 {
 		for _, field := range relationshipFields {
 			if field.GetLoadingStrategy() == fields.LAZY_LOADING {
@@ -940,6 +948,9 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 
 	// Load lazy relationships manually (LAZY_LOADING strategy)
 	// Eager loading relationships are already loaded via GORM Preload above
+	// NOT: relationshipFields boş olabilir (field type detection sorunu nedeniyle)
+	// Bu durumda lazy loading çalışmayacak, sadece eager loading çalışacak
+	relationshipFields := p.getRelationshipFields()
 	for _, field := range relationshipFields {
 		if field.GetLoadingStrategy() == fields.LAZY_LOADING {
 			if _, err := p.relationshipLoader.LazyLoad(stdCtx, result, field); err != nil {
