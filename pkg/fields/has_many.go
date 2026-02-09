@@ -114,10 +114,11 @@ func HasMany(name, key string, relatedResource interface{}) *HasManyField {
 
 	h := &HasManyField{
 		Schema: Schema{
-			Name: name,
-			Key:  key,
-			View: "has-many-field",
-			Type: TYPE_RELATIONSHIP,
+			LabelText: name,
+			Name:      name,
+			Key:       key,
+			View:      "has-many-field",
+			Type:      TYPE_RELATIONSHIP,
 		},
 		RelatedResourceSlug: slug,
 		RelatedResource:     resourceInstance,
