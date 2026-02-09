@@ -276,8 +276,14 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	var withRels []string
 	withRels = append(withRels, res.With()...)
 
+	// Relationship field'larını topla
+	var relationshipFields []fields.RelationshipField
+
 	for _, element := range res.Fields() {
 		if relField, ok := fields.IsRelationshipField(element); ok {
+			// Relationship field'ı listeye ekle
+			relationshipFields = append(relationshipFields, relField)
+
 			if relField.GetLoadingStrategy() == fields.EAGER_LOADING {
 				// Use the field key as the relationship name for GORM Preload
 				// Ideally this should match the struct field name
@@ -299,6 +305,7 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 		}
 	}
 	provider.SetWith(withRels)
+	provider.SetRelationshipFields(relationshipFields)
 
 	// Validate relationship fields
 	// Bu validation, BelongsTo field'larının model struct'ında ilişki field'larına sahip olup olmadığını kontrol eder
