@@ -83,9 +83,9 @@ type RelationshipField interface {
 	// Döndürür: "belongsTo", "hasMany", "hasOne", "belongsToMany", "morphTo"
 	GetRelationshipType() string
 
-	// GetRelatedResource, ilgili resource'un slug'ını döndürür.
-	// Döndürür: İlgili resource'un benzersiz tanımlayıcısı
-	GetRelatedResource() string
+	// GetRelatedResourceSlug, ilgili resource'un slug'ını döndürür.
+	// Döndürür: İlgili resource'un benzersiz tanımlayıcısı (slug)
+	GetRelatedResourceSlug() string
 
 	// GetRelationshipName, ilişkinin adını döndürür.
 	// Döndürür: İlişkinin adı (örn. "author", "posts", "roles")

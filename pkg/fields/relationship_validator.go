@@ -134,7 +134,7 @@ func (rv *RelationshipValidatorImpl) ValidateExists(ctx context.Context, value i
 				RelationshipType: field.GetRelationshipType(),
 				Message:          "Related resource is required",
 				Context: map[string]interface{}{
-					"related_resource": field.GetRelatedResource(),
+					"related_resource": field.GetRelatedResourceSlug(),
 				},
 			}
 		}
@@ -369,7 +369,7 @@ func (rv *RelationshipValidatorImpl) ValidateBelongsTo(ctx context.Context, valu
 				RelationshipType: "belongsTo",
 				Message:          "Related resource is required",
 				Context: map[string]interface{}{
-					"related_resource": field.GetRelatedResource(),
+					"related_resource": field.GetRelatedResourceSlug(),
 				},
 			}
 		}

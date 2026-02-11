@@ -1604,7 +1604,7 @@ func (mg *MigrationGenerator) buildRelationshipFieldInfo(relField fields.Relatio
 		Key:             relField.GetKey(),
 		IsRelation:      true,
 		RelationType:    relField.GetRelationshipType(),
-		RelatedResource: relField.GetRelatedResource(),
+		RelatedResource: relField.GetRelatedResourceSlug(),
 	}
 
 	// İlişki tipine göre bilgileri ayarla
