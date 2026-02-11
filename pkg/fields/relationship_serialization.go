@@ -178,7 +178,7 @@ func (rs *RelationshipSerializationImpl) SerializeRelationship(item interface{})
 	jsonData := map[string]interface{}{
 		"type":     rs.field.GetRelationshipType(),
 		"name":     rs.field.GetRelationshipName(),
-		"resource": rs.field.GetRelatedResource(),
+		"resource": rs.field.GetRelatedResourceSlug(),
 		"value":    item,
 	}
 

@@ -1640,18 +1640,23 @@ func (s *Schema) GetMetadata() map[string]interface{} {
 //	    // Alanı oluşturma formunda göster
 //	}
 func (s *Schema) IsVisibleInContext(ctx VisibilityContext) bool {
+	// Helper function to check if context contains a specific value
+	contextContains := func(target ElementContext) bool {
+		return strings.Contains(string(s.Context), string(target))
+	}
+
 	// Map VisibilityContext to ElementContext for compatibility
 	switch ctx {
 	case ContextIndex:
-		return s.Context != HIDE_ON_LIST && s.Context != ONLY_ON_DETAIL && s.Context != ONLY_ON_FORM
+		return !contextContains(HIDE_ON_LIST) && !contextContains(ONLY_ON_DETAIL) && !contextContains(ONLY_ON_FORM)
 	case ContextDetail:
-		return s.Context != HIDE_ON_DETAIL && s.Context != ONLY_ON_LIST && s.Context != ONLY_ON_FORM
+		return !contextContains(HIDE_ON_DETAIL) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_FORM)
 	case ContextCreate:
-		return s.Context != HIDE_ON_CREATE && s.Context != ONLY_ON_UPDATE && s.Context != ONLY_ON_LIST && s.Context != ONLY_ON_DETAIL
+		return !contextContains(HIDE_ON_CREATE) && !contextContains(ONLY_ON_UPDATE) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_DETAIL)
 	case ContextUpdate:
-		return s.Context != HIDE_ON_UPDATE && s.Context != ONLY_ON_CREATE && s.Context != ONLY_ON_LIST && s.Context != ONLY_ON_DETAIL
+		return !contextContains(HIDE_ON_UPDATE) && !contextContains(ONLY_ON_CREATE) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_DETAIL)
 	case ContextPreview:
-		return s.Context != HIDE_ON_DETAIL && s.Context != ONLY_ON_LIST && s.Context != ONLY_ON_FORM
+		return !contextContains(HIDE_ON_DETAIL) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_FORM)
 	default:
 		return true
 	}

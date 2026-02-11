@@ -704,6 +704,34 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		db = db.Preload(relName)
 	}
 
+	// Apply Relationship Filter (ViaResource & ViaResourceId)
+	// Bu blok, HasMany ilişkilerinde child kayıtları parent ID'ye göre filtrelemek için kullanılır.
+	// Frontend'den gelen viaResource ve viaResourceId parametreleri kullanılır.
+	if req.ViaResource != "" && req.ViaResourceId != "" {
+		fmt.Printf("[GORM] Checking relationship filter for ViaResource: %s, ID: %s\n", req.ViaResource, req.ViaResourceId)
+		stmt := &gorm.Statement{DB: p.DB}
+		if err := stmt.Parse(p.Model); err == nil {
+			for _, rel := range stmt.Schema.Relationships.Relations {
+				if rel.Type == schema.BelongsTo {
+					// İlişkili tablo adını kontrol et (örn: "organizations")
+					if rel.FieldSchema.Table == req.ViaResource {
+						// İlişkiyi bulduk! Foreign key'i alıp filtre ekle.
+						for _, ref := range rel.References {
+							if !ref.OwnPrimaryKey { // Child tablodaki FK (örn: organization_id)
+								columnName := ref.ForeignKey.DBName
+								db = db.Where(fmt.Sprintf("%s = ?", columnName), req.ViaResourceId)
+								fmt.Printf("[GORM] Applied relationship filter: %s = %s\n", columnName, req.ViaResourceId)
+								break
+							}
+						}
+					}
+				}
+			}
+		} else {
+			fmt.Printf("[GORM] Error parsing model schema for relationship filter: %v\n", err)
+		}
+	}
+
 	// Apply Advanced Filters
 	if len(req.Filters) > 0 {
 		db = p.applyFilters(db, req.Filters)

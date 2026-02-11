@@ -22,18 +22,18 @@ import (
 //
 // # Parametreler
 //
-// - `h *FieldHandler`: Kaynak için tanımlanmış alan (field) yapılandırmalarını, policy kurallarını,
-//   veri sağlayıcısını (provider) ve diğer kaynak özelliklerini içeren handler nesnesi.
-//   Bu parametre üzerinden kaynağın tüm yapılandırmasına erişilir.
+//   - `h *FieldHandler`: Kaynak için tanımlanmış alan (field) yapılandırmalarını, policy kurallarını,
+//     veri sağlayıcısını (provider) ve diğer kaynak özelliklerini içeren handler nesnesi.
+//     Bu parametre üzerinden kaynağın tüm yapılandırmasına erişilir.
 //
-// - `c *context.Context`: HTTP isteği bağlamını (context) içeren özel context nesnesi. Fiber context'ini
-//   wrap eder ve kaynak-spesifik bilgilere erişim sağlar. URL parametreleri, query string'ler,
-//   authentication bilgileri bu nesne üzerinden alınır.
+//   - `c *context.Context`: HTTP isteği bağlamını (context) içeren özel context nesnesi. Fiber context'ini
+//     wrap eder ve kaynak-spesifik bilgilere erişim sağlar. URL parametreleri, query string'ler,
+//     authentication bilgileri bu nesne üzerinden alınır.
 //
 // # Dönüş Değeri
 //
-// - `error`: İşlem başarılı ise nil döner. Hata durumunda uygun HTTP status kodu ile birlikte
-//   JSON formatında hata mesajı döndürülür ve error nesnesi return edilir.
+//   - `error`: İşlem başarılı ise nil döner. Hata durumunda uygun HTTP status kodu ile birlikte
+//     JSON formatında hata mesajı döndürülür ve error nesnesi return edilir.
 //
 // # Desteklenen Query Formatları
 //
@@ -63,75 +63,77 @@ import (
 //
 // # İşlem Akışı
 //
-// 1. **Policy Kontrolü**: ViewAny policy kontrolü yapılır. Kullanıcının listeyi görme yetkisi yoksa
-//    403 Forbidden hatası döner.
+//  1. **Policy Kontrolü**: ViewAny policy kontrolü yapılır. Kullanıcının listeyi görme yetkisi yoksa
+//     403 Forbidden hatası döner.
 //
 // 2. **Element Belirleme**: Gösterilecek alanlar (elements) belirlenir. Öncelik sırası:
-//    - Context'ten gelen elements (varsa)
-//    - Handler'dan gelen default elements
-//    - Hiç element yoksa 500 Internal Server Error
+//   - Context'ten gelen elements (varsa)
+//   - Handler'dan gelen default elements
+//   - Hiç element yoksa 500 Internal Server Error
 //
 // 3. **Query Parsing**: URL'den gelen parametreler parse edilir:
-//    - Sayfa numarası (page)
-//    - Sayfa başına kayıt sayısı (per_page)
-//    - Sıralama kriterleri (sorts)
-//    - Arama terimi (search)
-//    - Filtreler (filters)
+//   - Sayfa numarası (page)
+//   - Sayfa başına kayıt sayısı (per_page)
+//   - Sıralama kriterleri (sorts)
+//   - Arama terimi (search)
+//   - Filtreler (filters)
 //
 // 4. **Sıralama Varsayılanları**: Eğer sıralama belirtilmemişse:
-//    - Önce Resource'tan tanımlı varsayılan sıralamalar kullanılır
-//    - Hiç sıralama yoksa `created_at DESC` kullanılır
+//   - Önce Resource'tan tanımlı varsayılan sıralamalar kullanılır
+//   - Hiç sıralama yoksa `created_at DESC` kullanılır
 //
-// 5. **Veri Çekme**: Provider üzerinden veriler çekilir. Provider, veritabanı sorgusunu
-//    gerçekleştirir ve sonuçları döndürür.
+//  5. **Veri Çekme**: Provider üzerinden veriler çekilir. Provider, veritabanı sorgusunu
+//     gerçekleştirir ve sonuçları döndürür.
 //
 // 6. **Resource Mapping**: Her kayıt için:
-//    - Alanlar (fields) resolve edilir ve değerleri çıkarılır
-//    - Kayıt-bazlı policy kontrolleri yapılır (view, update, delete)
-//    - Policy sonuçları her kaydın içine eklenir
+//   - Alanlar (fields) resolve edilir ve değerleri çıkarılır
+//   - Kayıt-bazlı policy kontrolleri yapılır (view, update, delete)
+//   - Policy sonuçları her kaydın içine eklenir
 //
-// 7. **Header Oluşturma**: Frontend tablo görünümü için header bilgileri oluşturulur.
-//    Sadece liste görünümünde gösterilmesi gereken alanlar header'a eklenir.
+//  7. **Header Oluşturma**: Frontend tablo görünümü için header bilgileri oluşturulur.
+//     Sadece liste görünümünde gösterilmesi gereken alanlar header'a eklenir.
 //
 // 8. **Response Dönme**: JSON formatında data ve meta bilgileri döndürülür.
 //
 // # Response Yapısı
 //
 // ```json
-// {
-//   "data": [
-//     {
-//       "id": 1,
-//       "name": "John Doe",
-//       "email": "john@example.com",
-//       "policy": {
-//         "view": true,
-//         "update": true,
-//         "delete": false
-//       }
-//     }
-//   ],
-//   "meta": {
-//     "current_page": 1,
-//     "per_page": 15,
-//     "total": 100,
-//     "dialog_type": "modal",
-//     "title": "Users",
-//     "headers": [
-//       {
-//         "key": "id",
-//         "label": "ID",
-//         "sortable": true
-//       }
-//     ],
-//     "policy": {
-//       "create": true,
-//       "view_any": true,
-//       "update": true,
-//       "delete": true
-//     }
-//   }
-// }
+//
+//	{
+//	  "data": [
+//	    {
+//	      "id": 1,
+//	      "name": "John Doe",
+//	      "email": "john@example.com",
+//	      "policy": {
+//	        "view": true,
+//	        "update": true,
+//	        "delete": false
+//	      }
+//	    }
+//	  ],
+//	  "meta": {
+//	    "current_page": 1,
+//	    "per_page": 15,
+//	    "total": 100,
+//	    "dialog_type": "modal",
+//	    "title": "Users",
+//	    "headers": [
+//	      {
+//	        "key": "id",
+//	        "label": "ID",
+//	        "sortable": true
+//	      }
+//	    ],
+//	    "policy": {
+//	      "create": true,
+//	      "view_any": true,
+//	      "update": true,
+//	      "delete": true
+//	    }
+//	  }
+//	}
+//
 // ```
 //
 // # Kullanım Senaryoları
@@ -192,10 +194,10 @@ import (
 //
 // # Performans Notları
 //
-// - Fonksiyon, her kayıt için field resolution yapar. Çok sayıda kayıt ve karmaşık field'lar
-//   durumunda performans etkilenebilir.
-// - Provider seviyesinde veritabanı sorgusu optimize edilmelidir (index'ler, eager loading vb.)
-// - Header bilgileri her istekte yeniden oluşturulur. Cache mekanizması eklenebilir.
+//   - Fonksiyon, her kayıt için field resolution yapar. Çok sayıda kayıt ve karmaşık field'lar
+//     durumunda performans etkilenebilir.
+//   - Provider seviyesinde veritabanı sorgusu optimize edilmelidir (index'ler, eager loading vb.)
+//   - Header bilgileri her istekte yeniden oluşturulur. Cache mekanizması eklenebilir.
 //
 // # Önemli Uyarılar
 //
@@ -241,22 +243,24 @@ import (
 // # Örnek Kullanım (Handler Tanımı)
 //
 // ```go
-// userHandler := &handler.FieldHandler{
-//     Resource: userResource,
-//     Provider: gormProvider,
-//     Elements: []fields.Element{
-//         fields.NewID(),
-//         fields.NewText("name").SetLabel("Name"),
-//         fields.NewText("email").SetLabel("Email"),
-//     },
-//     Policy: userPolicy,
-//     DialogType: "modal",
-// }
 //
-// app.Get("/api/resource/users", func(c *fiber.Ctx) error {
-//     ctx := context.New(c)
-//     return handler.HandleResourceIndex(userHandler, ctx)
-// })
+//	userHandler := &handler.FieldHandler{
+//	    Resource: userResource,
+//	    Provider: gormProvider,
+//	    Elements: []fields.Element{
+//	        fields.NewID(),
+//	        fields.NewText("name").SetLabel("Name"),
+//	        fields.NewText("email").SetLabel("Email"),
+//	    },
+//	    Policy: userPolicy,
+//	    DialogType: "modal",
+//	}
+//
+//	app.Get("/api/resource/users", func(c *fiber.Ctx) error {
+//	    ctx := context.New(c)
+//	    return handler.HandleResourceIndex(userHandler, ctx)
+//	})
+//
 // ```
 func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	ctx := c.Resource()
@@ -318,11 +322,14 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 
 	// Build QueryRequest
 	req := data.QueryRequest{
-		Page:    queryParams.Page,
-		PerPage: queryParams.PerPage,
-		Sorts:   sorts,
-		Search:  queryParams.Search,
-		Filters: queryParams.Filters,
+		Page:            queryParams.Page,
+		PerPage:         queryParams.PerPage,
+		Sorts:           sorts,
+		Search:          queryParams.Search,
+		Filters:         queryParams.Filters,
+		ViaResource:     queryParams.ViaResource,
+		ViaResourceId:   queryParams.ViaResourceId,
+		ViaRelationship: queryParams.ViaRelationship,
 	}
 
 	// Extract relationship fields from elements and set to provider

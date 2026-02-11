@@ -10,6 +10,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// init, verification resource'unu global registry'ye register eder.
+//
+// Bu fonksiyon, package import edildiğinde otomatik olarak çalışır ve
+// verification resource'unu "verifications" slug'ı ile registry'ye ekler.
+//
+// # Kullanım
+//
+// Bu fonksiyon otomatik olarak çalışır, manuel çağrı gerekmez:
+//
+//	import _ "github.com/ferdiunal/panel.go/pkg/resource/verification"
+//
+// # Önemli Notlar
+//
+// - init() fonksiyonu package import edildiğinde otomatik çalışır
+// - Resource registry'ye "verifications" slug'ı ile eklenir
+// - Circular dependency sorununu önlemek için kullanılır
+func init() {
+	resource.Register("verifications", NewVerificationResource())
+}
+
 // Bu yapı, Verification entity'si için resource tanımını temsil eder.
 // VerificationResource, panel uygulamasında doğrulama verilerinin CRUD işlemleri,
 // filtreleme, sıralama ve görüntülenmesini yönetir.

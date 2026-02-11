@@ -331,7 +331,7 @@ func (m *MorphTo) GetRelationshipType() string {
 //
 // Döndürür:
 //   - Boş string (MorphTo için uygulanamaz)
-func (m *MorphTo) GetRelatedResource() string {
+func (m *MorphTo) GetRelatedResourceSlug() string {
 	return ""
 }
 

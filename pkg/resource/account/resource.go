@@ -10,6 +10,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// init, account resource'unu global registry'ye register eder.
+//
+// Bu fonksiyon, package import edildiğinde otomatik olarak çalışır ve
+// account resource'unu "accounts" slug'ı ile registry'ye ekler.
+//
+// # Kullanım
+//
+// Bu fonksiyon otomatik olarak çalışır, manuel çağrı gerekmez:
+//
+//	import _ "github.com/ferdiunal/panel.go/pkg/resource/account"
+//
+// # Önemli Notlar
+//
+// - init() fonksiyonu package import edildiğinde otomatik çalışır
+// - Resource registry'ye "accounts" slug'ı ile eklenir
+// - Circular dependency sorununu önlemek için kullanılır
+func init() {
+	resource.Register("accounts", NewAccountResource())
+}
+
 // Bu yapı, Account entity'si için admin panel resource tanımını temsil eder.
 // AccountResource, OptimizedBase'i embed ederek resource sisteminin tüm özelliklerini
 // miras alır ve Account-spesifik konfigürasyonları sağlar.

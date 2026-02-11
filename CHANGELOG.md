@@ -4,7 +4,26 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
-### ✨ Yeni Özellikler
+### ✨ Yeni Özellikler (Frontend & Backend)
+
+#### 🚀 Detail View İyileştirmeleri (Laravel Nova Benzeri)
+
+Detail (Detay) sayfasındaki ilişki yönetimi ve kullanıcı deneyimi önemli ölçüde geliştirildi.
+
+**Frontend:**
+- **Tablo Görünümü:** `HasMany`, `BelongsToMany` ve `MorphToMany` ilişkileri artık detay modalında **Tablo** (`RelationshipTable`) olarak listeleniyor.
+- **İç İçe Modallar (Nested Modals):** Bir kaydın detayından, ilişkili başka bir kaydın detayına tıklandığında yeni bir modal açılıyor. Önceki modal kapanmıyor, geri gelindiğinde kaldığı yerden devam ediyor.
+- **Dinamik Genişlik:** İlişki tablosu içeren detay modalları otomatik olarak daha geniş (`sm:max-w-5xl`) açılıyor.
+- **Search & Pagination:** İlişki tabloları içinde arama yapabilir ve sayfalar arasında gezinebilirsiniz.
+- **Deep Linking:** URL üzerinden (`?detail_id=...`) doğrudan detay modalını açma desteği eklendi.
+
+**Backend:**
+- **Query Parser Güncellemesi:** `pkg/query/parser.go` güncellendi. Artık `viaResource`, `viaResourceId` ve `viaRelationship` parametreleri destekleniyor. Bu sayede ilişkili kayıtlar (örneğin bir şirkete ait adresler) doğru şekilde filtreleniyor.
+
+#### 📱 Form İyileştirmeleri
+
+- **Tel Field (Phone Input):** `Tel` tipindeki alanlar için gelişmiş `PhoneInput` (ülke bayraklı, formatlı) bileşeni entegre edildi.
+- **Akıllı Component Seçimi:** Backend `text-field` view'ı gönderse bile, eğer alanın tipi `tel` ise frontend otomatik olarak `TelInput` bileşenini kullanıyor.
 
 #### Resource Title Pattern (Laravel Nova Uyumlu)
 

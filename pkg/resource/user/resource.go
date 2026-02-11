@@ -7,6 +7,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// init, user resource'unu global registry'ye register eder.
+//
+// Bu fonksiyon, package import edildiğinde otomatik olarak çalışır ve
+// user resource'unu "users" slug'ı ile registry'ye ekler.
+//
+// # Kullanım
+//
+// Bu fonksiyon otomatik olarak çalışır, manuel çağrı gerekmez:
+//
+//	import _ "github.com/ferdiunal/panel.go/pkg/resource/user"
+//
+// # Önemli Notlar
+//
+// - init() fonksiyonu package import edildiğinde otomatik çalışır
+// - Resource registry'ye "users" slug'ı ile eklenir
+// - Circular dependency sorununu önlemek için kullanılır
+func init() {
+	resource.Register("users", NewUserResource())
+}
+
 // Bu yapı, panel yönetim sisteminde kullanıcı kaynağını (resource) temsil eder.
 //
 // UserResource, CRUD işlemleri, yetkilendirme, alan çözümleme ve veri sağlama

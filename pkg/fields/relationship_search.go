@@ -77,7 +77,7 @@ func (rs *RelationshipSearchImpl) SearchInColumns(ctx context.Context, term stri
 	}
 
 	// Get the related resource slug
-	relatedResource := rs.field.GetRelatedResource()
+	relatedResource := rs.field.GetRelatedResourceSlug()
 	if relatedResource == "" {
 		return []interface{}{}, nil
 	}

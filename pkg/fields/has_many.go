@@ -1,6 +1,7 @@
 package fields
 
 import (
+	"encoding/json"
 	"reflect"
 )
 
@@ -45,6 +46,7 @@ type HasManyField struct {
 	QueryCallback       func(query interface{}) interface{}
 	LoadingStrategy     LoadingStrategy
 	GormRelationConfig  *RelationshipGormConfig
+	FullDataMode        bool // true: raw data + title, false (default): minimal format (id + title)
 }
 
 // HasMany, yeni bir HasMany ilişki alanı oluşturur.
@@ -221,10 +223,6 @@ func (h *HasManyField) GetRelationshipType() string {
 	return "hasMany"
 }
 
-// GetRelatedResource returns the related resource slug
-func (h *HasManyField) GetRelatedResource() string {
-	return h.RelatedResourceSlug
-}
 
 // GetRelationshipName returns the relationship name
 func (h *HasManyField) GetRelationshipName() string {
@@ -417,6 +415,114 @@ func (h *HasManyField) GetOwnerKeyColumn() string {
 	return h.OwnerKeyColumn
 }
 
+// WithFullData, ilişkili kayıtların tam verilerini (raw data + title) döndürmesini sağlar.
+//
+// Bu metod, Extract metodunun davranışını değiştirir:
+// - Varsayılan (FullDataMode=false): Minimal format (sadece id + title)
+// - WithFullData() çağrıldığında (FullDataMode=true): Full format (tüm raw data + title)
+//
+// # Kullanım Senaryoları
+//
+// - Frontend'de ilişkili kayıtların detaylı bilgilerini göstermek
+// - Relationship field'larında tüm veriyi kullanmak
+// - Custom rendering için ek field'lara ihtiyaç duymak
+//
+// # Kullanım Örneği
+//
+//	// Minimal format (varsayılan): {"id": 1, "title": "Adres 1"}
+//	fields.HasMany("Addresses", "addresses", "addresses")
+//
+//	// Full format: {"ID": 1, "Name": "Adres 1", "City": "İstanbul", ..., "title": "Adres 1"}
+//	fields.HasMany("Addresses", "addresses", "addresses").
+//	    WithFullData()
+//
+// Döndürür:
+//   - HasManyField pointer'ı (method chaining için)
+func (h *HasManyField) WithFullData() *HasManyField {
+	h.FullDataMode = true
+	return h
+}
+
+// SetRelatedResource, ilişkili resource instance'ını set eder.
+//
+// Bu metod, RelatedResource'u runtime'da set etmek için kullanılır.
+// Genellikle field_handler.go'da Extract çağrılmadan önce kullanılır.
+//
+// # Kullanım Senaryoları
+//
+// - Circular dependency önlemek için string slug kullanıldığında
+// - Runtime'da resource registry'den resource instance'ı alındığında
+// - Field handler'da Extract öncesi RelatedResource'u set etmek
+//
+// # Parametreler
+//
+// - res: Resource instance'ı (resource.Resource interface)
+//
+// # Kullanım Örneği
+//
+//	// field_handler.go'da Extract öncesi
+//	if relField, ok := element.(*fields.HasManyField); ok {
+//	    if relField.RelatedResource == nil {
+//	        relatedResource := resource.Get(relField.RelatedResourceSlug)
+//	        relField.SetRelatedResource(relatedResource)
+//	    }
+//	}
+//	element.Extract(item)
+//
+// Döndürür:
+//   - HasManyField pointer'ı (method chaining için)
+func (h *HasManyField) SetRelatedResource(res interface{}) *HasManyField {
+	h.RelatedResource = res
+	return h
+}
+
+// GetRelatedResourceSlug, ilişkili resource'un slug'ını döndürür.
+//
+// Bu metod, RelatedResourceSlug'a erişim sağlar.
+// Genellikle field_handler.go'da resource registry'den resource instance'ı almak için kullanılır.
+//
+// # Dönüş Değeri
+//
+// - string: Resource slug'ı (örn. "users", "posts", "addresses")
+//
+// # Kullanım Örneği
+//
+//	// field_handler.go'da
+//	if relField, ok := element.(*fields.HasManyField); ok {
+//	    slug := relField.GetRelatedResourceSlug()
+//	    relatedResource := resource.Get(slug)
+//	    relField.SetRelatedResource(relatedResource)
+//	}
+//
+// Döndürür:
+//   - Resource slug'ı
+func (h *HasManyField) GetRelatedResourceSlug() string {
+	return h.RelatedResourceSlug
+}
+
+// GetRelatedResource, ilişkili resource instance'ını döndürür.
+//
+// Bu metod, RelatedResource'a erişim sağlar.
+//
+// # Dönüş Değeri
+//
+// - interface{}: Resource instance'ı (resource.Resource interface)
+// - nil: RelatedResource set edilmemişse
+//
+// # Kullanım Örneği
+//
+//	// Extract metodunda
+//	if h.GetRelatedResource() == nil {
+//	    // RelatedResource set edilmemiş, minimal format kullan
+//	    return
+//	}
+//
+// Döndürür:
+//   - Resource instance'ı veya nil
+func (h *HasManyField) GetRelatedResource() interface{} {
+	return h.RelatedResource
+}
+
 // Extract, HasMany ilişkisi için özel veri çıkarma metodudur.
 //
 // Bu metod, Schema'nın genel Extract metodunu override eder ve HasMany ilişkisi için
@@ -487,7 +593,9 @@ func (h *HasManyField) Extract(resource interface{}) {
 		return
 	}
 
-	// Her kayıt için minimal format oluştur: {"id": ..., "title": ...}
+	// Her kayıt için format oluştur
+	// - FullDataMode=false (varsayılan): Minimal format (id + title)
+	// - FullDataMode=true: Full format (raw data + title)
 	serializedRecords := make([]interface{}, 0, v.Len())
 
 	for i := 0; i < v.Len(); i++ {
@@ -538,11 +646,41 @@ func (h *HasManyField) Extract(resource interface{}) {
 		// RecordTitle ile başlığı al
 		recordTitle := res.RecordTitle(record)
 
-		// Minimal format: {"id": ..., "title": ...}
-		serializedRecords = append(serializedRecords, map[string]interface{}{
-			"id":    idValue,
-			"title": recordTitle,
-		})
+		// Format seçimi: Minimal veya Full
+		if h.FullDataMode {
+			// Full format: raw data + title
+			// JSON marshal/unmarshal ile raw data'yı map'e çevir
+			jsonData, err := json.Marshal(record)
+			if err != nil {
+				// JSON marshal hatası, minimal format kullan
+				serializedRecords = append(serializedRecords, map[string]interface{}{
+					"id":    idValue,
+					"title": recordTitle,
+				})
+				continue
+			}
+
+			var recordMap map[string]interface{}
+			err = json.Unmarshal(jsonData, &recordMap)
+			if err != nil {
+				// JSON unmarshal hatası, minimal format kullan
+				serializedRecords = append(serializedRecords, map[string]interface{}{
+					"id":    idValue,
+					"title": recordTitle,
+				})
+				continue
+			}
+
+			// Title ekle
+			recordMap["title"] = recordTitle
+			serializedRecords = append(serializedRecords, recordMap)
+		} else {
+			// Minimal format: {"id": ..., "title": ...}
+			serializedRecords = append(serializedRecords, map[string]interface{}{
+				"id":    idValue,
+				"title": recordTitle,
+			})
+		}
 	}
 
 	h.Schema.Data = serializedRecords

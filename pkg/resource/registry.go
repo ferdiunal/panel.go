@@ -4,118 +4,175 @@ import (
 	"sync"
 )
 
-// registry - Resource factory'lerini saklayan merkezi kayıt
-// Circular dependency problemini çözmek için kullanılır
-var (
-	registry = make(map[string]func() Resource)
-	mu       sync.RWMutex
-)
-
-// Register bir resource factory'sini kayıt eder
+// registry, tüm resource'ların global registry'si.
 //
-// Bu fonksiyon, resource'ların init() fonksiyonlarında çağrılır.
-// Circular dependency'yi önlemek için resource'lar birbirini import etmez,
-// bunun yerine registry'den alır.
+// Bu registry, resource'ların slug'larına göre saklanmasını ve erişilmesini sağlar.
+// Circular dependency sorununu önlemek için string slug kullanılır ve
+// runtime'da resource instance'ları registry'den alınır.
 //
-// Kullanım örneği:
-// ```go
-// func init() {
-//     resource.Register("organizations", func() resource.Resource {
-//         return NewOrganizationResource()
-//     })
-// }
-// ```
+// # Thread Safety
 //
-// # Parametreler
+// Registry, concurrent erişim için RWMutex kullanır:
+// - Register: Write lock (resource ekleme)
+// - Get: Read lock (resource okuma)
 //
-// - **slug**: Resource'un benzersiz slug'ı (örn: "organizations", "addresses")
-// - **factory**: Resource instance'ı döndüren factory fonksiyonu
-func Register(slug string, factory func() Resource) {
-	mu.Lock()
-	defer mu.Unlock()
-	registry[slug] = factory
+// # Kullanım Senaryoları
+//
+// 1. **Resource Registration**: Her resource kendi init() fonksiyonunda kendini register eder
+// 2. **Relationship Resolution**: HasMany, BelongsTo gibi field'lar RelatedResourceSlug'dan resource instance'ını alır
+// 3. **Dynamic Resource Loading**: Runtime'da resource'lara erişim
+//
+// # Örnek Kullanım
+//
+//	// Resource registration (init fonksiyonunda)
+//	func init() {
+//	    resource.Register("users", NewUserResource())
+//	}
+//
+//	// Resource retrieval
+//	userResource := resource.Get("users")
+//	if userResource != nil {
+//	    // Resource bulundu, kullan
+//	}
+var registry = struct {
+	sync.RWMutex
+	resources map[string]Resource
+}{
+	resources: make(map[string]Resource),
 }
 
-// Get kayıtlı bir resource'u slug'ına göre alır
+// Register, bir resource'u registry'ye ekler.
 //
-// Eğer resource kayıtlı değilse nil döner.
+// Bu fonksiyon, resource'ların slug'larına göre saklanmasını sağlar.
+// Aynı slug ile birden fazla resource register edilirse, son register edilen geçerli olur.
 //
-// Kullanım örneği:
-// ```go
-// orgResource := resource.Get("organizations")
-// if orgResource != nil {
-//     // Resource kullan
-// }
-// ```
+// # Thread Safety
+//
+// Bu fonksiyon thread-safe'tir. Concurrent çağrılar güvenlidir.
 //
 // # Parametreler
 //
-// - **slug**: Resource'un slug'ı
+// - slug: Resource'un benzersiz slug'ı (örn. "users", "posts", "organizations")
+// - res: Resource instance'ı
 //
-// # Döndürür
+// # Kullanım Örneği
 //
-// - Resource: Resource instance'ı veya nil
+//	// Resource registration (init fonksiyonunda)
+//	func init() {
+//	    resource.Register("users", NewUserResource())
+//	    resource.Register("posts", NewPostResource())
+//	    resource.Register("organizations", NewOrganizationResource())
+//	}
+//
+// # Önemli Notlar
+//
+// - Register fonksiyonu genellikle init() fonksiyonunda çağrılır
+// - Aynı slug ile birden fazla register edilirse, son register edilen geçerli olur
+// - nil resource register edilebilir (ama önerilmez)
+func Register(slug string, res Resource) {
+	registry.Lock()
+	defer registry.Unlock()
+	registry.resources[slug] = res
+}
+
+// Get, slug'a göre bir resource'u registry'den alır.
+//
+// Bu fonksiyon, relationship field'larının RelatedResource'unu çözmek için kullanılır.
+// Eğer slug bulunamazsa nil döner.
+//
+// # Thread Safety
+//
+// Bu fonksiyon thread-safe'tir. Concurrent çağrılar güvenlidir.
+//
+// # Parametreler
+//
+// - slug: Resource'un benzersiz slug'ı (örn. "users", "posts", "organizations")
+//
+// # Dönüş Değeri
+//
+// - Resource instance'ı (bulunursa)
+// - nil (bulunamazsa)
+//
+// # Kullanım Örneği
+//
+//	// Relationship field'ında RelatedResource'u çözme
+//	relatedResource := resource.Get("users")
+//	if relatedResource != nil {
+//	    // Resource bulundu, kullan
+//	    title := relatedResource.RecordTitle(record)
+//	} else {
+//	    // Resource bulunamadı
+//	}
+//
+// # Önemli Notlar
+//
+// - Eğer slug bulunamazsa nil döner (panic atmaz)
+// - nil kontrolü yapılmalıdır
+// - Registry'de olmayan bir slug için Get çağrılması hata değildir
 func Get(slug string) Resource {
-	mu.RLock()
-	defer mu.RUnlock()
-	if factory, ok := registry[slug]; ok {
-		return factory()
-	}
-	return nil
+	registry.RLock()
+	defer registry.RUnlock()
+	return registry.resources[slug]
 }
 
-// GetOrPanic kayıtlı bir resource'u alır, bulamazsa panic yapar
+// List, registry'deki tüm resource'ları döndürür.
 //
-// Bu fonksiyon, resource'un mutlaka kayıtlı olması gereken durumlarda kullanılır.
-// Eğer resource kayıtlı değilse, uygulama başlatma sırasında hata verir.
+// Bu fonksiyon, debug ve test amaçlı kullanılabilir.
 //
-// Kullanım örneği:
-// ```go
-// // ResolveFields içinde kullanım
-// fields.BelongsTo("Organization", "organization_id", resource.GetOrPanic("organizations"))
-// ```
+// # Thread Safety
 //
-// # Parametreler
+// Bu fonksiyon thread-safe'tir. Concurrent çağrılar güvenlidir.
 //
-// - **slug**: Resource'un slug'ı
+// # Dönüş Değeri
 //
-// # Döndürür
+// - map[string]Resource: Slug -> Resource mapping
 //
-// - Resource: Resource instance'ı
+// # Kullanım Örneği
 //
-// # Panic
+//	// Tüm resource'ları listele
+//	resources := resource.List()
+//	for slug, res := range resources {
+//	    fmt.Printf("Resource: %s -> %s\n", slug, res.Title())
+//	}
 //
-// - Resource kayıtlı değilse panic yapar
-func GetOrPanic(slug string) Resource {
-	r := Get(slug)
-	if r == nil {
-		panic("resource not found: " + slug)
+// # Önemli Notlar
+//
+// - Döndürülen map bir kopyadır, değiştirmek registry'yi etkilemez
+// - Bu fonksiyon genellikle debug amaçlı kullanılır
+func List() map[string]Resource {
+	registry.RLock()
+	defer registry.RUnlock()
+
+	// Kopya oluştur (registry'yi korumak için)
+	result := make(map[string]Resource, len(registry.resources))
+	for slug, res := range registry.resources {
+		result[slug] = res
 	}
-	return r
+	return result
 }
 
-// List tüm kayıtlı resource slug'larını döndürür
+// Clear, registry'deki tüm resource'ları temizler.
 //
-// Debug ve test amaçlı kullanılır.
+// Bu fonksiyon, test amaçlı kullanılır. Production'da kullanılmamalıdır.
 //
-// # Döndürür
+// # Thread Safety
 //
-// - []string: Kayıtlı resource slug'larının listesi
-func List() []string {
-	mu.RLock()
-	defer mu.RUnlock()
-	slugs := make([]string, 0, len(registry))
-	for slug := range registry {
-		slugs = append(slugs, slug)
-	}
-	return slugs
-}
-
-// Clear tüm kayıtlı resource'ları temizler
+// Bu fonksiyon thread-safe'tir. Concurrent çağrılar güvenlidir.
 //
-// Test amaçlı kullanılır.
+// # Kullanım Örneği
+//
+//	// Test setup
+//	func TestSetup(t *testing.T) {
+//	    resource.Clear()
+//	    resource.Register("users", NewMockUserResource())
+//	}
+//
+// # Önemli Notlar
+//
+// - Bu fonksiyon sadece test amaçlı kullanılmalıdır
+// - Production'da kullanılması önerilmez
 func Clear() {
-	mu.Lock()
-	defer mu.Unlock()
-	registry = make(map[string]func() Resource)
+	registry.Lock()
+	defer registry.Unlock()
+	registry.resources = make(map[string]Resource)
 }

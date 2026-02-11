@@ -17,7 +17,6 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/notification"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/widget"
-	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
@@ -300,10 +299,12 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 			fmt.Printf("[DEBUG] NewResourceHandler - Found relationship field: %s (type: %s)\n", relField.GetKey(), relField.GetRelationshipType())
 
 			if relField.GetLoadingStrategy() == fields.EAGER_LOADING {
-				// Use the field key as the relationship name for GORM Preload
-				// Ideally this should match the struct field name
-				// We convert to CamelCase because GORM usually expects struct field names
-				key := strcase.ToCamel(relField.GetKey())
+				// GORM Preload için ilişki adını kullan (struct field adı ile eşleşmeli).
+				// GetRelationshipName() ilişkinin struct field adını döndürür (ör. "Product").
+				// GetKey() ise foreign key sütun adını döndürür (ör. "product_id").
+				// strcase.ToCamel("product_id") = "ProductId" — bu GORM'un beklediği
+				// ilişki adı değil, bu yüzden GetRelationshipName() kullanılmalı.
+				key := relField.GetRelationshipName()
 
 				// Check if already exists to avoid duplicates
 				exists := false
@@ -696,6 +697,19 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 		// Clone logic or direct access warning applies here too as noted in previous Index implementation.
 		// For now, we proceed with direct extraction which mutates element state.
 		// In a real high-concurrency scenario, elements should be cloned or Extract should return value.
+
+		// Resolve RelatedResource for relationship fields (HasMany, BelongsTo, etc.)
+		// Bu, circular dependency sorununu önlemek için string slug kullanıldığında gereklidir.
+		// Resource registry'den resource instance'ı alınır ve field'a set edilir.
+		if relField, ok := element.(*fields.HasManyField); ok {
+			if relField.GetRelatedResource() == nil && relField.GetRelatedResourceSlug() != "" {
+				relatedResource := resource.Get(relField.GetRelatedResourceSlug())
+				if relatedResource != nil {
+					relField.SetRelatedResource(relatedResource)
+				}
+			}
+		}
+
 		element.Extract(item)
 		serialized := element.JsonSerialize()
 
