@@ -8,12 +8,19 @@ Relationship fields için kapsamlı API referansı.
 type RelationshipField interface {
     Element
     GetRelationshipType() string
-    GetRelatedResource() string
+    GetRelatedResourceSlug() string               // DEĞİŞTİRİLDİ: GetRelatedResource() -> GetRelatedResourceSlug()
+    GetRelatedResource() interface{}              // YENİ: Resource instance döndürür
+    SetRelatedResource(resource interface{})      // YENİ: Resource instance ayarlar
     GetRelationshipName() string
     ResolveRelationship(ctx context.Context, data interface{}) (interface{}, error)
     ValidateRelationship(ctx context.Context, value interface{}) error
 }
 ```
+
+**Değişiklikler:**
+- `GetRelatedResource()` metodu artık `interface{}` döndürür (önceden `string`)
+- `GetRelatedResourceSlug()` metodu eklendi (string slug döndürür)
+- `SetRelatedResource(resource interface{})` metodu eklendi (resource instance ayarlar)
 
 ## BelongsTo
 
@@ -113,6 +120,57 @@ Lazy loading stratejisini kullan.
 field.WithLazyLoad()
 ```
 
+#### WithFullData
+
+```go
+func (b *BelongsTo) WithFullData() *BelongsTo
+```
+
+Full data mode'u aktif et. İlişkili kayıtların tüm alanlarını yükler.
+
+**Örnek:**
+```go
+field.WithFullData()
+```
+
+#### SetRelatedResource
+
+```go
+func (b *BelongsTo) SetRelatedResource(resource interface{}) *BelongsTo
+```
+
+İlişkili resource'u dinamik olarak ayarla.
+
+**Parametreler:**
+- `resource` (interface{}): Resource instance
+
+**Örnek:**
+```go
+field.SetRelatedResource(userResource)
+```
+
+#### GetRelatedResourceSlug
+
+```go
+func (b *BelongsTo) GetRelatedResourceSlug() string
+```
+
+İlişkili resource slug'ını döndür.
+
+**Döner:** Resource slug string değeri
+
+**Not:** Bu metod `GetRelatedResource()` metodundan farklıdır. `GetRelatedResource()` resource instance döndürürken, bu metod sadece slug string'ini döndürür.
+
+#### GetRelatedResource
+
+```go
+func (b *BelongsTo) GetRelatedResource() interface{}
+```
+
+İlişkili resource instance'ını döndür.
+
+**Döner:** Resource instance (interface{})
+
 #### Required
 
 ```go
@@ -133,14 +191,6 @@ func (b *BelongsTo) GetRelationshipType() string
 ```
 
 İlişki türünü döndür. Döner: `"belongsTo"`
-
-#### GetRelatedResource
-
-```go
-func (b *BelongsTo) GetRelatedResource() string
-```
-
-İlişkili resource slug'ını döndür.
 
 #### GetDisplayKey
 
@@ -253,6 +303,56 @@ func (h *HasMany) WithLazyLoad() *HasMany
 
 Lazy loading stratejisini kullan.
 
+#### WithFullData
+
+```go
+func (h *HasMany) WithFullData() *HasMany
+```
+
+Full data mode'u aktif et. İlişkili kayıtların tüm alanlarını yükler (minimal format yerine).
+
+**Örnek:**
+```go
+field := HasMany("Posts", "posts", "posts").
+    WithFullData()  // Tüm post alanlarını yükle
+```
+
+**Kullanım Senaryoları:**
+- Detail view'da ilişkili kayıtları gösterme
+- Nested resource editing
+- Dashboard widget'ları
+
+#### SetRelatedResource
+
+```go
+func (h *HasMany) SetRelatedResource(resource interface{}) *HasMany
+```
+
+İlişkili resource'u dinamik olarak ayarla.
+
+**Parametreler:**
+- `resource` (interface{}): Resource instance
+
+#### GetRelatedResourceSlug
+
+```go
+func (h *HasMany) GetRelatedResourceSlug() string
+```
+
+İlişkili resource slug'ını döndür.
+
+**Döner:** Resource slug string değeri
+
+**Not:** Bu metod `GetRelatedResource()` metodundan farklıdır. `GetRelatedResource()` resource instance döndürürken, bu metod sadece slug string'ini döndürür.
+
+#### GetRelatedResource
+
+```go
+func (h *HasMany) GetRelatedResource() interface{}
+```
+
+İlişkili resource instance'ını döndür.
+
 #### GetRelationshipType
 
 ```go
@@ -308,6 +408,50 @@ func (h *HasOne) Query(callback func(*Query) *Query) *HasOne
 ```
 
 Query'yi özelleştir.
+
+#### WithFullData
+
+```go
+func (h *HasOne) WithFullData() *HasOne
+```
+
+Full data mode'u aktif et. İlişkili kaydın tüm alanlarını yükler.
+
+**Örnek:**
+```go
+field.WithFullData()
+```
+
+#### SetRelatedResource
+
+```go
+func (h *HasOne) SetRelatedResource(resource interface{}) *HasOne
+```
+
+İlişkili resource'u dinamik olarak ayarla.
+
+**Parametreler:**
+- `resource` (interface{}): Resource instance
+
+#### GetRelatedResourceSlug
+
+```go
+func (h *HasOne) GetRelatedResourceSlug() string
+```
+
+İlişkili resource slug'ını döndür.
+
+**Döner:** Resource slug string değeri
+
+**Not:** Bu metod `GetRelatedResource()` metodundan farklıdır. `GetRelatedResource()` resource instance döndürürken, bu metod sadece slug string'ini döndürür.
+
+#### GetRelatedResource
+
+```go
+func (h *HasOne) GetRelatedResource() interface{}
+```
+
+İlişkili resource instance'ını döndür.
 
 #### GetRelationshipType
 
@@ -391,6 +535,50 @@ func (b *BelongsToMany) Query(callback func(*Query) *Query) *BelongsToMany
 
 Query'yi özelleştir.
 
+#### WithFullData
+
+```go
+func (b *BelongsToMany) WithFullData() *BelongsToMany
+```
+
+Full data mode'u aktif et. İlişkili kayıtların tüm alanlarını yükler.
+
+**Örnek:**
+```go
+field.WithFullData()
+```
+
+#### SetRelatedResource
+
+```go
+func (b *BelongsToMany) SetRelatedResource(resource interface{}) *BelongsToMany
+```
+
+İlişkili resource'u dinamik olarak ayarla.
+
+**Parametreler:**
+- `resource` (interface{}): Resource instance
+
+#### GetRelatedResourceSlug
+
+```go
+func (b *BelongsToMany) GetRelatedResourceSlug() string
+```
+
+İlişkili resource slug'ını döndür.
+
+**Döner:** Resource slug string değeri
+
+**Not:** Bu metod `GetRelatedResource()` metodundan farklıdır. `GetRelatedResource()` resource instance döndürürken, bu metod sadece slug string'ini döndürür.
+
+#### GetRelatedResource
+
+```go
+func (b *BelongsToMany) GetRelatedResource() interface{}
+```
+
+İlişkili resource instance'ını döndür.
+
 #### GetRelationshipType
 
 ```go
@@ -448,6 +636,50 @@ func (m *MorphTo) GetTypes() map[string]string
 ```
 
 Type mapping'i döndür.
+
+#### WithFullData
+
+```go
+func (m *MorphTo) WithFullData() *MorphTo
+```
+
+Full data mode'u aktif et. İlişkili kaydın tüm alanlarını yükler.
+
+**Örnek:**
+```go
+field.WithFullData()
+```
+
+#### SetRelatedResource
+
+```go
+func (m *MorphTo) SetRelatedResource(resource interface{}) *MorphTo
+```
+
+İlişkili resource'u dinamik olarak ayarla.
+
+**Parametreler:**
+- `resource` (interface{}): Resource instance
+
+#### GetRelatedResourceSlug
+
+```go
+func (m *MorphTo) GetRelatedResourceSlug() string
+```
+
+İlişkili resource slug'ını döndür.
+
+**Döner:** Resource slug string değeri
+
+**Not:** Bu metod `GetRelatedResource()` metodundan farklıdır. `GetRelatedResource()` resource instance döndürürken, bu metod sadece slug string'ini döndürür.
+
+#### GetRelatedResource
+
+```go
+func (m *MorphTo) GetRelatedResource() interface{}
+```
+
+İlişkili resource instance'ını döndür.
 
 #### GetRelationshipType
 
@@ -855,6 +1087,97 @@ Lazy loading stratejisini uygula.
 
 ---
 
+## ResourceRegistry
+
+Resource kayıt ve yönetimi için kullanılan global registry.
+
+### Fonksiyonlar
+
+#### Register
+
+```go
+func Register(slug string, resource Resource)
+```
+
+Yeni bir resource'u registry'ye kaydet.
+
+**Parametreler:**
+- `slug` (string): Resource slug (benzersiz tanımlayıcı)
+- `resource` (Resource): Resource instance
+
+**Örnek:**
+```go
+resource.Register("users", NewUserResource())
+```
+
+**Kullanım:**
+Resource'lar genellikle init() fonksiyonunda kendilerini kaydeder:
+```go
+func init() {
+    resource.Register("users", NewUserResource())
+}
+```
+
+#### Get
+
+```go
+func Get(slug string) Resource
+```
+
+Registry'den resource'u al.
+
+**Parametreler:**
+- `slug` (string): Resource slug
+
+**Döner:**
+- `Resource`: Resource instance (nil ise bulunamadı)
+
+**Örnek:**
+```go
+userResource := resource.Get("users")
+if userResource != nil {
+    // Resource kullan
+}
+```
+
+#### List
+
+```go
+func List() map[string]Resource
+```
+
+Tüm kayıtlı resource'ları döndür.
+
+**Döner:**
+- `map[string]Resource`: Slug -> Resource mapping
+
+**Örnek:**
+```go
+resources := resource.List()
+for slug, res := range resources {
+    fmt.Printf("Resource: %s\n", slug)
+}
+```
+
+#### Clear
+
+```go
+func Clear()
+```
+
+Registry'yi temizle (test amaçlı).
+
+**Örnek:**
+```go
+resource.Clear() // Tüm kayıtları sil
+```
+
+**Kullanım Senaryoları:**
+- Unit test'lerde registry'yi temizleme
+- Test isolation sağlama
+
+---
+
 ## Sabitler
 
 ### LoadingStrategy
@@ -864,6 +1187,25 @@ const (
     EAGER_LOADING LoadingStrategy = iota
     LAZY_LOADING
 )
+```
+
+### FullDataMode
+
+```go
+const (
+    MINIMAL_DATA_MODE FullDataMode = iota
+    FULL_DATA_MODE
+)
+```
+
+İlişkili kayıtların yükleme modu:
+- `MINIMAL_DATA_MODE`: Sadece ID ve title (default)
+- `FULL_DATA_MODE`: Tüm alanlar
+
+**Kullanım:**
+```go
+field := HasMany("Posts", "posts", "posts").
+    WithFullData()  // FULL_DATA_MODE aktif
 ```
 
 ---

@@ -209,7 +209,7 @@ func (b *BelongsToManyField) GetRelationshipType() string {
 }
 
 // GetRelatedResource returns the related resource slug
-func (b *BelongsToManyField) GetRelatedResource() string {
+func (b *BelongsToManyField) GetRelatedResourceSlug() string {
 	return b.RelatedResourceSlug
 }
 

@@ -23,10 +23,11 @@
 // app := fiber.New()
 // fieldHandler := &FieldHandler{}
 //
-// app.Get("/api/resources/:resource/fields", func(c *fiber.Ctx) error {
-//     ctx := context.New(c)
-//     return HandleFieldList(fieldHandler, ctx)
-// })
+//	app.Get("/api/resources/:resource/fields", func(c *fiber.Ctx) error {
+//	    ctx := context.New(c)
+//	    return HandleFieldList(fieldHandler, ctx)
+//	})
+//
 // ```
 package handler
 
@@ -55,8 +56,9 @@ import (
 // 1. Context'ten resource bilgisini alır
 // 2. Resource bulunamazsa 500 Internal Server Error döner
 // 3. Her field için:
-//    - Eğer resource instance mevcutsa, field değerini extract eder
-//    - Field'ı JSON formatına serialize eder
+//   - Eğer resource instance mevcutsa, field değerini extract eder
+//   - Field'ı JSON formatına serialize eder
+//
 // 4. Tüm field'ları içeren JSON array döner
 //
 // # Kullanım Senaryoları
@@ -77,11 +79,12 @@ import (
 //
 // ```go
 // // Route tanımlama
-// app.Get("/api/resources/:resource/fields", func(c *fiber.Ctx) error {
-//     ctx := context.New(c)
-//     fieldHandler := &FieldHandler{}
-//     return HandleFieldList(fieldHandler, ctx)
-// })
+//
+//	app.Get("/api/resources/:resource/fields", func(c *fiber.Ctx) error {
+//	    ctx := context.New(c)
+//	    fieldHandler := &FieldHandler{}
+//	    return HandleFieldList(fieldHandler, ctx)
+//	})
 //
 // // Örnek Response:
 // // [
@@ -109,24 +112,26 @@ import (
 // "Field context not found" hatası döner.
 //
 // ```json
-// {
-//   "error": "Field context not found"
-// }
+//
+//	{
+//	  "error": "Field context not found"
+//	}
+//
 // ```
 //
 // # Önemli Notlar
 //
-// - **Thread Safety**: Bu fonksiyon her istek için yeni bir context ile çağrılır,
-//   dolayısıyla thread-safe'dir.
+//   - **Thread Safety**: Bu fonksiyon her istek için yeni bir context ile çağrılır,
+//     dolayısıyla thread-safe'dir.
 //
-// - **Performance**: Field sayısı arttıkça response süresi artabilir. Büyük field
-//   listelerinde pagination düşünülmelidir.
+//   - **Performance**: Field sayısı arttıkça response süresi artabilir. Büyük field
+//     listelerinde pagination düşünülmelidir.
 //
-// - **Value Extraction**: Resource instance mevcutsa, her field için Extract() metodu
-//   çağrılır. Bu işlem veritabanı sorguları içerebilir (özellikle relationship field'lar için).
+//   - **Value Extraction**: Resource instance mevcutsa, her field için Extract() metodu
+//     çağrılır. Bu işlem veritabanı sorguları içerebilir (özellikle relationship field'lar için).
 //
-// - **Visibility Filtering**: Mevcut implementasyonda tüm field'lar döndürülür.
-//   İleride role-based veya context-based filtering eklenebilir.
+//   - **Visibility Filtering**: Mevcut implementasyonda tüm field'lar döndürülür.
+//     İleride role-based veya context-based filtering eklenebilir.
 //
 // # Avantajlar
 //

@@ -74,6 +74,61 @@ field := BelongsToMany("Roles", "roles", blog.NewRoleResource()).
 
 **Detaylı bilgi için:** [Resource-Based İlişkiler Dokümantasyonu](../.docs/RESOURCE_BASED_RELATIONSHIPS.md)
 
+### Global Resource Registry Pattern
+
+Resource-based yaklaşımda circular dependency problemini çözmek için global registry pattern kullanılır.
+
+**Temel Konsept:**
+- Resource'lar init() fonksiyonunda registry'ye kaydedilir
+- İlişkiler string slug ile referans verir
+- Runtime'da registry'den resource instance alınır
+
+**Circular Dependency Çözümü:**
+İki resource birbirini referans ettiğinde (örn: Post -> Author, Author -> Posts), doğrudan import circular dependency oluşturur. Registry pattern bu problemi çözer:
+
+1. Her resource init() fonksiyonunda kendini kaydeder
+2. İlişki tanımlarında string slug kullanılır
+3. Runtime'da field handler otomatik olarak slug'dan resource instance'ı resolve eder
+
+**Örnek: Resource Registration**
+```go
+// pkg/resource/user/resource.go
+package user
+
+import "github.com/ferdiunal/panel.go/pkg/resource"
+
+func init() {
+    resource.Register("users", NewUserResource())
+}
+
+func NewUserResource() *UserResource {
+    return &UserResource{}
+}
+```
+
+**Örnek: İlişki Tanımı**
+```go
+// Post resource - Author'a referans
+fields.BelongsTo("Author", "author_id", "authors").  // String slug kullan
+    DisplayUsing("name")
+
+// Author resource - Posts'a referans
+fields.HasMany("Posts", "posts", "posts").  // String slug kullan
+    ForeignKey("author_id")
+```
+
+**Registry API:**
+- `resource.Register(slug, resource)` - Resource kaydet
+- `resource.Get(slug)` - Resource al
+- `resource.List()` - Tüm resource'ları listele
+- `resource.Clear()` - Registry'yi temizle (test için)
+
+**Avantajlar:**
+- ✅ Circular dependency çözümü
+- ✅ Lazy initialization
+- ✅ Otomatik registration
+- ✅ Runtime flexibility
+
 ## İlişki Türleri
 
 ### BelongsTo
@@ -292,6 +347,77 @@ field := HasMany("Posts", "posts", blog.NewPostResource())
 - `Query(callback func(*Query) *Query)` - Query'yi özelleştir
 - `WithEagerLoad()` - Eager loading kullan
 - `WithLazyLoad()` - Lazy loading kullan
+
+#### Format Seçenekleri (Minimal vs Full)
+
+HasMany ilişkileri iki formatta serialize edilebilir:
+
+**Minimal Format (Default):**
+İlişkili kayıtlar sadece ID ve title ile gösterilir. Bu format performanslıdır ve çoğu durumda yeterlidir.
+
+```json
+{
+  "posts": [
+    {"id": 1, "title": "First Post"},
+    {"id": 2, "title": "Second Post"}
+  ]
+}
+```
+
+**Full Format:**
+İlişkili kayıtların tüm alanları yüklenir. Detail view veya nested editing için kullanılır.
+
+```json
+{
+  "posts": [
+    {
+      "id": 1,
+      "title": "First Post",
+      "content": "Lorem ipsum...",
+      "created_at": "2024-01-01T00:00:00Z",
+      "author_id": 1
+    }
+  ]
+}
+```
+
+**WithFullData() Metodu:**
+Full format'ı aktif etmek için `WithFullData()` metodunu kullan:
+
+```go
+// Minimal format (default)
+fields.HasMany("Posts", "posts", "posts")
+
+// Full format
+fields.HasMany("Posts", "posts", "posts").
+    WithFullData()
+```
+
+**Kullanım Senaryoları:**
+
+**Minimal Format İçin:**
+- Index view (liste görünümü)
+- Relationship count gösterimi
+- Dropdown/select seçenekleri
+- Performans kritik durumlar
+
+**Full Format İçin:**
+- Detail view (detay görünümü)
+- Nested resource editing
+- Dashboard widget'ları
+- İlişkili kayıtların tüm bilgilerinin gösterilmesi
+
+**RecordTitle Pattern:**
+Minimal format'ta title alanı, ilişkili resource'un `RecordTitle()` metodu ile oluşturulur:
+
+```go
+func (r *PostResource) RecordTitle(record interface{}) string {
+    post := record.(*Post)
+    return post.Title
+}
+```
+
+Bu sayede her resource kendi title formatını kontrol edebilir.
 
 **Örnek:**
 ```go
@@ -943,6 +1069,94 @@ field := MorphTo("Commentable", "commentable").
     })
 ```
 
+## RecordTitle Pattern
+
+`RecordTitle()` metodu, her resource'un kendi kayıtları için nasıl bir başlık oluşturacağını kontrol etmesini sağlar. Bu, `DisplayUsing()` metoduna göre daha esnek bir yaklaşımdır.
+
+**Temel Kullanım:**
+
+```go
+// Resource'da RecordTitle metodunu implement et
+func (r *PostResource) RecordTitle(record interface{}) string {
+    post := record.(*Post)
+    return post.Title
+}
+
+// Relationship field'da otomatik kullanılır
+fields.BelongsTo("Author", "author_id", "authors")
+// Backend otomatik olarak RecordTitle() metodunu çağırır
+```
+
+**DisplayUsing vs RecordTitle:**
+
+**DisplayUsing (Basit):**
+```go
+// Tek bir field adı belirt
+fields.BelongsTo("Author", "author_id", "authors").
+    DisplayUsing("name")  // Sadece "name" field'ını göster
+```
+
+**RecordTitle (Esnek):**
+```go
+// Resource'da özel format
+func (r *AuthorResource) RecordTitle(record interface{}) string {
+    author := record.(*Author)
+    return fmt.Sprintf("%s (%s)", author.Name, author.Email)
+}
+
+// Field tanımında ekstra ayar gerekmez
+fields.BelongsTo("Author", "author_id", "authors")
+```
+
+**Kullanım Senaryoları:**
+
+1. **Birden Fazla Field Birleştirme:**
+```go
+func (r *UserResource) RecordTitle(record interface{}) string {
+    user := record.(*User)
+    return fmt.Sprintf("%s %s", user.FirstName, user.LastName)
+}
+```
+
+2. **Conditional Formatting:**
+```go
+func (r *PostResource) RecordTitle(record interface{}) string {
+    post := record.(*Post)
+    if post.Published {
+        return fmt.Sprintf("✓ %s", post.Title)
+    }
+    return fmt.Sprintf("⚠ %s (Draft)", post.Title)
+}
+```
+
+3. **Localization:**
+```go
+func (r *ProductResource) RecordTitle(record interface{}) string {
+    product := record.(*Product)
+    return fmt.Sprintf("%s - $%.2f", product.Name, product.Price)
+}
+```
+
+**Minimal Format'ta Kullanım:**
+
+HasMany ve BelongsToMany field'ları minimal format'ta RecordTitle kullanır:
+
+```go
+// Backend response
+{
+  "posts": [
+    {"id": 1, "title": "✓ First Post"},      // RecordTitle() çıktısı
+    {"id": 2, "title": "⚠ Draft Post (Draft)"}
+  ]
+}
+```
+
+**Best Practices:**
+- RecordTitle kısa ve öz olmalı (max 50-60 karakter)
+- Kullanıcı dostu format kullan
+- Null/empty değerleri handle et
+- Performans için basit string operasyonları kullan
+
 ## Otomatik Seçenekler (AutoOptions)
 
 `HasOne` ve `BelongsTo` ilişkilerinde form elemanları (Combobox/Select) için seçenekleri veritabanından otomatik olarak yüklemek için `AutoOptions` metodunu kullanabilirsiniz. Bu özellik, geliştiricinin manuel olarak veritabanı sorgusu yazmasını ve `Options` callback'i tanımlamasını gereksiz kılar.
@@ -998,8 +1212,24 @@ field := HasMany("Posts", "posts", "posts").
     })
 ```
 
+## İlişki Filtreleme Parametreleri (API)
+ 
+Backend API, ilişkili kayıtları listelerken (örneğin bir şirkete ait adresleri listelerken) aşağıdaki parametreleri destekler. Bu parametreler `HasMany`, `BelongsToMany` gibi ilişkilerde otomatik olarak kullanılır ancak manuel API isteklerinde de kullanılabilir.
+ 
+**Parametreler:**
+- `viaResource`: İlişkinin ait olduğu ana kaynak (slug). Örn: `organizations`
+- `viaResourceId`: Ana kaynağın ID'si. Örn: `16`
+- `viaRelationship`: İlişki adı (field key). Örn: `addresses`
+ 
+**Örnek İstek:**
+```
+GET /api/resource/addresses?viaResource=organizations&viaResourceId=16&viaRelationship=addresses
+```
+ 
+Bu istek, ID'si 16 olan organizasyonun adreslerini getirir. Backend `pkg/query/parser.go` bu parametreleri işler ve `handler` katmanında gerekli filtrelemeyi uygular.
+ 
 ## Sıralama
-
+ 
 İlişkili verileri sırala.
 
 ```go
@@ -1282,6 +1512,61 @@ func (r *CommentResource) Fields() []Element {
 ```
 
 ## Sorun Giderme
+
+### Circular Dependency Problemi
+
+**Problem:** İki resource birbirini referans ediyor (örn: Post -> Author, Author -> Posts)
+
+```go
+// ❌ Circular dependency hatası
+package post
+import "myapp/author"  // Post, Author'u import ediyor
+
+package author
+import "myapp/post"    // Author, Post'u import ediyor
+```
+
+**Çözüm:** Global Resource Registry Pattern kullan
+
+**Adımlar:**
+
+1. **Her resource'u init() ile kaydet:**
+```go
+// pkg/resource/post/resource.go
+func init() {
+    resource.Register("posts", NewPostResource())
+}
+
+// pkg/resource/author/resource.go
+func init() {
+    resource.Register("authors", NewAuthorResource())
+}
+```
+
+2. **İlişkilerde string slug kullan:**
+```go
+// Post resource - Author'a referans (import yok!)
+fields.BelongsTo("Author", "author_id", "authors")  // String slug
+
+// Author resource - Posts'a referans (import yok!)
+fields.HasMany("Posts", "posts", "posts")  // String slug
+```
+
+3. **Runtime'da otomatik resolve:**
+Field handler otomatik olarak slug'dan resource instance'ı resolve eder:
+```go
+// pkg/handler/field_handler.go (otomatik)
+if relField.GetRelatedResource() == nil {
+    relatedResource := resource.Get(relField.GetRelatedResourceSlug())
+    relField.SetRelatedResource(relatedResource)
+}
+```
+
+**Avantajlar:**
+- ✅ Circular dependency çözümü
+- ✅ Import gerektirmez
+- ✅ Otomatik resolution
+- ✅ Lazy loading desteği
 
 ### N+1 Query Problemi
 

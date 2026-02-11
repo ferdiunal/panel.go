@@ -16,8 +16,9 @@ import (
 // - Birden fazla sütuna göre sıralama yapılabilir
 //
 // Örnek:
-//   Sort{Column: "created_at", Direction: "desc"}
-//   Sort{Column: "name", Direction: "asc"}
+//
+//	Sort{Column: "created_at", Direction: "desc"}
+//	Sort{Column: "name", Direction: "asc"}
 //
 // Önemli Notlar:
 // - Direction değeri "asc" (artan) veya "desc" (azalan) olmalıdır
@@ -35,20 +36,21 @@ type Sort struct {
 // - Hem yeni nested format hem de eski legacy format'ı destekler
 //
 // Desteklenen Format Örnekleri:
-//   Nested Format:
-//     users[search]=john
-//     users[page]=2
-//     users[per_page]=20
-//     users[sort][created_at]=desc
-//     users[filters][status][eq]=active
 //
-//   Legacy Format:
-//     search=john
-//     page=2
-//     per_page=20
-//     sort_column=created_at
-//     sort_direction=desc
-//     filters[status]=active
+//	Nested Format:
+//	  users[search]=john
+//	  users[page]=2
+//	  users[per_page]=20
+//	  users[sort][created_at]=desc
+//	  users[filters][status][eq]=active
+//
+//	Legacy Format:
+//	  search=john
+//	  page=2
+//	  per_page=20
+//	  sort_column=created_at
+//	  sort_direction=desc
+//	  filters[status]=active
 //
 // Önemli Notlar:
 // - Page değeri 1'den başlar (0 geçersizdir)
@@ -60,6 +62,11 @@ type ResourceQueryParams struct {
 	Filters []Filter // Filtreleme koşulları (alan, operatör ve değer kombinasyonları)
 	Page    int      // Sayfa numarası (1'den başlar, varsayılan: 1)
 	PerPage int      // Sayfa başına kayıt sayısı (varsayılan: 15, maksimum: 100)
+
+	// Relationship parametreleri
+	ViaResource     string // İlişkili olduğu ana kaynak (örn: "organizations")
+	ViaResourceId   string // Ana kaynağın ID'si (örn: "16")
+	ViaRelationship string // İlişki adı (örn: "addresses")
 }
 
 // Bu fonksiyon, varsayılan sorgu parametrelerini oluşturur ve döndürür.
@@ -79,9 +86,10 @@ type ResourceQueryParams struct {
 //   - Search: Boş string
 //
 // Örnek Kullanım:
-//   params := DefaultParams()
-//   params.Search = "john"
-//   params.Page = 2
+//
+//	params := DefaultParams()
+//	params.Search = "john"
+//	params.Page = 2
 //
 // Önemli Notlar:
 // - Her çağrıda yeni bir pointer döndürülür
@@ -112,27 +120,30 @@ func DefaultParams() *ResourceQueryParams {
 // Desteklenen Format Örnekleri:
 //
 // Nested Format (Yeni - Önerilen):
-//   GET /api/users?users[search]=john&users[page]=2&users[per_page]=20
-//   GET /api/users?users[sort][created_at]=desc&users[sort][name]=asc
-//   GET /api/users?users[filters][status][eq]=active&users[filters][age][gt]=18
+//
+//	GET /api/users?users[search]=john&users[page]=2&users[per_page]=20
+//	GET /api/users?users[sort][created_at]=desc&users[sort][name]=asc
+//	GET /api/users?users[filters][status][eq]=active&users[filters][age][gt]=18
 //
 // Legacy Format (Eski - Geriye Uyumlu):
-//   GET /api/users?search=john&page=2&per_page=20
-//   GET /api/users?sort_column=created_at&sort_direction=desc
-//   GET /api/users?filters[status]=active
+//
+//	GET /api/users?search=john&page=2&per_page=20
+//	GET /api/users?sort_column=created_at&sort_direction=desc
+//	GET /api/users?filters[status]=active
 //
 // Örnek Kullanım:
-//   func GetUsers(c *fiber.Ctx) error {
-//       params := ParseResourceQuery(c, "users")
-//       if params.HasSearch() {
-//           // Arama yapılacak
-//       }
-//       if params.HasFilters() {
-//           // Filtreleme yapılacak
-//       }
-//       // Veritabanı sorgusunu oluştur
-//       return c.JSON(users)
-//   }
+//
+//	func GetUsers(c *fiber.Ctx) error {
+//	    params := ParseResourceQuery(c, "users")
+//	    if params.HasSearch() {
+//	        // Arama yapılacak
+//	    }
+//	    if params.HasFilters() {
+//	        // Filtreleme yapılacak
+//	    }
+//	    // Veritabanı sorgusunu oluştur
+//	    return c.JSON(users)
+//	}
 //
 // Önemli Notlar:
 // - Nested format bulunursa legacy format kontrol edilmez (performans için)
@@ -183,12 +194,13 @@ func ParseResourceQuery(c *fiber.Ctx, resourceName string) *ResourceQueryParams 
 // - resource[filters][field][operator]=value -> Filtreleme
 //
 // Örnek Kullanım:
-//   rawQuery := "users[search]=john&users[page]=2&users[sort][created_at]=desc"
-//   params := DefaultParams()
-//   found := parseNestedFormat(rawQuery, "users", params)
-//   if found {
-//       fmt.Println("Nested format bulundu:", params.Search)
-//   }
+//
+//	rawQuery := "users[search]=john&users[page]=2&users[sort][created_at]=desc"
+//	params := DefaultParams()
+//	found := parseNestedFormat(rawQuery, "users", params)
+//	if found {
+//	    fmt.Println("Nested format bulundu:", params.Search)
+//	}
 //
 // Önemli Notlar:
 // - URL decode işlemi otomatik olarak yapılır
@@ -272,7 +284,28 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 
 		case strings.HasPrefix(inner, "filters]["):
 			parseFilterParam(inner, value, params)
+
+		case inner == "viaResource":
+			params.ViaResource = value
+		case inner == "viaResourceId":
+			params.ViaResourceId = value
+		case inner == "viaRelationship":
+			params.ViaRelationship = value
 		}
+	}
+
+	// Root seviyesindeki via parametrelerini de kontrol et (Nested format içinde root parametreler de olabilir)
+	// Not: parseNestedFormat sadece prefix ile başlayanları döngüye alıyor, bu yüzden
+	// root parametreleri burada ayrıca kontrol etmeliyiz.
+	// Ancak values map'inde tüm parametreler var.
+	if val := values.Get("viaResource"); val != "" {
+		params.ViaResource = val
+	}
+	if val := values.Get("viaResourceId"); val != "" {
+		params.ViaResourceId = val
+	}
+	if val := values.Get("viaRelationship"); val != "" {
+		params.ViaRelationship = val
 	}
 
 	return found
@@ -293,15 +326,17 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 // Desteklenen Format Örnekleri:
 //
 // Basit Format (varsayılan eq operatörü):
-//   filters][status = "active" -> {field: status, op: eq, value: active}
-//   filters][name = "john" -> {field: name, op: eq, value: john}
+//
+//	filters][status = "active" -> {field: status, op: eq, value: active}
+//	filters][name = "john" -> {field: name, op: eq, value: john}
 //
 // Gelişmiş Format (özel operatör):
-//   filters][status][eq = "active" -> {field: status, op: eq, value: active}
-//   filters][age][gt = "18" -> {field: age, op: gt, value: 18}
-//   filters][status][in = "active,pending" -> {field: status, op: in, value: [active, pending]}
-//   filters][created_at][between = "2024-01-01,2024-12-31" -> {field: created_at, op: between, value: [2024-01-01, 2024-12-31]}
-//   filters][deleted_at][is_null = "true" -> {field: deleted_at, op: is_null, value: true}
+//
+//	filters][status][eq = "active" -> {field: status, op: eq, value: active}
+//	filters][age][gt = "18" -> {field: age, op: gt, value: 18}
+//	filters][status][in = "active,pending" -> {field: status, op: in, value: [active, pending]}
+//	filters][created_at][between = "2024-01-01,2024-12-31" -> {field: created_at, op: between, value: [2024-01-01, 2024-12-31]}
+//	filters][deleted_at][is_null = "true" -> {field: deleted_at, op: is_null, value: true}
 //
 // Desteklenen Operatörler:
 // - eq (eşit), neq (eşit değil), gt (büyük), gte (büyük eşit)
@@ -310,10 +345,11 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 // - is_null (boş), is_not_null (boş değil)
 //
 // Örnek Kullanım:
-//   parseFilterParam("status", "active", params)
-//   parseFilterParam("status][eq", "active", params)
-//   parseFilterParam("age][gt", "18", params)
-//   parseFilterParam("status][in", "active,pending", params)
+//
+//	parseFilterParam("status", "active", params)
+//	parseFilterParam("status][eq", "active", params)
+//	parseFilterParam("age][gt", "18", params)
+//	parseFilterParam("status][in", "active,pending", params)
 //
 // Önemli Notlar:
 // - Operatör geçersizse varsayılan olarak "eq" kullanılır
@@ -400,8 +436,9 @@ func parseFilterParam(inner, value string, params *ResourceQueryParams) {
 // - filters[field]: Filtreleme değeri (basit format, operatör: eq)
 //
 // Örnek Kullanım:
-//   GET /api/users?page=2&per_page=20&search=john&sort_column=created_at&sort_direction=desc
-//   GET /api/users?filters[status]=active&filters[role]=admin
+//
+//	GET /api/users?page=2&per_page=20&search=john&sort_column=created_at&sort_direction=desc
+//	GET /api/users?filters[status]=active&filters[role]=admin
 //
 // Önemli Notlar:
 // - Geçersiz sayfa numaraları varsayılan değer (1) olarak ayarlanır
@@ -451,6 +488,17 @@ func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
 			})
 		}
 	}
+
+	// Relationship parametreleri
+	if viaResource := c.Query("viaResource"); viaResource != "" {
+		params.ViaResource = viaResource
+	}
+	if viaResourceId := c.Query("viaResourceId"); viaResourceId != "" {
+		params.ViaResourceId = viaResourceId
+	}
+	if viaRelationship := c.Query("viaRelationship"); viaRelationship != "" {
+		params.ViaRelationship = viaRelationship
+	}
 }
 
 // Bu metod, arama sorgusu ayarlanıp ayarlanmadığını kontrol eder.
@@ -465,14 +513,15 @@ func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
 // - bool: Arama sorgusu boş değilse true, aksi takdirde false
 //
 // Örnek Kullanım:
-//   params := ParseResourceQuery(c, "users")
-//   if params.HasSearch() {
-//       // Arama yapılacak
-//       results := db.Where("name LIKE ?", "%"+params.Search+"%").Find(&users)
-//   } else {
-//       // Arama yapılmayacak
-//       results := db.Find(&users)
-//   }
+//
+//	params := ParseResourceQuery(c, "users")
+//	if params.HasSearch() {
+//	    // Arama yapılacak
+//	    results := db.Where("name LIKE ?", "%"+params.Search+"%").Find(&users)
+//	} else {
+//	    // Arama yapılmayacak
+//	    results := db.Find(&users)
+//	}
 //
 // Önemli Notlar:
 // - Boş string ("") false döndürür
@@ -493,18 +542,19 @@ func (p *ResourceQueryParams) HasSearch() bool {
 // - bool: En az bir sıralama konfigürasyonu varsa true, aksi takdirde false
 //
 // Örnek Kullanım:
-//   params := ParseResourceQuery(c, "users")
-//   if params.HasSorts() {
-//       // Sıralama yapılacak
-//       query := db
-//       for _, sort := range params.Sorts {
-//           query = query.Order(sort.Column + " " + sort.Direction)
-//       }
-//       results := query.Find(&users)
-//   } else {
-//       // Varsayılan sıralama
-//       results := db.Order("id DESC").Find(&users)
-//   }
+//
+//	params := ParseResourceQuery(c, "users")
+//	if params.HasSorts() {
+//	    // Sıralama yapılacak
+//	    query := db
+//	    for _, sort := range params.Sorts {
+//	        query = query.Order(sort.Column + " " + sort.Direction)
+//	    }
+//	    results := query.Find(&users)
+//	} else {
+//	    // Varsayılan sıralama
+//	    results := db.Order("id DESC").Find(&users)
+//	}
 //
 // Önemli Notlar:
 // - Sorts slice'ı boşsa false döndürür
@@ -525,18 +575,19 @@ func (p *ResourceQueryParams) HasSorts() bool {
 // - bool: En az bir filtreleme koşulu varsa true, aksi takdirde false
 //
 // Örnek Kullanım:
-//   params := ParseResourceQuery(c, "users")
-//   if params.HasFilters() {
-//       // Filtreleme yapılacak
-//       query := db
-//       for _, filter := range params.Filters {
-//           query = applyFilter(query, filter)
-//       }
-//       results := query.Find(&users)
-//   } else {
-//       // Filtreleme yapılmayacak
-//       results := db.Find(&users)
-//   }
+//
+//	params := ParseResourceQuery(c, "users")
+//	if params.HasFilters() {
+//	    // Filtreleme yapılacak
+//	    query := db
+//	    for _, filter := range params.Filters {
+//	        query = applyFilter(query, filter)
+//	    }
+//	    results := query.Find(&users)
+//	} else {
+//	    // Filtreleme yapılmayacak
+//	    results := db.Find(&users)
+//	}
 //
 // Önemli Notlar:
 // - Filters slice'ı boşsa false döndürür

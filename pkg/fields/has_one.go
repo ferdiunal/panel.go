@@ -1070,7 +1070,7 @@ func (h *HasOneField) GetRelationshipType() string {
 //
 // Döndürür:
 //   - İlişkili resource'un slug'ı (string)
-func (h *HasOneField) GetRelatedResource() string {
+func (h *HasOneField) GetRelatedResourceSlug() string {
 	return h.RelatedResourceSlug
 }
 

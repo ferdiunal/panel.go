@@ -319,7 +319,7 @@ func Image(name string, attribute ...string) *Schema {
 //   - Uluslararası format desteği eklenebilir
 func Tel(name string, attribute ...string) *Schema {
 	f := NewField(name, attribute...)
-	f.View = "text-field" // Genellikle text input kullanılır
+	f.View = "tel-field" // Genellikle text input kullanılır
 	f.Type = TYPE_TEL
 	return f
 }

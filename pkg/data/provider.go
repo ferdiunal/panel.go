@@ -28,16 +28,19 @@ import (
 //
 // ```go
 // // Tek sıralama
-// sort := Sort{
-//     Column:    "created_at",
-//     Direction: "desc",
-// }
+//
+//	sort := Sort{
+//	    Column:    "created_at",
+//	    Direction: "desc",
+//	}
 //
 // // Çoklu sıralama
-// sorts := []Sort{
-//     {Column: "status", Direction: "asc"},
-//     {Column: "created_at", Direction: "desc"},
-// }
+//
+//	sorts := []Sort{
+//	    {Column: "status", Direction: "asc"},
+//	    {Column: "created_at", Direction: "desc"},
+//	}
+//
 // ```
 //
 // # Önemli Notlar
@@ -77,31 +80,35 @@ type Sort struct {
 //
 // ```go
 // // Basit sayfalama
-// req := QueryRequest{
-//     Page:    1,
-//     PerPage: 20,
-// }
+//
+//	req := QueryRequest{
+//	    Page:    1,
+//	    PerPage: 20,
+//	}
 //
 // // Arama ile birlikte
-// req := QueryRequest{
-//     Page:    1,
-//     PerPage: 20,
-//     Search:  "john",
-// }
+//
+//	req := QueryRequest{
+//	    Page:    1,
+//	    PerPage: 20,
+//	    Search:  "john",
+//	}
 //
 // // Tam özellikli sorgu
-// req := QueryRequest{
-//     Page:    2,
-//     PerPage: 50,
-//     Search:  "active",
-//     Sorts: []Sort{
-//         {Column: "created_at", Direction: "desc"},
-//     },
-//     Filters: []query.Filter{
-//         {Field: "status", Operator: "=", Value: "active"},
-//         {Field: "price", Operator: ">", Value: 100},
-//     },
-// }
+//
+//	req := QueryRequest{
+//	    Page:    2,
+//	    PerPage: 50,
+//	    Search:  "active",
+//	    Sorts: []Sort{
+//	        {Column: "created_at", Direction: "desc"},
+//	    },
+//	    Filters: []query.Filter{
+//	        {Field: "status", Operator: "=", Value: "active"},
+//	        {Field: "price", Operator: ">", Value: 100},
+//	    },
+//	}
+//
 // ```
 //
 // # Avantajlar
@@ -124,6 +131,11 @@ type QueryRequest struct {
 	Sorts   []Sort         `json:"sorts"`
 	Filters []query.Filter `json:"filters"`
 	Search  string         `json:"search"`
+
+	// Relationship parametreleri
+	ViaResource     string `json:"via_resource"`
+	ViaResourceId   string `json:"via_resource_id"`
+	ViaRelationship string `json:"via_relationship"`
 }
 
 // QueryResponse, veri sorgulama işlemlerinin sonucunu temsil eden yapıdır.
@@ -151,12 +163,13 @@ type QueryRequest struct {
 //
 // ```go
 // // Başarılı sorgu yanıtı
-// response := &QueryResponse{
-//     Items:   users,
-//     Total:   150,
-//     Page:    1,
-//     PerPage: 20,
-// }
+//
+//	response := &QueryResponse{
+//	    Items:   users,
+//	    Total:   150,
+//	    Page:    1,
+//	    PerPage: 20,
+//	}
 //
 // // Toplam sayfa sayısını hesaplama
 // totalPages := (response.Total + int64(response.PerPage) - 1) / int64(response.PerPage)
@@ -245,10 +258,12 @@ type QueryResponse struct {
 //
 // Örnek:
 // ```go
-// results, err := provider.QueryTable(ctx, "users", map[string]interface{}{
-//     "id": "123",
-//     "status": "active",
-// })
+//
+//	results, err := provider.QueryTable(ctx, "users", map[string]interface{}{
+//	    "id": "123",
+//	    "status": "active",
+//	})
+//
 // ```
 //
 // ### QueryRelationship
@@ -284,21 +299,24 @@ type QueryResponse struct {
 // Örnek:
 // ```go
 // txProvider, err := provider.BeginTx(ctx)
-// if err != nil {
-//     return err
-// }
+//
+//	if err != nil {
+//	    return err
+//	}
 //
 // _, err = txProvider.Create(ctx, data1)
-// if err != nil {
-//     txProvider.Rollback()
-//     return err
-// }
+//
+//	if err != nil {
+//	    txProvider.Rollback()
+//	    return err
+//	}
 //
 // _, err = txProvider.Create(ctx, data2)
-// if err != nil {
-//     txProvider.Rollback()
-//     return err
-// }
+//
+//	if err != nil {
+//	    txProvider.Rollback()
+//	    return err
+//	}
 //
 // return txProvider.Commit()
 // ```
