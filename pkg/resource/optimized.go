@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ferdiunal/panel.go/pkg/action"
 	"github.com/ferdiunal/panel.go/pkg/auth"
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data"
@@ -1764,25 +1765,95 @@ func (b *OptimizedBase) ResolveField(fieldName string, item any) (any, error) {
 	return nil, fmt.Errorf("field %s not found", fieldName)
 }
 
-// / GetActions, resource'un toplu işlemlerini döner.
+// / GetDefaultActions, tüm resource'larda varsayılan olarak bulunan toplu işlemleri döner.
 // /
-// / Action'lar, seçili kayıtlar üzerinde toplu işlem yapmak için kullanılır
-// / (örn: toplu silme, toplu güncelleme, export).
+// / Bu metod, her resource'da otomatik olarak kullanılabilir olan temel action'ları sağlar.
+// / Resource'lar kendi özel action'larını eklemek için GetActions() metodunu override edebilir.
+// /
+// / Varsayılan Action'lar:
+// / 1. **Seçilenleri Sil**: Checkbox ile seçilen kayıtları siler (destructive, transaction içinde)
 // /
 // / Döndürür:
-// / - İşlem listesi (boş slice)
+// / - Varsayılan action listesi
 // /
-// / Not: Varsayılan implementasyon boş slice döner. Override edilebilir.
+// / Örnek Kullanım:
+// /   // Resource'da default action'ları kullan
+// /   func (r *ProductResource) GetActions() []Action {
+// /       return r.OptimizedBase.GetDefaultActions()
+// /   }
 // /
-// / Örnek:
+// /   // Default action'lara ek olarak özel action'lar ekle
+// /   func (r *ProductResource) GetActions() []Action {
+// /       actions := r.OptimizedBase.GetDefaultActions()
+// /       actions = append(actions,
+// /           action.New("Dışa Aktar").SetIcon("download")...,
+// /       )
+// /       return actions
+// /   }
+// /
+// / Önemli Notlar:
+// / - Default action'lar transaction içinde çalışır (rollback desteği)
+// / - Destructive action'lar onay mesajı gerektirir
+// / - Her resource için model tipine göre otomatik çalışır
+func (b *OptimizedBase) GetDefaultActions() []Action {
+	return []Action{
+		// Seçilenleri Sil - Tüm resource'larda varsayılan bulk delete action
+		action.New("Seçilenleri Sil").
+			SetIcon("trash-2").
+			SetSlug("delete-selected").
+			Destructive().
+			Confirm("Seçili kayıtları silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.").
+			ConfirmButton("Evet, Sil").
+			CancelButton("İptal").
+			ShowOnlyOnIndex().
+			Handle(func(ctx *action.ActionContext) error {
+				// Transaction içinde çalış (hata durumunda rollback)
+				return ctx.DB.Transaction(func(tx *gorm.DB) error {
+					for _, item := range ctx.Models {
+						// Her kaydı sil
+						if err := tx.Delete(item).Error; err != nil {
+							return fmt.Errorf("kayıt silinirken hata oluştu: %w", err)
+						}
+					}
+					return nil
+				})
+			}),
+	}
+}
+
+// / GetActions, resource'un toplu işlemlerini döner.
+// /
+// / Bu metod, varsayılan olarak GetDefaultActions() metodunu çağırır ve
+// / tüm resource'larda bulunan temel action'ları döndürür.
+// /
+// / Resource'lar özel action'lar eklemek için bu metodu override edebilir:
+// /
+// / Döndürür:
+// / - İşlem listesi (varsayılan: bulk delete action)
+// /
+// / Örnek 1: Sadece default action'ları kullan
+// /   func (r *ProductResource) GetActions() []Action {
+// /       return r.OptimizedBase.GetDefaultActions()
+// /   }
+// /
+// / Örnek 2: Default action'lara ek olarak özel action'lar ekle
+// /   func (r *ProductResource) GetActions() []Action {
+// /       actions := r.OptimizedBase.GetDefaultActions()
+// /       actions = append(actions,
+// /           action.New("Dışa Aktar").SetIcon("download").Handle(...),
+// /           action.New("Toplu Güncelle").SetIcon("edit").Handle(...),
+// /       )
+// /       return actions
+// /   }
+// /
+// / Örnek 3: Sadece özel action'lar kullan (default action'ları kullanma)
 // /   func (r *ProductResource) GetActions() []Action {
 // /       return []Action{
-// /           NewAction("Dışa Aktar", "export"),
-// /           NewAction("Toplu Sil", "bulk_delete"),
+// /           action.New("Özel İşlem").SetIcon("star").Handle(...),
 // /       }
 // /   }
 func (b *OptimizedBase) GetActions() []Action {
-	return []Action{}
+	return b.GetDefaultActions()
 }
 
 // / GetFilters, resource'un filtreleme seçeneklerini döner.
