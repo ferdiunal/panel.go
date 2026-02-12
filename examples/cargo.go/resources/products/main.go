@@ -64,3 +64,34 @@ func (r *ProductResource) RecordTitle(record interface{}) string {
 func (r *ProductResource) With() []string {
 	return []string{"Organization", "ShipmentRows"}
 }
+
+// GetActions returns bulk actions for products resource
+//
+// Bu metod, Products resource için kullanılabilir toplu işlemleri döndürür.
+// OptimizedBase'den gelen varsayılan action'lara (Seçilenleri Sil) ek olarak
+// Products'a özel action'ları da ekler.
+//
+// Döndürür: resource.Action listesi
+//
+// Varsayılan Action'lar (OptimizedBase'den):
+// 1. Seçilenleri Sil - Checkbox ile seçilen kayıtları siler (tüm resource'larda var)
+//
+// Özel Action'lar (Products için):
+// 2. Tümünü Sil - TÜM ürünleri siler (destructive, admin only)
+// 3. Seçilenleri Dışa Aktar - CSV formatında export
+//
+// Örnek Kullanım:
+//   // Frontend'den action listesi almak:
+//   GET /api/products/actions
+//
+//   // Action çalıştırmak:
+//   POST /api/products/actions/delete-selected  # Varsayılan action
+//   POST /api/products/actions/delete-all       # Özel action
+//   POST /api/products/actions/export-selected  # Özel action
+//   {
+//     "ids": ["1", "2", "3"],
+//     "fields": {}
+//   }
+func (r *ProductResource) GetActions() []resource.Action {
+	return GetProductActions(&r.OptimizedBase)
+}
