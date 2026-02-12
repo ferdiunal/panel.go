@@ -35,13 +35,14 @@ import (
 //   - EmailVerified bayrağı, e-posta doğrulama akışında kullanılır
 //
 // Örnek Kullanım:
-//   user := &User{
-//       Name:          "Ahmet Yılmaz",
-//       Email:         "ahmet@example.com",
-//       EmailVerified: true,
-//       Role:          "user",
-//   }
-//   err := repo.CreateUser(ctx, user)
+//
+//	user := &User{
+//	    Name:          "Ahmet Yılmaz",
+//	    Email:         "ahmet@example.com",
+//	    EmailVerified: true,
+//	    Role:          "user",
+//	}
+//	err := repo.CreateUser(ctx, user)
 type User struct {
 	// ID: Kullanıcının benzersiz tanımlayıcısı
 	// Veritabanında birincil anahtar olarak kullanılır
@@ -91,6 +92,12 @@ type User struct {
 	UpdatedAt time.Time `json:"updatedAt" gorm:"index"`
 }
 
+// GetID, kullanıcının ID'sini döndürür.
+// Bu metod, notification handler gibi interface{ GetID() uint } bekleyen yerler için gereklidir.
+func (u *User) GetID() uint {
+	return u.ID
+}
+
 // Bu interface, kullanıcı verilerine erişim ve yönetim işlemlerini tanımlar.
 //
 // Repository interface, veri erişim katmanı (DAL) için sözleşme sağlar.
@@ -115,13 +122,14 @@ type User struct {
 //   - Eşzamanlı erişim için thread-safe olmalıdır
 //
 // Örnek Uygulamalar:
-//   type UserRepository struct {
-//       db *gorm.DB
-//   }
 //
-//   func (r *UserRepository) CreateUser(ctx context.Context, user *User) error {
-//       return r.db.WithContext(ctx).Create(user).Error
-//   }
+//	type UserRepository struct {
+//	    db *gorm.DB
+//	}
+//
+//	func (r *UserRepository) CreateUser(ctx context.Context, user *User) error {
+//	    return r.db.WithContext(ctx).Create(user).Error
+//	}
 type Repository interface {
 	// Bu metod, yeni bir kullanıcı kaydı oluşturur.
 	//

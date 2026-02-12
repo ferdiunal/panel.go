@@ -1,0 +1,18 @@
+package {{.PackageName}}
+
+import (
+	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/core"
+	"github.com/ferdiunal/panel.go/pkg/fields"
+)
+
+type {{.ResourceName}}FieldResolver struct{}
+
+func (r *{{.ResourceName}}FieldResolver) ResolveFields(ctx *context.Context) []core.Element {
+	return []core.Element{
+		fields.ID().ReadOnly().OnlyOnDetail(),
+		fields.Text("name").Required().Searchable(),
+		fields.DateTime("created_at").ReadOnly().OnlyOnDetail(),
+		fields.DateTime("updated_at").ReadOnly().OnlyOnDetail(),
+	}
+}

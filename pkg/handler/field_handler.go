@@ -922,24 +922,38 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 
 	// Handle AutoOptions via Config (works even if element is *Schema due to fluent API)
 	config := element.GetAutoOptionsConfig()
-	fmt.Printf("[DEBUG] ResolveFieldOptions - Key: %s, View: %s, Enabled: %v\n", element.GetKey(), element.GetView(), config.Enabled)
+	// fmt.Printf("[DEBUG] ResolveFieldOptions - Key: %s, View: %s, Enabled: %v\n", element.GetKey(), element.GetView(), config.Enabled)
 	if config.Enabled {
 		if _, hasOpts := props["options"]; !hasOpts {
-			table, _ := props["related_resource"].(string)
+			slug, _ := props["related_resource"].(string)
 			display := config.DisplayField
-			fmt.Printf("[DEBUG] AutoOptions Table: %s, Display: %s\n", table, display)
 
-			if table != "" && display != "" {
+			// Resolve table name from resource registry if possible
+			// Slug != Table Name assumption
+			tableName := slug
+			if res := resource.Get(slug); res != nil {
+				// Get GORM DB to parse model
+				if db, ok := h.Provider.GetClient().(*gorm.DB); ok {
+					stmt := &gorm.Statement{DB: db}
+					if err := stmt.Parse(res.Model()); err == nil {
+						tableName = stmt.Schema.Table
+					}
+				}
+			}
+
+			// fmt.Printf("[DEBUG] AutoOptions Slug: %s, Table: %s, Display: %s\n", slug, tableName, display)
+
+			if tableName != "" && display != "" {
 				var results []map[string]interface{}
 				view := element.GetView()
 
 				if view == "has-one-field" {
 					fk, _ := props["foreign_key"].(string)
-					fmt.Printf("[DEBUG] HasOne Query - Table: %s, FK: %s\n", table, fk)
+					// fmt.Printf("[DEBUG] HasOne Query - Table: %s, FK: %s\n", tableName, fk)
 
 					// Get GORM DB from provider
 					if db, ok := h.Provider.GetClient().(*gorm.DB); ok && fk != "" {
-						query := db.Table(table).Select("id, " + display)
+						query := db.Table(tableName).Select("id, " + display)
 
 						var itemID interface{}
 						if item != nil {
@@ -967,15 +981,15 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 						query.Find(&results)
 					}
 				} else if view == "belongs-to-field" || view == "belongs-to-many-field" || view == "has-many-field" || view == "morph-to-many-field" {
-					fmt.Printf("[DEBUG] BelongsTo/HasMany/MorphToMany Query - Table: %s\n", table)
+					// fmt.Printf("[DEBUG] BelongsTo/HasMany/MorphToMany Query - Table: %s\n", tableName)
 
 					// Get GORM DB from provider
 					if db, ok := h.Provider.GetClient().(*gorm.DB); ok {
-						db.Table(table).Select("id, " + display).Find(&results)
+						db.Table(tableName).Select("id, " + display).Find(&results)
 					}
 				}
 
-				fmt.Printf("[DEBUG] Query Result Count: %d\n", len(results))
+				// fmt.Printf("[DEBUG] Query Result Count: %d\n", len(results))
 				opts := make(map[string]string)
 				for _, r := range results {
 					if val, ok := r[display]; ok {

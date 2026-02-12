@@ -27,13 +27,15 @@ import (
 //
 // # Örnek Kullanım
 // ```go
-// account := &Account{
-//     UserID:     1,
-//     ProviderID: "google",
-//     AccountID:  &googleUserID,
-//     AccessToken: "encrypted_token_here",
-//     Scope: "email profile",
-// }
+//
+//	account := &Account{
+//	    UserID:     1,
+//	    ProviderID: "google",
+//	    AccountID:  &googleUserID,
+//	    AccessToken: "encrypted_token_here",
+//	    Scope: "email profile",
+//	}
+//
 // ```
 type Account struct {
 	// ID: Hesabın benzersiz tanımlayıcısı (birincil anahtar)
@@ -138,6 +140,12 @@ type Account struct {
 	User *user.User `json:"user,omitempty" gorm:"foreignKey:UserID"`
 }
 
+// GetID, hesabın ID'sini döndürür.
+// Bu metod, notification handler gibi interface{ GetID() uint } bekleyen yerler için gereklidir.
+func (a *Account) GetID() uint {
+	return a.ID
+}
+
 // Bu interface, hesap (account) veri erişim katmanı (repository) için sözleşmeyi tanımlar.
 // Repository pattern kullanılarak, veritabanı işlemleri soyutlanır ve test edilebilir hale getirilir.
 //
@@ -154,13 +162,15 @@ type Account struct {
 //
 // # Örnek Implementasyon
 // ```go
-// type AccountRepository struct {
-//     db *gorm.DB
-// }
 //
-// func (r *AccountRepository) Create(ctx context.Context, account *Account) error {
-//     return r.db.WithContext(ctx).Create(account).Error
-// }
+//	type AccountRepository struct {
+//	    db *gorm.DB
+//	}
+//
+//	func (r *AccountRepository) Create(ctx context.Context, account *Account) error {
+//	    return r.db.WithContext(ctx).Create(account).Error
+//	}
+//
 // ```
 type Repository interface {
 	// Bu metod, yeni bir hesap oluşturur ve veritabanına kaydeder.
