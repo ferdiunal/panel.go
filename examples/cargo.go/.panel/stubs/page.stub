@@ -1,0 +1,46 @@
+package {{.PackageName}}
+
+import (
+	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/page"
+	"github.com/ferdiunal/panel.go/pkg/widget"
+)
+
+type {{.PageName}} struct {
+	page.Base
+}
+
+func (p *{{.PageName}}) Slug() string {
+	return "{{.Slug}}"
+}
+
+func (p *{{.PageName}}) Title() string {
+	return "{{.Title}}"
+}
+
+func (p *{{.PageName}}) Group() string {
+	return "{{.Group}}"
+}
+
+func (p *{{.PageName}}) Icon() string {
+	return "{{.Icon}}"
+}
+
+func (p *{{.PageName}}) NavigationOrder() int {
+	return 99
+}
+
+func (p *{{.PageName}}) Visible() bool {
+	return true
+}
+
+func (p *{{.PageName}}) Widgets() []widget.Widget {
+	return []widget.Widget{}
+}
+
+func (p *{{.PageName}}) Fields() []fields.Element {
+	return []fields.Element{
+		// Add fields here
+		// fields.Text("Title", "title"),
+	}
+}

@@ -1,0 +1,31 @@
+package {{.PackageName}}
+
+import (
+	"gorm.io/gorm"
+
+	"github.com/ferdiunal/panel.go/pkg/data"
+	"github.com/ferdiunal/panel.go/pkg/resource"
+)
+
+type {{.ResourceName}}Resource struct {
+	resource.OptimizedBase
+}
+
+func New{{.ResourceName}}Resource() *{{.ResourceName}}Resource {
+	r := &{{.ResourceName}}Resource{}
+	r.Model = &{{.ModelName}}{}
+	r.Slug = "{{.Identifier}}"
+	r.Title = "{{.Label}}"
+	r.Icon = "{{.Icon}}"
+	r.Group = "{{.Group}}"
+	r.NavigationOrder = 1
+	r.Visible = true
+	r.SetPolicy(&{{.ResourceName}}Policy{})
+	r.SetFieldResolver(&{{.ResourceName}}FieldResolver{})
+	r.SetCardResolver(&{{.ResourceName}}CardResolver{})
+	return r
+}
+
+func (r *{{.ResourceName}}Resource) Repository(db *gorm.DB) data.DataProvider {
+	return New{{.ResourceName}}Repository(db)
+}
