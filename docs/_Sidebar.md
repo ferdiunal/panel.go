@@ -1,5 +1,6 @@
 - [Home](Home)
 - [Başlarken](Getting-Started)
+  - [CLI - Init Komutu](CLI_INIT)
 - [Kaynaklar](Resources)
   - [Resource Template](RESOURCE_TEMPLATE)
   - [Domain Resource Colocations](DOMAIN_RESOURCE_COLOCATIONS)
