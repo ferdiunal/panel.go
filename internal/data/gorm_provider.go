@@ -3,12 +3,12 @@ package data
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GormDataProvider struct {
@@ -33,32 +33,50 @@ func (p *GormDataProvider) SetWith(rels []string) {
 	p.WithRelationships = rels
 }
 
+func (p *GormDataProvider) columnAliases() map[string]string {
+	aliases := map[string]string{}
+
+	stmt := &gorm.Statement{DB: p.DB}
+	if err := stmt.Parse(p.Model); err != nil || stmt.Schema == nil {
+		return aliases
+	}
+
+	for _, field := range stmt.Schema.Fields {
+		if field.DBName == "" {
+			continue
+		}
+
+		dbName := field.DBName
+		aliases[dbName] = dbName
+		aliases[field.Name] = dbName
+		aliases[strings.ToLower(field.Name)] = dbName
+
+		if tag := field.Tag.Get("json"); tag != "" {
+			jsonName := strings.Split(tag, ",")[0]
+			if jsonName != "" && jsonName != "-" {
+				aliases[jsonName] = dbName
+			}
+		}
+	}
+
+	return aliases
+}
+
+func normalizeColumn(column string, aliases map[string]string) (string, bool) {
+	col := strings.TrimSpace(column)
+	if col == "" {
+		return "", false
+	}
+
+	dbCol, ok := aliases[col]
+	return dbCol, ok
+}
+
 func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryResponse, error) {
 	var total int64
-	// We need a slice of the model type to hold results.
-	// Since Model is interface{}, we might need reflection to create a slice of that type,
-	// or we can just hope GORM handles Find(&[]Interface{}) correctly if we pass a pointer to a slice of models.
-	// Actually, usually users pass a struct instance as Model.
-	// Gorm's db.Model(model) works for setting the table.
-	// But Find needs a destination.
-	// Let's assume we return []map[string]interface{} for generic usage if we don't know the slice type,
-	// OR we assume the user might want typed results.
-	// But FieldHandler expects []interface{} in Items.
+	aliases := p.columnAliases()
 
-	// Simplest approach for Generic provider: Use map[string]interface{} for dynamic results
-	// OR use reflection to make a slice of the Model's type.
-
-	// Let's try map[string]interface{} for maximum flexibility in this generic provider,
-	// unless we strictly want the structs.
-	// If we use structs, we need to use reflect.New(reflect.SliceOf(reflect.TypeOf(p.Model))).Interface()
-
-	// Let's start with just using db.Model(p.Model).Find(&results) where results is []map[string]interface{}
-	// GORM supports finding into a map.
-
-	// Log the incoming sorts to Provider
-	fmt.Printf("DEBUG: Provider Index Req Sorts: %+v\n", req.Sorts)
-
-	db := p.DB.WithContext(ctx).Debug().Model(p.Model)
+	db := p.DB.WithContext(ctx).Model(p.Model)
 
 	// Apply Eager Loading
 	for _, rel := range p.WithRelationships {
@@ -67,16 +85,42 @@ func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryR
 
 	// Apply Filters (Basic equality)
 	for k, v := range req.Filters {
-		db = db.Where(fmt.Sprintf("%s = ?", k), v)
+		col, ok := normalizeColumn(k, aliases)
+		if !ok {
+			continue
+		}
+		db = db.Where(clause.Eq{
+			Column: clause.Column{Name: col},
+			Value:  v,
+		})
 	}
 
 	// Apply Search
 	if req.Search != "" && len(p.SearchColumns) > 0 {
-		searchQuery := p.DB.WithContext(ctx).Session(&gorm.Session{NewDB: true})
+		searchQuery := p.DB.WithContext(ctx).Session(&gorm.Session{NewDB: true}).Model(p.Model)
+		hasValidSearchColumn := false
 		for _, col := range p.SearchColumns {
-			searchQuery = searchQuery.Or(fmt.Sprintf("%s LIKE ?", col), "%"+req.Search+"%")
+			dbCol, ok := normalizeColumn(col, aliases)
+			if !ok {
+				continue
+			}
+
+			condition := clause.Like{
+				Column: clause.Column{Name: dbCol},
+				Value:  "%" + req.Search + "%",
+			}
+
+			if !hasValidSearchColumn {
+				searchQuery = searchQuery.Where(condition)
+				hasValidSearchColumn = true
+				continue
+			}
+			searchQuery = searchQuery.Or(condition)
 		}
-		db = db.Where(searchQuery)
+
+		if hasValidSearchColumn {
+			db = db.Where(searchQuery)
+		}
 	}
 
 	// Count Total
@@ -87,13 +131,15 @@ func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryR
 	// Sorting
 	if len(req.Sorts) > 0 {
 		for _, sort := range req.Sorts {
-			if sort.Column != "" {
-				direction := "ASC"
-				if strings.ToUpper(sort.Direction) == "DESC" {
-					direction = "DESC"
-				}
-				db = db.Order(fmt.Sprintf("%s %s", sort.Column, direction))
+			col, ok := normalizeColumn(sort.Column, aliases)
+			if !ok {
+				continue
 			}
+
+			db = db.Order(clause.OrderByColumn{
+				Column: clause.Column{Name: col},
+				Desc:   strings.EqualFold(sort.Direction, "desc"),
+			})
 		}
 	}
 
@@ -115,8 +161,6 @@ func (p *GormDataProvider) Index(ctx context.Context, req QueryRequest) (*QueryR
 	}
 
 	// Convert to []interface{}
-	// Since FieldHandler (and Tests) mostly expect maps for dynamic access, lets convert strict structs to maps
-	// This also ensures we respect JSON tags.
 	resultsVal := resultsPtr.Elem()
 	items := make([]interface{}, resultsVal.Len())
 	for i := 0; i < resultsVal.Len(); i++ {

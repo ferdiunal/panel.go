@@ -5,10 +5,16 @@ import (
 	"time"
 )
 
+const (
+	RoleAdmin = "admin"
+	RoleUser  = "user"
+)
+
 type User struct {
 	ID            string    `json:"id" gorm:"primaryKey;type:uuid"`
 	Name          string    `json:"name" gorm:"index"`
 	Email         string    `json:"email" gorm:"uniqueIndex"`
+	Role          string    `json:"role" gorm:"index;default:user"`
 	EmailVerified bool      `json:"emailVerified"`
 	Image         string    `json:"image"`
 	CreatedAt     time.Time `json:"createdAt" gorm:"index"`

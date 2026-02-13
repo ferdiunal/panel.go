@@ -210,3 +210,58 @@ func TestGormDataProvider_With(t *testing.T) {
 		t.Fatalf("Expected 2 posts, got %d", len(item.Posts))
 	}
 }
+
+func TestGormDataProvider_SanitizesDynamicColumns(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to db: %v", err)
+	}
+
+	db.Migrator().DropTable(&TestUser{})
+	db.AutoMigrate(&TestUser{})
+
+	users := []TestUser{
+		{Name: "Alice", Email: "alice@example.com"},
+		{Name: "Bob", Email: "bob@example.com"},
+	}
+	db.Create(&users)
+
+	provider := NewGormDataProvider(db, &TestUser{})
+	provider.SetSearchColumns([]string{"name", "email", "name; DROP TABLE test_users;--"})
+
+	req := QueryRequest{
+		Page:    1,
+		PerPage: 10,
+		Sorts: []Sort{
+			{Column: "name; DROP TABLE test_users;--", Direction: "desc"},
+			{Column: "name", Direction: "asc"},
+		},
+		Filters: map[string]interface{}{
+			"email OR 1=1 --": "alice@example.com",
+			"email":           "alice@example.com",
+		},
+		Search: "alice",
+	}
+
+	resp, err := provider.Index(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Index failed with dynamic column inputs: %v", err)
+	}
+
+	if resp.Total != 1 {
+		t.Fatalf("Expected exactly 1 filtered item, got %d", resp.Total)
+	}
+
+	if len(resp.Items) != 1 {
+		t.Fatalf("Expected 1 item in page, got %d", len(resp.Items))
+	}
+
+	item := resp.Items[0].(*TestUser)
+	if item.Name != "Alice" {
+		t.Fatalf("Expected Alice, got %s", item.Name)
+	}
+
+	if !db.Migrator().HasTable(&TestUser{}) {
+		t.Fatalf("users table should still exist after malicious inputs")
+	}
+}
