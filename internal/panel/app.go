@@ -3,16 +3,19 @@ package panel
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/ferdiunal/panel.go/internal/context"
 	"github.com/ferdiunal/panel.go/internal/data/orm"
 	"github.com/ferdiunal/panel.go/internal/domain/account"
+	"github.com/ferdiunal/panel.go/internal/domain/audit"
 	"github.com/ferdiunal/panel.go/internal/domain/session"
 	"github.com/ferdiunal/panel.go/internal/domain/setting"
 	"github.com/ferdiunal/panel.go/internal/domain/user"
 	"github.com/ferdiunal/panel.go/internal/domain/verification"
 	"github.com/ferdiunal/panel.go/internal/handler"
 	authHandler "github.com/ferdiunal/panel.go/internal/handler/auth"
+	obs "github.com/ferdiunal/panel.go/internal/observability"
 	"github.com/ferdiunal/panel.go/internal/page"
 	"github.com/ferdiunal/panel.go/internal/resource"
 	resourceUser "github.com/ferdiunal/panel.go/internal/resource/user"
@@ -24,6 +27,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/earlydata"
 	"github.com/gofiber/fiber/v2/middleware/etag"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"gorm.io/gorm"
 )
 
@@ -43,19 +48,31 @@ type Panel struct {
 func New(config Config) *Panel {
 	app := fiber.New()
 	db := config.Database.Instance
+	if db == nil {
+		panic("panel: database instance is required")
+	}
+	if (config.Storage.Path == "" && config.Storage.URL != "") || (config.Storage.Path != "" && config.Storage.URL == "") {
+		panic("panel: storage path and storage URL must be set together")
+	}
+	if config.Environment == "" {
+		config.Environment = "development"
+	}
 
 	// Auth Components
 	userRepo := orm.NewUserRepository(db)
 	sessionRepo := orm.NewSessionRepository(db)
 	accountRepo := orm.NewAccountRepository(db)
 
-	authService := auth.NewService(userRepo, sessionRepo, accountRepo)
+	authService := auth.NewService(db, userRepo, sessionRepo, accountRepo)
 	authH := authHandler.NewHandler(authService)
 
 	// Auto Migrate Auth Domains
-	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{})
+	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{}, &audit.Log{})
 
 	// Middleware Registration
+	app.Use(requestid.New())
+	app.Use(obs.RequestMetricsMiddleware())
+	app.Use(obs.RequestLoggerMiddleware())
 	app.Use(compress.New())
 	app.Use(cors.New())
 	if config.Environment == "production" {
@@ -78,6 +95,10 @@ func New(config Config) *Panel {
 		// Fallback or explicit check in main.go ensures they are set.
 		app.Static("/storage", "./storage/public")
 	}
+
+	app.Get("/health", obs.HealthHandler())
+	app.Get("/ready", obs.ReadyHandler(db))
+	app.Get("/metrics", obs.MetricsHandler())
 
 	p := &Panel{
 		Config:    config,
@@ -114,7 +135,19 @@ func New(config Config) *Panel {
 
 	// Auth Routes
 	authRoutes := api.Group("/auth")
-	authRoutes.Post("/sign-in/email", context.Wrap(authH.LoginEmail))
+	authLoginLimiter := limiter.New(limiter.Config{
+		Max:        10,
+		Expiration: time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": "too many login requests",
+			})
+		},
+	})
+	authRoutes.Post("/sign-in/email", authLoginLimiter, context.Wrap(authH.LoginEmail))
 	authRoutes.Post("/sign-up/email", context.Wrap(authH.RegisterEmail))
 	authRoutes.Post("/sign-out", context.Wrap(authH.SignOut))
 	authRoutes.Get("/session", context.Wrap(authH.GetSession))
@@ -123,6 +156,7 @@ func New(config Config) *Panel {
 
 	// Middleware
 	api.Use(context.Wrap(authH.SessionMiddleware))
+	api.Use(context.Wrap(obs.AuditMiddleware(db)))
 
 	// Page Routes
 	api.Get("/pages", context.Wrap(p.handlePages))
