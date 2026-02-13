@@ -15,6 +15,7 @@ package panel
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/gofiber/fiber/v2"
 )
 

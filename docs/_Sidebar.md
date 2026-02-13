@@ -16,6 +16,8 @@
 - [Bildirimler](Notifications)
 - [Kimlik Doğrulama](Authentication)
 - [Yetkilendirme](Authorization)
+- [Güvenlik](SECURITY)
+- [Observability](OBSERVABILITY)
 - [Gelişmiş Kullanım](Advanced-Usage)
 - [Optimizasyon](Optimization-Guide)
 - [API Referansı](API-Reference)
