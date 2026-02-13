@@ -1,47 +1,41 @@
-# Widget'lar (Widgets)
+# Widget'lar (Cards)
 
-Widget'lar, resource'larınızın özet bilgilerini, grafiklerini ve metriklerini göstermenize olanak tanır. Laravel Nova Metrics sistemine benzer bir yapı sunar.
+Widget'lar (veya Cards), resource'larınızın özet bilgilerini, grafiklerini ve metriklerini göstermenize olanak tanır.
 
-## Kullanılabilir Widget Tipleri
+## Kullanılabilir Kart Tipleri
 
-Şu an için iki temel widget tipi desteklenmektedir:
+Şu an için iki temel kart tipi desteklenmektedir:
 
 1.  **Value**: Tek bir sayısal değer ve (opsiyonel) değişim gösterir (örn. Toplam Kullanıcı Sayısı).
 2.  **Trend**: Zaman içindeki değişimi çizgi grafik olarak gösterir (örn. Son 30 gündeki kayıtlar).
 
-## Widget Oluşturma
+## Kart Oluşturma
 
-### 1. Value Widget
+### 1. Value Card
 
 `widget.NewCountWidget` helper'ını kullanarak hızlıca bir sayaç oluşturabilirsiniz:
 
 ```go
-import "panel.go/internal/widget"
+import "github.com/ferdiunal/panel.go/pkg/widget"
 
-func (u *UserResource) Widgets() []widget.Widget {
-    return []widget.Widget{
+func (u *UserResource) Cards() []widget.Card {
+    return []widget.Card{
         widget.NewCountWidget("Toplam Kullanıcı", &User{}),
         
-        // Veya manuel tanımlama
-        &widget.Value{
-            Title: "Aktif Aboneler",
-            QueryFunc: func(db *gorm.DB) (int64, error) {
-                var count int64
-                err := db.Model(&Subscription{}).Where("status = ?", "active").Count(&count).Error
-                return count, err
-            },
-        },
+        // Veya manuel tanımlama (Custom Card)
+        widget.NewCard("Aktif Aboneler", "value-metric").
+            SetContent(calculateSubscribers()),
     }
 }
 ```
 
-### 2. Trend Widget
+### 2. Trend Card
 
 Trend widget'ları, verilerin zaman içindeki dağılımını gösterir.
 
 ```go
-func (u *UserResource) Widgets() []widget.Widget {
-    return []widget.Widget{
+func (u *UserResource) Cards() []widget.Card {
+    return []widget.Card{
         widget.NewTrendWidget("Günlük Kayıtlar", &User{}, "created_at"),
     }
 }
@@ -49,12 +43,24 @@ func (u *UserResource) Widgets() []widget.Widget {
 
 ## Resource'a Ekleme
 
-Widget'ları resource'unuza eklemek için `Widgets()` metodunu implemente etmeniz yeterlidir:
+Kartları resource'unuza eklemek için `Cards()` metodunu implemente etmeniz yeterlidir:
 
 ```go
-func (u *UserResource) Widgets() []widget.Widget {
-    return []widget.Widget{
+func (u *UserResource) Cards() []widget.Card {
+    return []widget.Card{
         widget.NewCountWidget("Toplam Kullanıcı", &User{}),
+    }
+}
+```
+
+## Sayfalara Ekleme (Dashboard)
+
+Kartlar sadece resource'larda değil, `Page` (Sayfa) yapılarında da kullanılabilir. Örneğin Dashboard sayfasında:
+
+```go
+func (d *Dashboard) Cards() []widget.Card {
+    return []widget.Card{
+        widget.NewCountWidget("Toplam Kullanıcı", &user.User{}),
     }
 }
 ```

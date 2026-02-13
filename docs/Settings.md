@@ -1,6 +1,6 @@
 # Ayarlar (Settings)
 
-Ayarlar modülü, uygulamanız için anahtar-değer (key-value) tabanlı yapılandırmaları veritabanında saklamanızı ve yönetmenizi sağlar. Bu özellik, `internal/domain/setting` altında tanımlanan `Setting` modeli ve Panel'in sayfa sistemi üzerine kuruludur.
+Ayarlar modülü, uygulamanız için anahtar-değer (key-value) tabanlı yapılandırmaları veritabanında saklamanızı ve yönetmenizi sağlar.
 
 ## Veri Modeli
 
@@ -17,36 +17,56 @@ type Setting struct {
 
 ## Kullanım
 
-### Ayar Tanımlama ve Seeding
-
-Kaynaklarınızda varsayılan ayarları veya gruplandırılmış yapılandırmaları tanımlamak için `resource.Base` içerisindeki `SettingsSeed` yapısını kullanabilirsiniz.
-
-```go
-type MyResource struct {
-    resource.Base
-}
-
-func NewMyResource() *MyResource {
-    r := &MyResource{}
-    r.Seed = resource.SettingsSeed{
-        Key: "my_resource_config",
-        Value: map[string]interface{}{
-            "feature_enabled": true,
-            "max_limit": 100,
-        },
-    }
-    return r
-}
-```
-
 ### Ayarlar Sayfası
 
-Ayarların yönetimi için önceden tanımlanmış bir `Settings` sayfası bulunur. Bu sayfa `internal/page/settings.go` dosyasında tanımlıdır ve uygulamanıza `main.go` üzerinden kaydedilir.
+Ayarların yönetimi için önceden tanımlanmış bir `Settings` sayfası bulunur. Bu sayfa `pkg/page/settings.go` dosyasında tanımlıdır.
+
+Ayarlar sayfasını kullanmak için `Config` içinde etkinleştirmeniz ve alanlarını tanımlamanız yeterlidir:
 
 ```go
 // main.go
-settingsPage := &page.Settings{}
-p.RegisterPage(settingsPage)
+func main() {
+    cfg := panel.Config{
+        // Settings sayfasını yapılandırma
+        SettingsPage: &page.Settings{
+            Elements: []fields.Element{
+                 // Standart alanlar
+                 fields.Text("Site Name", "site_name").Required(),
+                 fields.Switch("Registration Open", "register"),
+                 
+                 // Özel alanlar (Dinamik)
+                 fields.Text("Support Email", "support_email"),
+                 fields.Image("Logo", "site_logo"),
+            },
+        },
+        // ...
+    }
+    
+    app := panel.New(cfg)
+    app.Start()
+}
 ```
 
-Sayfa kaydedildikten sonra `/api/pages/settings` endpoint'i üzerinden erişilebilir hale gelir.
+### Ayarlara Erişim
+
+Panel instance'ı üzerinden ayarlara her yerden erişebilirsiniz:
+
+```go
+// Tüm ayarları yükler (cache mechanism eklenebilir)
+settings := app.LoadSettings()
+
+// Belirli bir değere erişim
+if enabled, ok := settings.Values["register"].(bool); ok && enabled {
+    // Kayıt işlemleri...
+}
+
+// veya Config üzerinden (Startup sırasında yüklenenler)
+siteName := app.Config.SettingsValues.Values["site_name"]
+```
+
+### Feature Flags
+
+Bazı ayarlar (`register`, `forgot_password`) Panel tarafından otomatik olarak tanınır ve `feature flag` olarak davranır:
+
+- `register: true` -> Kayıt olma endpointlerini açar.
+- `forgot_password: true` -> Şifre sıfırlama endpointlerini açar.
