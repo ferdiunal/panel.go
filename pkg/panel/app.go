@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -53,6 +54,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/openapi"
 	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/permission"
+	"github.com/ferdiunal/panel.go/pkg/plugin"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	resourceUser "github.com/ferdiunal/panel.go/pkg/resource/user"
 	"github.com/ferdiunal/panel.go/pkg/service/auth"
@@ -100,7 +102,8 @@ type Panel struct {
 	Auth               *auth.Service
 	resources          map[string]resource.Resource
 	pages              map[string]page.Page
-	http2PushResources []string // Cached list of critical assets for HTTP/2 push
+	plugins            []interface{} // Registered plugins
+	http2PushResources []string      // Cached list of critical assets for HTTP/2 push
 	openAPIHandler     *handler.OpenAPIHandler
 }
 
@@ -306,132 +309,186 @@ func New(config Config) *Panel {
 		}))
 	}
 
-	// Static file serving
-	// For SDK users: always use embedded assets
-	// For SDK developers: use local path if available (development mode only)
-	useEmbed := true
-	localUIPath := "./pkg/panel/ui/index.html"
+	// Static file serving with priority:
+	// 1. assets/ui/ (project-specific build from plugin:build)
+	// 2. pkg/panel/ui/ (SDK development mode)
+	// 3. Embedded assets (backward compatibility)
+	//
+	// HTML files are served with dynamic injection (RTL, theme, lang)
+	// Static assets (JS, CSS, images) are served directly
 
-	// Check if we're in SDK development mode (local UI files exist)
-	if config.Environment == "development" {
-		if _, statErr := os.Stat(localUIPath); statErr == nil {
-			useEmbed = false
-		}
+	// PERFORMANCE: High compression for static assets
+	staticCompress := compress.New(compress.Config{
+		Level: compress.LevelBestCompression,
+		Next: func(c *fiber.Ctx) bool {
+			return strings.HasPrefix(c.Path(), "/api")
+		},
+	})
+
+	// Storage serving (common for all priorities)
+	if config.Storage.URL != "" && config.Storage.Path != "" {
+		app.Use(config.Storage.URL, staticCompress)
+		app.Static(config.Storage.URL, config.Storage.Path)
+	} else {
+		app.Use("/storage", staticCompress)
+		app.Static("/storage", "./storage/public")
 	}
 
-	assetsFS, err := GetFileSystem(useEmbed)
-	if err != nil {
-		fmt.Println("Warning: Failed to load embedded assets:", err)
-	}
+	// Priority 1: Check assets/ui/index.html (project-specific build)
+	assetsUIPath := "assets/ui/index.html"
+	if _, err := os.Stat(assetsUIPath); err == nil {
+		fmt.Println("✓ Serving UI from: assets/ui/ (project-specific build)")
 
-	// PERFORMANCE: Discover critical assets for HTTP/2 push (if enabled)
-	// Automatically find JS, CSS, and font files in assets directory
-	var http2PushResources []string
-	if config.EnableHTTP2Push && assetsFS != nil {
-		fs.WalkDir(assetsFS, "assets", func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
+		// Static assets (JS, CSS, images, fonts)
+		app.Use("/assets", staticCompress)
+		app.Static("/assets", "./assets/ui/assets")
+
+		// HTML files with dynamic injection
+		app.Get("/*", func(c *fiber.Ctx) error {
+			// Skip API routes
+			if strings.HasPrefix(c.Path(), "/api") {
+				return c.Next()
 			}
-			// Push critical resources: JS, CSS, and fonts
-			ext := filepath.Ext(path)
-			if ext == ".js" || ext == ".css" || ext == ".woff" || ext == ".woff2" || ext == ".ttf" || ext == ".otf" {
-				// Convert to web path: assets/index.js -> /assets/index.js
-				webPath := "/" + filepath.ToSlash(path)
-				http2PushResources = append(http2PushResources, webPath)
+
+			// Serve static assets directly
+			path := c.Path()
+			if strings.HasPrefix(path, "/assets/") {
+				return c.Next()
 			}
-			return nil
+
+			// Check if file exists and is not HTML
+			if path != "/" && strings.Contains(path, ".") {
+				filePath := filepath.Join("assets/ui", path)
+				if _, err := os.Stat(filePath); err == nil {
+					return c.SendFile(filePath)
+				}
+			}
+
+			// Serve HTML with injection
+			return ServeHTML(c, assetsUIPath, config)
 		})
+	} else if config.Environment == "development" {
+		// Priority 2: Check pkg/panel/ui/index.html (SDK development)
+		localUIPath := "pkg/panel/ui/index.html"
+		if _, err := os.Stat(localUIPath); err == nil {
+			fmt.Println("✓ Serving UI from: pkg/panel/ui/ (SDK development)")
 
-		if len(http2PushResources) > 0 {
-			fmt.Printf("HTTP/2 Push enabled for %d resources: %v\n", len(http2PushResources), http2PushResources)
-		}
-	}
+			// Static assets
+			app.Use("/assets", staticCompress)
+			app.Static("/assets", "./pkg/panel/ui/assets")
 
-	if useEmbed && assetsFS != nil {
-		// PERFORMANCE: High compression for static assets (cached, compressed once)
-		// Use LevelBestCompression for static files since they're cached and served repeatedly
-		staticCompress := compress.New(compress.Config{
-			Level: compress.LevelBestCompression, // Maximum compression for static assets
-			Next: func(c *fiber.Ctx) bool {
-				// Skip compression for API routes
-				return strings.HasPrefix(c.Path(), "/api")
-			},
-		})
+			// HTML files with dynamic injection
+			app.Get("/*", func(c *fiber.Ctx) error {
+				if strings.HasPrefix(c.Path(), "/api") {
+					return c.Next()
+				}
 
-		// PERFORMANCE: HTTP/2 Server Push for critical resources (optional, config-controlled)
-		// Push critical assets (JS, CSS, fonts) proactively to reduce round-trip latency
-		// Uses Link header with rel=preload (works with both HTTP/1.1 and HTTP/2)
-		// IMPORTANT: Only enabled if config.EnableHTTP2Push is true and resources are discovered
-		if config.EnableHTTP2Push && len(http2PushResources) > 0 {
-			app.Use("/", func(c *fiber.Ctx) error {
-				// Only push on initial page load (HTML requests)
-				// Skip for API routes and asset requests
-				if c.Path() == "/" || (!strings.HasPrefix(c.Path(), "/api") && !strings.HasPrefix(c.Path(), "/assets")) {
-					// Use Link header for HTTP/2 Server Push
-					// This works with both HTTP/1.1 (as preload hint) and HTTP/2 (as server push)
-					var links []string
-					for _, resource := range http2PushResources {
-						// Determine resource type from extension
-						ext := filepath.Ext(resource)
-						var asType string
-						switch ext {
-						case ".js":
-							asType = "script"
-						case ".css":
-							asType = "style"
-						case ".woff", ".woff2", ".ttf", ".otf":
-							asType = "font"
-						default:
-							asType = "fetch"
-						}
-						links = append(links, fmt.Sprintf("<%s>; rel=preload; as=%s", resource, asType))
-					}
-					if len(links) > 0 {
-						c.Set("Link", strings.Join(links, ", "))
+				path := c.Path()
+				if strings.HasPrefix(path, "/assets/") {
+					return c.Next()
+				}
+
+				if path != "/" && strings.Contains(path, ".") {
+					filePath := filepath.Join("pkg/panel/ui", path)
+					if _, err := os.Stat(filePath); err == nil {
+						return c.SendFile(filePath)
 					}
 				}
-				return c.Next()
+
+				return ServeHTML(c, localUIPath, config)
+			})
+		} else {
+			// Priority 3: Embedded assets (backward compatibility)
+			fmt.Println("✓ Serving UI from: embedded assets (backward compatibility)")
+			assetsFS, err := GetFileSystem(true)
+			if err != nil {
+				fmt.Println("Warning: Failed to load embedded assets:", err)
+			}
+
+			if assetsFS != nil {
+				// Static assets from embedded FS
+				app.Use("/", staticCompress, filesystem.New(filesystem.Config{
+					Root:   http.FS(assetsFS),
+					Browse: false,
+					Next: func(c *fiber.Ctx) bool {
+						// Skip API routes and HTML files
+						return strings.HasPrefix(c.Path(), "/api") ||
+							c.Path() == "/" ||
+							!strings.Contains(c.Path(), ".")
+					},
+				}))
+
+				// HTML with injection (read from embedded FS)
+				app.Get("/*", func(c *fiber.Ctx) error {
+					if strings.HasPrefix(c.Path(), "/api") {
+						return c.Next()
+					}
+
+					path := c.Path()
+					if path != "/" && strings.Contains(path, ".") && !strings.HasSuffix(path, ".html") {
+						return c.Next()
+					}
+
+					// Read index.html from embedded FS
+					htmlBytes, err := assetsFS.ReadFile("index.html")
+					if err != nil {
+						return c.Status(500).SendString("Failed to load UI")
+					}
+
+					// Inject and serve
+					data := GetHTMLInjectionData(c, config)
+					html := InjectHTML(string(htmlBytes), data)
+
+					c.Set("Content-Type", "text/html; charset=utf-8")
+					c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+					return c.SendString(html)
+				})
+			}
+		}
+	} else {
+		// Priority 3: Embedded assets (backward compatibility)
+		fmt.Println("✓ Serving UI from: embedded assets (backward compatibility)")
+		assetsFS, err := GetFileSystem(true)
+		if err != nil {
+			fmt.Println("Warning: Failed to load embedded assets:", err)
+		}
+
+		if assetsFS != nil {
+			// Static assets from embedded FS
+			app.Use("/", staticCompress, filesystem.New(filesystem.Config{
+				Root:   http.FS(assetsFS),
+				Browse: false,
+				Next: func(c *fiber.Ctx) bool {
+					return strings.HasPrefix(c.Path(), "/api") ||
+						c.Path() == "/" ||
+						!strings.Contains(c.Path(), ".")
+				},
+			}))
+
+			// HTML with injection
+			app.Get("/*", func(c *fiber.Ctx) error {
+				if strings.HasPrefix(c.Path(), "/api") {
+					return c.Next()
+				}
+
+				path := c.Path()
+				if path != "/" && strings.Contains(path, ".") && !strings.HasSuffix(path, ".html") {
+					return c.Next()
+				}
+
+				htmlBytes, err := assetsFS.ReadFile("index.html")
+				if err != nil {
+					return c.Status(500).SendString("Failed to load UI")
+				}
+
+				data := GetHTMLInjectionData(c, config)
+				html := InjectHTML(string(htmlBytes), data)
+
+				c.Set("Content-Type", "text/html; charset=utf-8")
+				c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				return c.SendString(html)
 			})
 		}
-
-		// Use embedded assets (for SDK users and production)
-		app.Use("/", staticCompress, filesystem.New(filesystem.Config{
-			Root:         http.FS(assetsFS),
-			Browse:       false,
-			Index:        "index.html",
-			NotFoundFile: "index.html",
-			MaxAge:       3600,
-			Next: func(c *fiber.Ctx) bool {
-				return strings.HasPrefix(c.Path(), "/api")
-			},
-		}))
-	} else {
-		// PERFORMANCE: High compression for static assets in development mode
-		staticCompress := compress.New(compress.Config{
-			Level: compress.LevelBestCompression,
-			Next: func(c *fiber.Ctx) bool {
-				return strings.HasPrefix(c.Path(), "/api")
-			},
-		})
-
-		// Development mode with local path (for SDK developers only)
-		if config.Storage.URL != "" && config.Storage.Path != "" {
-			app.Use(config.Storage.URL, staticCompress)
-			app.Static(config.Storage.URL, config.Storage.Path)
-		} else {
-			app.Use("/storage", staticCompress)
-			app.Static("/storage", "./storage/public")
-		}
-
-		app.Use("/", staticCompress)
-		app.Static("/", "./pkg/panel/ui")
-		app.Get("*", func(c *fiber.Ctx) error {
-			// Skip API routes
-			if len(c.Path()) >= 4 && c.Path()[:4] == "/api" {
-				return c.Next()
-			}
-			return c.SendFile(localUIPath)
-		})
 	}
 
 	// İzinleri yükle
@@ -456,10 +513,20 @@ func New(config Config) *Panel {
 		Auth:      authService,
 		resources: make(map[string]resource.Resource),
 		pages:     make(map[string]page.Page),
+		plugins:   make([]interface{}, 0),
 	}
 
 	// Load Dynamic Settings
 	_ = p.LoadSettings()
+
+	// Plugin System: Auto-discovery (optional)
+	if config.Plugins.AutoDiscover && config.Plugins.Path != "" {
+		// Import plugin package for auto-discovery
+		// Note: This is optional, manual import is preferred
+		fmt.Printf("Plugin auto-discovery enabled, path: %s\n", config.Plugins.Path)
+		// Auto-discovery implementation would go here
+		// For now, we rely on manual import via init() functions
+	}
 
 	// Register Default Resources
 	if p.Config.UserResource != nil {
@@ -494,6 +561,21 @@ func New(config Config) *Panel {
 					Label("Site URL").
 					Placeholder("https://example.com").
 					Required(),
+				fields.Image("Site Logo", "site_logo").
+					Label("Site Logo").
+					HelpText("Upload your site logo (PNG, JPG, WebP)").
+					StoreAs(func(c *fiber.Ctx, file *multipart.FileHeader) (string, error) {
+						storageUrl := "/storage/"
+						storagePath := "./storage/public"
+						ext := filepath.Ext(file.Filename)
+						filename := fmt.Sprintf("logo_%d%s", time.Now().UnixNano(), ext)
+						localPath := filepath.Join(storagePath, filename)
+						_ = os.MkdirAll(storagePath, 0755)
+						if err := c.SaveFile(file, localPath); err != nil {
+							return "", err
+						}
+						return fmt.Sprintf("%s%s", storageUrl, filename), nil
+					}),
 				fields.Textarea("Site Description", "site_description").
 					Label("Site Description").
 					Placeholder("Enter site description").
@@ -723,7 +805,59 @@ func New(config Config) *Panel {
 	// /resolve endpoint for dynamic routing check
 	api.Get("/resolve", context.Wrap(p.handleResolve))
 
+	// Boot Plugins: Load plugins from global registry and boot them
+	// Plugins register themselves via init() functions
+	// This must be called after all routes are registered
+	if err := p.bootPluginsFromRegistry(); err != nil {
+		fmt.Printf("Warning: Plugin boot failed: %v\n", err)
+	}
+
 	return p
+}
+
+/// # bootPluginsFromRegistry Metodu
+///
+/// Global registry'den plugin'leri alır ve boot eder.
+/// Bu metod New() fonksiyonunda otomatik olarak çağrılır.
+///
+/// ## Parametreler
+/// Yok (alıcı: *Panel)
+///
+/// ## Dönüş Değeri
+/// - `error`: Plugin boot işlemi başarısızsa hata, aksi takdirde nil
+///
+/// ## Davranış
+/// 1. Global registry'den tüm plugin'leri alır
+/// 2. Her plugin'i RegisterPlugin ile kaydeder
+/// 3. BootPlugins ile tüm plugin'leri boot eder
+///
+/// ## Önemli Notlar
+/// - Bu metod New() fonksiyonunda otomatik olarak çağrılır
+/// - Plugin'ler init() fonksiyonunda global registry'ye kaydedilmelidir
+func (p *Panel) bootPluginsFromRegistry() error {
+	// Global registry'den tüm plugin'leri al
+	plugins := plugin.All()
+
+	if len(plugins) == 0 {
+		return nil
+	}
+
+	fmt.Printf("Booting %d plugins from registry...\n", len(plugins))
+
+	// Her plugin'i kaydet
+	for _, plg := range plugins {
+		if err := p.RegisterPlugin(plg); err != nil {
+			return fmt.Errorf("failed to register plugin '%s': %w", plg.Name(), err)
+		}
+	}
+
+	// Tüm plugin'leri boot et
+	if err := p.BootPlugins(); err != nil {
+		return fmt.Errorf("failed to boot plugins: %w", err)
+	}
+
+	fmt.Printf("Successfully booted %d plugins\n", len(plugins))
+	return nil
 }
 
 // / # LoadSettings Metodu
@@ -1726,6 +1860,9 @@ func (p *Panel) handleInit(c *context.Context) error {
 		}
 	}
 
+	// Get i18n and theme data
+	injectionData := GetHTMLInjectionData(c.Ctx, p.Config)
+
 	return c.JSON(fiber.Map{
 		"features": fiber.Map{
 			"register":        registerEnabled,
@@ -1734,6 +1871,11 @@ func (p *Panel) handleInit(c *context.Context) error {
 		"oauth": fiber.Map{
 			"google": p.Config.OAuth.Google.Enabled(),
 		},
+		"i18n": fiber.Map{
+			"lang":      injectionData.Lang,
+			"direction": injectionData.Dir,
+		},
+		"theme":    injectionData.Theme,
 		"version":  "1.0.0",
 		"settings": p.Config.SettingsValues.Values,
 	})
@@ -1820,5 +1962,154 @@ func (p *Panel) handleResolve(c *context.Context) error {
 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 		"error": "Page not found",
 	})
+}
+
+/// # RegisterPlugin Metodu
+///
+/// Plugin'i Panel'e kaydeder ve plugin'in Register() metodunu çağırır.
+///
+/// ## Parametreler
+/// - `p`: Kaydedilecek plugin
+///
+/// ## Dönüş Değeri
+/// - `error`: Plugin kaydı başarısızsa hata, aksi takdirde nil
+///
+/// ## Davranış
+/// 1. Plugin'in Register() metodunu çağırır
+/// 2. Plugin'i plugins listesine ekler
+///
+/// ## Kullanım Örneği
+/// ```go
+/// p := panel.New(config)
+/// if err := p.RegisterPlugin(&MyPlugin{}); err != nil {
+///     log.Fatal(err)
+/// }
+/// ```
+///
+/// ## Önemli Notlar
+/// - Bu metod Start() çağrılmadan önce çağrılmalıdır
+/// - Plugin'in Register() metodu hata döndürürse kayıt yapılmaz
+func (p *Panel) RegisterPlugin(plugin interface{}) error {
+	// Type assertion: Plugin interface'ini kontrol et
+	if pluginImpl, ok := plugin.(interface {
+		Register(panel interface{}) error
+	}); ok {
+		if err := pluginImpl.Register(p); err != nil {
+			return fmt.Errorf("plugin registration failed: %w", err)
+		}
+		p.plugins = append(p.plugins, plugin)
+		return nil
+	}
+	return fmt.Errorf("plugin does not implement Register method")
+}
+
+/// # BootPlugins Metodu
+///
+/// Tüm kayıtlı plugin'leri boot eder. Plugin'lerin Boot() metodunu çağırır.
+///
+/// ## Parametreler
+/// Yok (alıcı: *Panel)
+///
+/// ## Dönüş Değeri
+/// - `error`: Plugin boot işlemi başarısızsa hata, aksi takdirde nil
+///
+/// ## Davranış
+/// 1. Tüm kayıtlı plugin'leri dolaşır
+/// 2. Her plugin'in Boot() metodunu çağırır
+/// 3. Plugin'lerin resource, page, middleware vb. eklemelerini yapar
+///
+/// ## Kullanım Örneği
+/// ```go
+/// p := panel.New(config)
+/// p.RegisterPlugin(&MyPlugin{})
+/// if err := p.BootPlugins(); err != nil {
+///     log.Fatal(err)
+/// }
+/// p.Start()
+/// ```
+///
+/// ## Önemli Notlar
+/// - Bu metod Start() çağrılmadan önce çağrılmalıdır
+/// - Plugin'lerin Boot() metodu hata döndürürse boot işlemi durur
+/// - Plugin'ler sırayla boot edilir
+func (p *Panel) BootPlugins() error {
+	for _, plugin := range p.plugins {
+		// Type assertion: Plugin interface'ini kontrol et
+		if pluginImpl, ok := plugin.(interface {
+			Boot(panel interface{}) error
+			Name() string
+		}); ok {
+			if err := pluginImpl.Boot(p); err != nil {
+				return fmt.Errorf("plugin '%s' boot failed: %w", pluginImpl.Name(), err)
+			}
+
+			// Plugin'in resource'larını kaydet
+			if resourceProvider, ok := plugin.(interface {
+				Resources() []resource.Resource
+			}); ok {
+				if resources := resourceProvider.Resources(); resources != nil {
+					for _, res := range resources {
+						p.RegisterResource(res)
+					}
+				}
+			}
+
+			// Plugin'in page'lerini kaydet
+			if pageProvider, ok := plugin.(interface {
+				Pages() []interface {
+					Slug() string
+					Title() string
+					Icon() string
+					Group() string
+					Visible() bool
+					NavigationOrder() int
+				}
+			}); ok {
+				if pages := pageProvider.Pages(); pages != nil {
+					for _, pg := range pages {
+						// Type assertion: page.Page interface'ini kontrol et
+						if pagePage, ok := pg.(page.Page); ok {
+							p.RegisterPage(pagePage)
+						}
+					}
+				}
+			}
+
+			// Plugin'in middleware'lerini kaydet
+			if middlewareProvider, ok := plugin.(interface {
+				Middleware() []fiber.Handler
+			}); ok {
+				if middlewares := middlewareProvider.Middleware(); middlewares != nil {
+					for _, mw := range middlewares {
+						p.Fiber.Use(mw)
+					}
+				}
+			}
+
+			// Plugin'in route'larını kaydet
+			if routeProvider, ok := plugin.(interface {
+				Routes(router fiber.Router)
+			}); ok {
+				routeProvider.Routes(p.Fiber)
+			}
+
+			// Plugin'in migration'larını çalıştır
+			if migrationProvider, ok := plugin.(interface {
+				Migrations() []interface {
+					Name() string
+					Up(db interface{}) error
+				}
+			}); ok {
+				if migrations := migrationProvider.Migrations(); migrations != nil {
+					for _, migration := range migrations {
+						if err := migration.Up(p.Db); err != nil {
+							return fmt.Errorf("plugin '%s' migration '%s' failed: %w", pluginImpl.Name(), migration.Name(), err)
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 

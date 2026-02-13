@@ -1,6 +1,6 @@
 ---
 name: panel-go-resource
-description: Generate complete admin panel resources with CRUD operations, field resolvers, card resolvers, and policies for Panel.go projects. Use when creating new resources or setting up complete admin functionality.
+description: Generate complete admin panel resources with CRUD operations, field resolvers, card resolvers, and policies for Panel.go projects. Use when creating new resources or setting up complete admin functionality. For plugin-based resources with comprehensive examples, see panel-go-plugin-scaffold.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
@@ -203,3 +203,28 @@ When user asks to create a new resource:
 7. **Register resource** in main.go: `panel.Register(resource.New{Name}Resource())`
 8. **Create migration** for database table
 9. **Add permissions** to permissions.toml
+
+## Plugin-Based Resources
+
+For creating plugin-based resources with comprehensive examples:
+
+```bash
+# Create plugin with comprehensive examples
+panel plugin create example --with-example
+
+# This creates 7 resources demonstrating:
+# - Entity.go pattern (all entities in one file)
+# - Registry pattern (resource access without imports)
+# - All relationship types (BelongsTo, HasMany, HasOne, BelongsToMany)
+# - Policy, FieldResolver, RecordTitle implementations
+```
+
+See `panel-go-plugin-scaffold` skill for plugin-based resource creation.
+
+## Related Skills
+
+- **panel-go-plugin-scaffold**: Create plugins with comprehensive resource examples
+- **panel-go-relationship**: Add relationships between resources
+- **panel-go-field-resolver**: Configure resource fields
+- **panel-go-policy**: Implement resource authorization
+- **panel-go-migration**: Create database migrations for resources

@@ -1,210 +1,268 @@
-# RTL (Right-to-Left) Desteği Kullanım Kılavuzu
+# RTL ve Dark Tema Desteği
 
-Bu dokümantasyon, Panel.go'da RTL (Right-to-Left) desteğinin nasıl kullanılacağını açıklar.
+Panel.go, backend-driven RTL (Right-to-Left) ve dark tema desteği sağlar. Kullanıcı sadece backend config yapar, frontend otomatik olarak handle eder.
 
 ## İçindekiler
 
-1. [Genel Bakış](#genel-bakış)
-2. [Backend RTL Desteği](#backend-rtl-desteği)
-3. [Frontend RTL Desteği](#frontend-rtl-desteği)
-4. [Kullanım Örnekleri](#kullanım-örnekleri)
-
----
+- [Genel Bakış](#genel-bakış)
+- [Backend Yapılandırma](#backend-yapılandırma)
+- [HTML Injection Sistemi](#html-injection-sistemi)
+- [Frontend Entegrasyon](#frontend-entegrasyon)
+- [Kullanım Örnekleri](#kullanım-örnekleri)
 
 ## Genel Bakış
 
-Panel.go, Arapça, İbranice, Farsça ve Urduca gibi sağdan sola yazılan diller için tam RTL desteği sağlar.
+### Backend-Driven Yaklaşım
+
+Panel.go, RTL ve dark tema desteğini **backend-driven** olarak sağlar:
+
+1. ✅ **Kullanıcı sadece Go config yapar** - Frontend kod yazmaya gerek yok
+2. ✅ **Otomatik HTML injection** - Backend runtime'da HTML'i modify eder
+3. ✅ **Initial render'da aktif** - JavaScript gerektirmez, SEO friendly
+4. ✅ **API desteği** - `/api/init` endpoint'i RTL ve theme bilgisi döndürür
 
 ### Desteklenen RTL Dilleri
 
-| Dil | Kod | Açıklama |
-|-----|-----|----------|
-| Arapça | `ar` | Arabic |
-| İbranice | `he` | Hebrew |
-| Farsça | `fa` | Persian |
-| Urduca | `ur` | Urdu |
+| Dil | Kod | Direction |
+|-----|-----|-----------|
+| Arapça | `ar` | rtl |
+| İbranice | `he` | rtl |
+| Farsça | `fa` | rtl |
+| Urduca | `ur` | rtl |
 
----
+### Desteklenen Temalar
 
-## Backend RTL Desteği
+- `light` - Açık tema (varsayılan)
+- `dark` - Koyu tema
 
-### RTL Helper Fonksiyonları
+## Backend Yapılandırma
 
-**Dosya:** `pkg/rtl/rtl.go`
-
-```go
-import "github.com/ferdiunal/panel.go/pkg/rtl"
-
-// Dil RTL mi kontrol et
-if rtl.IsRTL(language.Arabic) {
-    // RTL layout kullan
-}
-
-// Dil kodu RTL mi kontrol et
-if rtl.IsRTLString("ar") {
-    // RTL layout kullan
-}
-
-// Text direction al
-dir := rtl.GetDirection(language.Arabic)
-// dir = "rtl"
-
-// Dil kodundan direction al
-dir := rtl.GetDirectionString("ar")
-// dir = "rtl"
-
-// Context'ten direction al
-dir := rtl.GetDirectionFromContext(c)
-```
-
-### RTL Middleware
-
-RTL middleware, otomatik olarak `X-Text-Direction` header'ını ekler:
+### 1. i18n Config (RTL için)
 
 ```go
+package main
+
 import (
     "github.com/ferdiunal/panel.go/pkg/panel"
-    "github.com/ferdiunal/panel.go/pkg/rtl"
+    "golang.org/x/text/language"
 )
 
 func main() {
     config := panel.Config{
-        // ... diğer yapılandırmalar
+        I18n: panel.I18nConfig{
+            Enabled:          true,
+            RootPath:         "./locales",
+            AcceptLanguages:  []language.Tag{
+                language.Turkish,
+                language.English,
+                language.Arabic,  // RTL otomatik aktif
+                language.Hebrew,  // RTL otomatik aktif
+            },
+            DefaultLanguage:  language.Turkish,
+            FormatBundleFile: "yaml",
+        },
     }
 
     p := panel.New(config)
-
-    // RTL middleware'ini ekle
-    p.Fiber.Use(rtl.Middleware())
-
     p.Start()
 }
 ```
 
-### i18n ile Entegrasyon
+### 2. Tema Config
 
-RTL desteği, i18n helper fonksiyonları ile entegre çalışır:
+Tema bilgisi cookie veya query parameter'dan alınır:
+
+```bash
+# Cookie ile
+curl -H "Cookie: theme=dark" http://localhost:8080
+
+# Query parameter ile
+curl http://localhost:8080?theme=dark
+```
+
+## HTML Injection Sistemi
+
+### Nasıl Çalışır?
+
+1. **panel.web'de placeholder'lar** (`index.html`):
+   ```html
+   <html lang="{{PANEL_LANG}}" dir="{{PANEL_DIR}}" data-theme="{{PANEL_THEME}}">
+     <head>
+       <title>{{PANEL_TITLE}}</title>
+     </head>
+   </html>
+   ```
+
+2. **Backend runtime'da replace** (`pkg/panel/html.go`):
+   ```go
+   html = strings.ReplaceAll(html, "{{PANEL_LANG}}", "ar")
+   html = strings.ReplaceAll(html, "{{PANEL_DIR}}", "rtl")
+   html = strings.ReplaceAll(html, "{{PANEL_THEME}}", "dark")
+   html = strings.ReplaceAll(html, "{{PANEL_TITLE}}", "Panel.go")
+   ```
+
+3. **Client'a serve edilen HTML**:
+   ```html
+   <html lang="ar" dir="rtl" data-theme="dark">
+     <head>
+       <title>Panel.go</title>
+     </head>
+   </html>
+   ```
+
+### Placeholder'lar
+
+| Placeholder | Açıklama | Örnek Değer |
+|-------------|----------|-------------|
+| `{{PANEL_LANG}}` | Dil kodu | `ar`, `en`, `tr` |
+| `{{PANEL_DIR}}` | Text direction | `rtl`, `ltr` |
+| `{{PANEL_THEME}}` | Tema | `dark`, `light` |
+| `{{PANEL_TITLE}}` | Site başlığı | `Panel.go` |
+
+### HTML Injection Fonksiyonları
 
 ```go
-import (
-    "github.com/ferdiunal/panel.go/pkg/i18n"
-    "github.com/ferdiunal/panel.go/pkg/rtl"
-)
+// pkg/panel/html.go
 
-func MyHandler(c *fiber.Ctx) error {
-    // Mevcut dili al
-    lang := i18n.GetLocale(c)
+// Injection data oluştur
+data := panel.GetHTMLInjectionData(c, config)
 
-    // Direction'ı al
-    dir := rtl.GetDirectionString(lang)
+// HTML'i inject et
+html := panel.InjectHTML(htmlString, data)
 
-    // Çeviri yap
-    message := i18n.Trans(c, "welcome")
-
-    return c.JSON(fiber.Map{
-        "message":   message,
-        "direction": dir,
-        "lang":      lang,
-    })
-}
+// HTML serve et
+panel.ServeHTML(c, "assets/ui/index.html", config)
 ```
 
----
+## Frontend Entegrasyon
 
-## Frontend RTL Desteği
+### CSS ile RTL Desteği
 
-### React Hook
-
-Frontend'de RTL desteği için bir React hook oluşturun:
-
-**Dosya:** `web/src/hooks/use-rtl.ts`
-
-```typescript
-import { useEffect } from 'react'
-
-const RTL_LANGUAGES = ['ar', 'he', 'fa', 'ur']
-
-export function useRTL(lang: string) {
-  const isRTL = RTL_LANGUAGES.includes(lang)
-  const direction = isRTL ? 'rtl' : 'ltr'
-
-  useEffect(() => {
-    // HTML dir attribute'unu güncelle
-    document.documentElement.dir = direction
-    document.documentElement.lang = lang
-
-    // Body'ye RTL class ekle
-    if (isRTL) {
-      document.body.classList.add('rtl')
-    } else {
-      document.body.classList.remove('rtl')
-    }
-  }, [lang, direction, isRTL])
-
-  return { isRTL, direction }
-}
-```
-
-### Tailwind CSS RTL Desteği
-
-Tailwind CSS'de RTL desteği için `rtl:` prefix'ini kullanın:
-
-```tsx
-// LTR'de margin-left, RTL'de margin-right
-<div className="ml-4 rtl:mr-4 rtl:ml-0">
-  Content
-</div>
-
-// LTR'de text-left, RTL'de text-right
-<div className="text-left rtl:text-right">
-  Text
-</div>
-
-// LTR'de float-left, RTL'de float-right
-<div className="float-left rtl:float-right">
-  Sidebar
-</div>
-```
-
-### Logical Properties
-
-Modern CSS logical properties kullanın:
+Frontend'de `[dir="rtl"]` selector ile RTL stilleri yönetilir:
 
 ```css
-/* Fiziksel properties yerine */
-.element {
-  margin-left: 1rem;  /* ❌ Kötü */
-  margin-right: 1rem; /* ❌ Kötü */
+/* Tailwind CSS */
+[dir="rtl"] .rtl\:mr-4 {
+  margin-right: 1rem;
 }
 
-/* Logical properties kullanın */
-.element {
-  margin-inline-start: 1rem;  /* ✅ İyi */
-  margin-inline-end: 1rem;    /* ✅ İyi */
+[dir="rtl"] .rtl\:ml-0 {
+  margin-left: 0;
+}
+
+/* Custom CSS */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+[dir="rtl"] .sidebar {
+  left: auto;
+  right: 0;
 }
 ```
 
-Tailwind CSS logical properties:
+### CSS ile Dark Tema Desteği
 
-```tsx
-// margin-inline-start (LTR'de left, RTL'de right)
-<div className="ms-4">Content</div>
+```css
+/* Tailwind CSS */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
 
-// margin-inline-end (LTR'de right, RTL'de left)
-<div className="me-4">Content</div>
+[data-theme="dark"] .dark\:bg-gray-900 {
+  background-color: #111827;
+}
 
-// padding-inline-start
-<div className="ps-4">Content</div>
-
-// padding-inline-end
-<div className="pe-4">Content</div>
+/* Custom CSS */
+[data-theme="dark"] body {
+  background: #1a1a1a;
+  color: #ffffff;
+}
 ```
 
----
+### JavaScript ile Dinamik Değişiklik (Opsiyonel)
+
+Frontend JavaScript ile tema değiştirme:
+
+```typescript
+// Tema değiştir
+function setTheme(theme: 'light' | 'dark') {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.cookie = `theme=${theme}; path=/; max-age=31536000`;
+}
+
+// RTL değiştir (dil değişikliği ile)
+function setLanguage(lang: string) {
+  window.location.href = `/?lang=${lang}`;
+}
+```
 
 ## Kullanım Örnekleri
 
-### Örnek 1: RTL Dil Desteği ile Resource
+### Örnek 1: Arapça RTL Desteği
+
+**Backend Config:**
+```go
+config := panel.Config{
+    I18n: panel.I18nConfig{
+        Enabled:         true,
+        DefaultLanguage: language.Arabic, // RTL otomatik
+    },
+}
+```
+
+**Sonuç:**
+```html
+<html lang="ar" dir="rtl" data-theme="light">
+```
+
+**API Response:**
+```json
+{
+  "i18n": {
+    "lang": "ar",
+    "direction": "rtl"
+  },
+  "theme": "light"
+}
+```
+
+### Örnek 2: Dark Tema
+
+**Request:**
+```bash
+curl -H "Cookie: theme=dark" http://localhost:8080
+```
+
+**Sonuç:**
+```html
+<html lang="en" dir="ltr" data-theme="dark">
+```
+
+### Örnek 3: Arapça + Dark Tema
+
+**Request:**
+```bash
+curl -H "Cookie: theme=dark" http://localhost:8080?lang=ar
+```
+
+**Sonuç:**
+```html
+<html lang="ar" dir="rtl" data-theme="dark">
+```
+
+**API Response:**
+```json
+{
+  "i18n": {
+    "lang": "ar",
+    "direction": "rtl"
+  },
+  "theme": "dark"
+}
+```
+
+### Örnek 4: Resource ile RTL
 
 ```go
 package resource
@@ -213,8 +271,6 @@ import (
     "github.com/ferdiunal/panel.go/pkg/fields"
     "github.com/ferdiunal/panel.go/pkg/i18n"
     "github.com/ferdiunal/panel.go/pkg/resource"
-    "github.com/ferdiunal/panel.go/pkg/rtl"
-    "github.com/gofiber/fiber/v2"
 )
 
 type ProductResource struct {
@@ -223,251 +279,185 @@ type ProductResource struct {
 
 func NewProductResource() *ProductResource {
     r := &ProductResource{}
-
     r.SetModel(&Product{})
     r.SetSlug("products")
 
-    // i18n destekli başlık
+    // i18n destekli başlık (RTL otomatik)
     r.SetTitleFunc(func(c *fiber.Ctx) string {
         return i18n.Trans(c, "resources.products.title")
-    })
-
-    r.SetIcon("package")
-
-    // i18n destekli grup
-    r.SetGroupFunc(func(c *fiber.Ctx) string {
-        return i18n.Trans(c, "resources.groups.content")
     })
 
     return r
 }
 
 func (r *ProductResource) Fields(c *fiber.Ctx) []fields.Field {
-    // RTL direction'ı al
-    dir := rtl.GetDirectionFromContext(c)
-
     return []fields.Field{
         fields.Text("name").
             Label(i18n.Trans(c, "product.name")).
-            Placeholder(i18n.Trans(c, "product.name_placeholder")).
-            // RTL için text direction ekle
-            Props(map[string]interface{}{
-                "dir": dir,
-            }),
+            Placeholder(i18n.Trans(c, "product.name_placeholder")),
 
         fields.Textarea("description").
-            Label(i18n.Trans(c, "product.description")).
-            Props(map[string]interface{}{
-                "dir": dir,
-            }),
+            Label(i18n.Trans(c, "product.description")),
     }
 }
 ```
 
-### Örnek 2: Frontend RTL Hook Kullanımı
+## API Endpoint
 
-```tsx
-import { useRTL } from '@/hooks/use-rtl'
-import { useLanguage } from '@/hooks/use-language'
+### GET /api/init
 
-export function App() {
-  const { lang } = useLanguage()
-  const { isRTL, direction } = useRTL(lang)
+Init endpoint'i RTL ve theme bilgisini döndürür:
 
-  return (
-    <div className="app" dir={direction}>
-      {/* LTR'de left, RTL'de right */}
-      <aside className="sidebar ms-0 me-auto rtl:ms-auto rtl:me-0">
-        Sidebar
-      </aside>
-
-      {/* Ana içerik */}
-      <main className="content">
-        <h1 className="text-start rtl:text-end">
-          {isRTL ? 'مرحبا' : 'Welcome'}
-        </h1>
-      </main>
-    </div>
-  )
-}
-```
-
-### Örnek 3: API Response ile RTL Bilgisi
-
-```go
-func (p *Panel) handleInit(c *context.Context) error {
-    // Mevcut dili al
-    lang := i18n.GetLocale(c.Ctx)
-
-    // RTL mi kontrol et
-    isRTL := rtl.IsRTLString(lang)
-    dir := rtl.GetDirectionString(lang)
-
-    return c.JSON(fiber.Map{
-        "features": fiber.Map{
-            "register":        p.Config.Features.Register,
-            "forgot_password": p.Config.Features.ForgotPassword,
-        },
-        "i18n": fiber.Map{
-            "lang":      lang,
-            "direction": dir,
-            "isRTL":     isRTL,
-        },
-        "version":  "1.0.0",
-        "settings": p.Config.SettingsValues.Values,
-    })
-}
-```
-
-### Örnek 4: Arapça Dil Desteği
-
-**Dil Dosyası (`locales/ar/messages.yaml`):**
-
-```yaml
-# Genel Mesajlar
-welcome:
-  other: "مرحبا"
-
-welcomeWithName:
-  other: "مرحبا، {{.Name}}"
-
-# Resource Grupları
-resources:
-  groups:
-    system:
-      other: "النظام"
-    content:
-      other: "المحتوى"
-
-  # User Resource
-  users:
-    title:
-      other: "المستخدمون"
-    fields:
-      name:
-        other: "الاسم"
-      email:
-        other: "البريد الإلكتروني"
-      password:
-        other: "كلمة المرور"
-```
-
-**Kullanım:**
-
+**Request:**
 ```bash
-# Arapça ile API çağrısı
-curl http://localhost:8080/api/resource/users?lang=ar
+curl http://localhost:8080/api/init?lang=ar
+```
 
-# Response
+**Response:**
+```json
 {
-  "data": [...],
-  "meta": {
+  "features": {
+    "register": true,
+    "forgot_password": false
+  },
+  "oauth": {
+    "google": false
+  },
+  "i18n": {
     "lang": "ar",
-    "direction": "rtl",
-    "isRTL": true
+    "direction": "rtl"
+  },
+  "theme": "light",
+  "version": "1.0.0",
+  "settings": {
+    "site_name": "Panel.go"
   }
 }
 ```
 
----
-
 ## Best Practices
 
-### 1. Logical Properties Kullanın
+### 1. Dil Dosyaları
+
+Arapça dil dosyası örneği (`locales/ar/messages.yaml`):
+
+```yaml
+# Genel
+welcome:
+  other: "مرحبا"
+
+# Resources
+resources:
+  products:
+    title:
+      other: "المنتجات"
+
+# Fields
+product:
+  name:
+    other: "الاسم"
+  description:
+    other: "الوصف"
+```
+
+### 2. CSS Logical Properties
+
+Fiziksel properties yerine logical properties kullanın:
 
 ```css
-/* ❌ Kötü - Fiziksel properties */
+/* ❌ Kötü - Fiziksel */
 .element {
   margin-left: 1rem;
   padding-right: 2rem;
-  border-left: 1px solid;
 }
 
-/* ✅ İyi - Logical properties */
+/* ✅ İyi - Logical */
 .element {
   margin-inline-start: 1rem;
   padding-inline-end: 2rem;
-  border-inline-start: 1px solid;
 }
 ```
 
-### 2. Tailwind RTL Utilities
+### 3. Tailwind RTL Utilities
 
 ```tsx
-/* ❌ Kötü - Sabit direction */
+/* ❌ Kötü */
 <div className="ml-4 text-left">Content</div>
 
-/* ✅ İyi - RTL destekli */
-<div className="ms-4 text-start rtl:text-end">Content</div>
+/* ✅ İyi */
+<div className="ms-4 text-start">Content</div>
 ```
 
-### 3. Icon Flipping
-
-Bazı iconlar RTL'de ters çevrilmelidir:
+### 4. Icon Flipping
 
 ```tsx
 /* Yön gösteren iconlar RTL'de ters çevrilmeli */
 <ChevronRight className="rtl:rotate-180" />
-<ArrowLeft className="rtl:rotate-180" />
 
 /* Nötr iconlar ters çevrilmemeli */
 <User className="" />
-<Settings className="" />
 ```
 
-### 4. Text Alignment
+## Avantajlar
 
-```tsx
-/* ❌ Kötü */
-<p className="text-left">Text</p>
+### Backend-Driven Yaklaşım
 
-/* ✅ İyi */
-<p className="text-start">Text</p>
-```
+✅ **Kullanıcı Dostu**: Sadece Go config, frontend kod yok
+✅ **SEO Friendly**: HTML'de doğru `lang`, `dir` attribute'ları
+✅ **Initial Render**: JavaScript gerektirmez, ilk yüklemede aktif
+✅ **Performanslı**: Sadece string replace (regex yok)
+✅ **Type-Safe**: Go type system ile güvenli
 
-### 5. Flexbox Direction
+### Geleneksel Yaklaşım (❌)
 
-```tsx
-/* ❌ Kötü */
-<div className="flex flex-row">
-  <div>Left</div>
-  <div>Right</div>
-</div>
+❌ **Frontend Kod Gerekli**: React hook, useEffect, vb.
+❌ **JavaScript Bağımlı**: Initial render'da RTL yok
+❌ **SEO Sorunları**: HTML attribute'ları eksik
+❌ **Karmaşık**: Kullanıcı frontend kod yazmalı
 
-/* ✅ İyi - Otomatik RTL desteği */
-<div className="flex">
-  <div>Start</div>
-  <div>End</div>
-</div>
-```
+## Troubleshooting
 
----
-
-## Sorun Giderme
-
-### Problem: RTL düzgün çalışmıyor
+### Problem: RTL çalışmıyor
 
 **Çözüm:**
-1. HTML `dir` attribute'unun doğru ayarlandığını kontrol edin
-2. Tailwind CSS'de `rtl:` prefix'inin çalıştığını kontrol edin
-3. Logical properties kullandığınızdan emin olun
+1. HTML'de `dir` attribute'unu kontrol edin:
+   ```bash
+   curl http://localhost:8080 | grep 'dir="rtl"'
+   ```
 
-### Problem: Iconlar ters çevrilmiyor
+2. i18n config'i kontrol edin:
+   ```go
+   config.I18n.Enabled = true
+   ```
+
+3. Dil dosyalarını kontrol edin:
+   ```bash
+   ls locales/ar/
+   ```
+
+### Problem: Dark tema çalışmıyor
 
 **Çözüm:**
-1. Yön gösteren iconlara `rtl:rotate-180` class'ı ekleyin
-2. Nötr iconları olduğu gibi bırakın
+1. Cookie'yi kontrol edin:
+   ```bash
+   curl -v http://localhost:8080 | grep theme
+   ```
 
-### Problem: Text alignment yanlış
+2. HTML'de `data-theme` attribute'unu kontrol edin:
+   ```bash
+   curl http://localhost:8080 | grep data-theme
+   ```
+
+### Problem: Placeholder'lar replace edilmiyor
 
 **Çözüm:**
-1. `text-left/right` yerine `text-start/end` kullanın
-2. `rtl:text-end` gibi RTL-specific class'lar ekleyin
-
----
+1. panel.web'de placeholder'ların doğru olduğunu kontrol edin
+2. Backend'de `ServeHTML` fonksiyonunun çağrıldığını kontrol edin
+3. Build alın: `panel plugin build`
 
 ## Kaynaklar
 
-- [Tailwind CSS RTL Support](https://tailwindcss.com/docs/hover-focus-and-other-states#rtl-support)
+- [i18n Helpers](./I18N_HELPERS.md) - Çoklu dil desteği
+- [Plugin Sistemi](./PLUGIN_SYSTEM.md) - Plugin geliştirme
+- [Tailwind RTL](https://tailwindcss.com/docs/hover-focus-and-other-states#rtl-support)
 - [CSS Logical Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Logical_Properties)
-- [shadcn/ui RTL Documentation](https://ui.shadcn.com/docs/rtl)
