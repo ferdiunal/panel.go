@@ -1,0 +1,20 @@
+# Permission Definitions
+# This file defines the available resources and actions for the application.
+# Format: [role_name]
+#   label = "Display Name"
+#   permissions = ["resource.action", "resource.*", "*"]
+#
+# Available actions: view_any, view, create, update, delete
+# Use "*" for all permissions
+
+[admin]
+label = "Admin"
+permissions = ["*"]
+
+[editor]
+label = "Editor"
+permissions = ["users.view_any", "users.view", "users.create", "users.update", "users.delete", "settings.view", "settings.update"]
+
+[user]
+label = "User"
+permissions = ["users.view_any", "users.view"]

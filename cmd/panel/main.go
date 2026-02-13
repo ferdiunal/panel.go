@@ -507,6 +507,18 @@ func createProjectFiles(projectName, database string) {
 	}
 	createFileFromStub("env.stub", ".env", envData)
 
+	// permissions.toml oluştur
+	permissionsContent, err := stubsFS.ReadFile("stubs/permissions.toml.stub")
+	if err != nil {
+		fmt.Printf("Error reading permissions.toml.stub: %v\n", err)
+	} else {
+		if err := os.WriteFile("permissions.toml", permissionsContent, 0644); err != nil {
+			fmt.Printf("Error creating permissions.toml: %v\n", err)
+		} else {
+			fmt.Printf("Created: permissions.toml\n")
+		}
+	}
+
 	// .gitignore oluştur (eğer yoksa)
 	if _, err := os.Stat(".gitignore"); os.IsNotExist(err) {
 		gitignoreContent := `# Binaries
