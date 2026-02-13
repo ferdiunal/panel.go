@@ -154,14 +154,17 @@ func newPublishSkillsCommand() *cobra.Command {
 
 // newInitCommand, init komutunu oluşturur.
 func newInitCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Projeyi başlatır (stubs + skills)",
-		Long:  "Yeni bir Panel.go projesini başlatır. Stub ve skill dosyalarını kopyalar.",
+		Short: "Projeyi başlatır (stubs + skills + starter files)",
+		Long:  "Yeni bir Panel.go projesini başlatır. Starter dosyaları, stub ve skill dosyalarını oluşturur.",
 		Run: func(cmd *cobra.Command, args []string) {
-			initProject()
+			database, _ := cmd.Flags().GetString("database")
+			initProject(database)
 		},
 	}
+	cmd.Flags().StringP("database", "d", "", "Database driver (sqlite, postgres, mysql)")
+	return cmd
 }
 
 // makeResource, yeni bir resource (kaynak) oluşturur.
@@ -388,7 +391,7 @@ func publishSkills() {
 }
 
 // initProject, yeni bir Panel.go projesini başlatır.
-func initProject() {
+func initProject(database string) {
 	fmt.Println("🚀 Initializing Panel.go project...\n")
 
 	// Proje adını al (mevcut dizin adı)
@@ -399,8 +402,20 @@ func initProject() {
 	}
 	projectName := filepath.Base(cwd)
 
-	fmt.Println("📦 Creating project files...")
-	createProjectFiles(projectName)
+	// Database seçimi (flag yoksa kullanıcıya sor)
+	if database == "" {
+		database = promptDatabaseSelection()
+	}
+
+	// Database'i normalize et
+	database = strings.ToLower(strings.TrimSpace(database))
+	if database != "sqlite" && database != "postgres" && database != "mysql" {
+		fmt.Printf("⚠️  Invalid database driver: %s, using sqlite\n", database)
+		database = "sqlite"
+	}
+
+	fmt.Printf("📦 Creating project files (database: %s)...\n", database)
+	createProjectFiles(projectName, database)
 
 	fmt.Println("\n📦 Publishing stubs...")
 	publishStubs()
@@ -423,8 +438,29 @@ func initProject() {
 	fmt.Println("  5. Use Claude Code skills with /panel-go-resource")
 }
 
+// promptDatabaseSelection, kullanıcıya database seçimi için interactive prompt gösterir.
+func promptDatabaseSelection() string {
+	fmt.Println("Select database driver:")
+	fmt.Println("  1. SQLite (default, file-based)")
+	fmt.Println("  2. PostgreSQL (recommended for production)")
+	fmt.Println("  3. MySQL")
+	fmt.Print("\nEnter choice [1-3] (default: 1): ")
+
+	var choice string
+	fmt.Scanln(&choice)
+
+	switch strings.TrimSpace(choice) {
+	case "2":
+		return "postgres"
+	case "3":
+		return "mysql"
+	default:
+		return "sqlite"
+	}
+}
+
 // createProjectFiles, proje başlangıç dosyalarını oluşturur.
-func createProjectFiles(projectName string) {
+func createProjectFiles(projectName, database string) {
 	// COOKIE_ENCRYPTION_KEY oluştur (openssl rand -base64 32)
 	encryptionKey, err := generateEncryptionKey()
 	if err != nil {
@@ -432,11 +468,30 @@ func createProjectFiles(projectName string) {
 		encryptionKey = "PLEASE-GENERATE-YOUR-OWN-KEY-WITH-OPENSSL"
 	}
 
-	// main.go oluştur
-	data := map[string]string{
+	// main.go oluştur (database'e göre)
+	mainData := map[string]string{
 		"ProjectName": projectName,
+		"Database":    database,
 	}
-	createFileFromStub("main.stub", "main.go", data)
+
+	// Database'e göre farklı stub kullan
+	var mainStub string
+	switch database {
+	case "postgres":
+		mainStub = "main-postgres.stub"
+	case "mysql":
+		mainStub = "main-mysql.stub"
+	default:
+		mainStub = "main.stub" // SQLite
+	}
+
+	// Eğer database-specific stub yoksa, generic stub kullan
+	if _, err := stubsFS.ReadFile(filepath.Join("stubs", mainStub)); err != nil {
+		mainStub = "main.stub"
+		mainData["DatabaseDriver"] = database
+	}
+
+	createFileFromStub(mainStub, "main.go", mainData)
 
 	// go.mod oluştur
 	modData := map[string]string{
@@ -444,10 +499,11 @@ func createProjectFiles(projectName string) {
 	}
 	createFileFromStub("go.mod.stub", "go.mod", modData)
 
-	// .env oluştur
+	// .env oluştur (database'e göre)
 	envData := map[string]string{
 		"ProjectName":   projectName,
 		"EncryptionKey": encryptionKey,
+		"Database":      database,
 	}
 	createFileFromStub("env.stub", ".env", envData)
 
