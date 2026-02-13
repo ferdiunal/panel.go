@@ -1045,6 +1045,51 @@ const (
 	// - Karmaşıklığı azaltma
 	TYPE_PANEL ElementType = "panel"
 
+	// TYPE_TABS, alanları tab'lara ayırmak için kullanılan konteyner alan tipidir.
+	//
+	// Bu alan tipi, ilgili alanları tab'lar halinde organize etmek için kullanılır.
+	// Her tab, kendi başlığı ve içeriği ile ayrı bir bölüm oluşturur.
+	//
+	// # Kullanım Senaryoları
+	//
+	// - Çoklu dil desteği (Türkçe, İngilizce, vb. tab'ları)
+	// - Kategorize edilmiş form alanları (Genel Bilgiler, Adres, İletişim tab'ları)
+	// - Karmaşık formları organize etme
+	// - İlgili alanları gruplandırma
+	// - Uzun formları bölümlere ayırma
+	//
+	// # Örnek Kullanım
+	//
+	// ```go
+	// fields.Tabs("Ürün Bilgileri").
+	//     AddTab("tr", "Türkçe", []core.Element{
+	//         fields.Text("Başlık", "title_tr"),
+	//         fields.Textarea("Açıklama", "description_tr"),
+	//     }).
+	//     AddTab("en", "English", []core.Element{
+	//         fields.Text("Title", "title_en"),
+	//         fields.Textarea("Description", "description_en"),
+	//     }).
+	//     WithSide("top").
+	//     WithVariant("line")
+	// ```
+	//
+	// # Özellikler
+	//
+	// - Çoklu tab desteği
+	// - Tab pozisyonu (top, bottom, left, right)
+	// - Tab variant'ı (default, line)
+	// - Varsayılan aktif tab
+	// - Her tab'da farklı field'lar
+	//
+	// # Avantajlar
+	//
+	// - Daha iyi kullanıcı deneyimi
+	// - Form organizasyonu
+	// - Alan tasarrufu
+	// - Görsel hiyerarşi
+	TYPE_TABS ElementType = "tabs"
+
 	// TYPE_RELATIONSHIP, genel ilişki alanı için kullanılan alan tipidir.
 	//
 	// Bu alan tipi, tüm ilişki tiplerini (BelongsTo, HasMany, BelongsToMany, vb.) destekleyen
