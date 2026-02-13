@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/rtl"
 	"github.com/gofiber/fiber/v2"
 )
@@ -43,9 +42,11 @@ type HTMLInjectionData struct {
 //   - HTMLInjectionData: Injection data
 func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 	// Dil bilgisini al
-	lang := i18n.GetLocale(c)
-	if lang == "" {
-		lang = "en" // Varsayılan dil
+	lang := "en"
+
+	// Config'deki default language'i kullan
+	if config.I18n.Enabled && config.I18n.DefaultLanguage.String() != "" {
+		lang = config.I18n.DefaultLanguage.String()
 	}
 
 	// Direction bilgisini al
