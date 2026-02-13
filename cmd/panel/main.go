@@ -18,6 +18,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -424,6 +425,13 @@ func initProject() {
 
 // createProjectFiles, proje başlangıç dosyalarını oluşturur.
 func createProjectFiles(projectName string) {
+	// COOKIE_ENCRYPTION_KEY oluştur (openssl rand -base64 32)
+	encryptionKey, err := generateEncryptionKey()
+	if err != nil {
+		fmt.Printf("Warning: Failed to generate encryption key: %v\n", err)
+		encryptionKey = "PLEASE-GENERATE-YOUR-OWN-KEY-WITH-OPENSSL"
+	}
+
 	// main.go oluştur
 	data := map[string]string{
 		"ProjectName": projectName,
@@ -437,16 +445,11 @@ func createProjectFiles(projectName string) {
 	createFileFromStub("go.mod.stub", "go.mod", modData)
 
 	// .env oluştur
-	envContent, err := stubsFS.ReadFile("stubs/env.stub")
-	if err != nil {
-		fmt.Printf("Error reading env.stub: %v\n", err)
-		return
+	envData := map[string]string{
+		"ProjectName":   projectName,
+		"EncryptionKey": encryptionKey,
 	}
-	if err := os.WriteFile(".env", envContent, 0644); err != nil {
-		fmt.Printf("Error creating .env: %v\n", err)
-		return
-	}
-	fmt.Printf("Created: .env\n")
+	createFileFromStub("env.stub", ".env", envData)
 
 	// .gitignore oluştur (eğer yoksa)
 	if _, err := os.Stat(".gitignore"); os.IsNotExist(err) {
@@ -486,4 +489,14 @@ storage/
 			fmt.Printf("Created: .gitignore\n")
 		}
 	}
+}
+
+// generateEncryptionKey, openssl kullanarak 32-byte encryption key oluşturur.
+func generateEncryptionKey() (string, error) {
+	cmd := exec.Command("openssl", "rand", "-base64", "32")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
