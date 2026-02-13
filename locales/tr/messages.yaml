@@ -1,0 +1,120 @@
+# Türkçe Dil Dosyası
+# Panel.go için çeviri mesajları
+
+# Genel Mesajlar
+welcome:
+  other: "Hoş geldiniz"
+
+welcomeWithName:
+  other: "Hoş geldiniz, {{.Name}}"
+
+# Hata Mesajları
+error:
+  notFound:
+    other: "Kayıt bulunamadı"
+  unauthorized:
+    other: "Bu işlem için yetkiniz yok"
+  serverError:
+    other: "Sunucu hatası oluştu"
+  validationError:
+    other: "Doğrulama hatası"
+  serviceUnavailable:
+    other: "Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin."
+
+# Circuit Breaker Mesajları
+circuitBreaker:
+  open:
+    other: "Servis geçici olarak kullanılamıyor. Lütfen birkaç dakika sonra tekrar deneyin."
+  halfOpen:
+    other: "Servis kurtarılıyor. Lütfen bekleyin."
+  tooManyRequests:
+    other: "Çok fazla istek gönderildi. Lütfen bekleyin."
+
+# Başarı Mesajları
+success:
+  created:
+    other: "Kayıt başarıyla oluşturuldu"
+  updated:
+    other: "Kayıt başarıyla güncellendi"
+  deleted:
+    other: "Kayıt başarıyla silindi"
+
+# Form Mesajları
+form:
+  required:
+    other: "Bu alan zorunludur"
+  invalid:
+    other: "Geçersiz değer"
+  tooShort:
+    other: "Çok kısa"
+  tooLong:
+    other: "Çok uzun"
+
+# Navigasyon
+navigation:
+  dashboard:
+    other: "Kontrol Paneli"
+  settings:
+    other: "Ayarlar"
+  users:
+    other: "Kullanıcılar"
+  logout:
+    other: "Çıkış"
+
+# Butonlar
+button:
+  save:
+    other: "Kaydet"
+  cancel:
+    other: "İptal"
+  delete:
+    other: "Sil"
+  edit:
+    other: "Düzenle"
+  create:
+    other: "Oluştur"
+  back:
+    other: "Geri"
+  submit:
+    other: "Gönder"
+
+# Onay Mesajları
+confirm:
+  delete:
+    other: "Bu kaydı silmek istediğinizden emin misiniz?"
+  unsavedChanges:
+    other: "Kaydedilmemiş değişiklikler var. Çıkmak istediğinizden emin misiniz?"
+
+# Resource Grupları
+resources:
+  groups:
+    system:
+      other: "Sistem"
+    content:
+      other: "İçerik"
+    settings:
+      other: "Ayarlar"
+
+  # User Resource
+  users:
+    title:
+      other: "Kullanıcılar"
+    fields:
+      image:
+        other: "Profil Resmi"
+      name:
+        other: "Ad"
+      name_placeholder:
+        other: "Adınızı girin"
+      email:
+        other: "E-posta"
+      email_placeholder:
+        other: "E-posta adresinizi girin"
+      role:
+        other: "Rol"
+      role_placeholder:
+        other: "Bir rol seçin"
+      password:
+        other: "Şifre"
+      password_placeholder:
+        other: "Şifrenizi girin"

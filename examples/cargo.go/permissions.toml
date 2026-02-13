@@ -1,0 +1,17 @@
+# Permissions configuration for cargo.go
+
+[roles.admin]
+name = "Admin"
+permissions = ["*"]
+
+[roles.organization]
+name = "Organization"
+permissions = ["read", "create", "update"]
+
+[roles.user]
+name = "User"
+permissions = ["read", "create", "update"]
+
+[roles.guest]
+name = "Guest"
+permissions = ["read"]

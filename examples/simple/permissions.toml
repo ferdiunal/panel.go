@@ -1,0 +1,14 @@
+# Permission Definitions
+# This file defines the available resources and actions for the application.
+
+[admin]
+label = "Admin"
+permissions = ["*"]
+
+[editor]
+label = "Editor"
+permissions = ["users.view_any", "users.view", "users.create", "users.update", "users.delete", "roles.view_any", "roles.view", "roles.create", "roles.update", "roles.delete", "settings.view", "settings.update"]
+
+[user]
+label = "User"
+permissions = ["users.view_any", "users.view", "users.create", "users.update", "users.delete"]
