@@ -63,6 +63,18 @@ docker-down:
 test:
 	@echo "Testing..."
 	@go test ./... -v
+
+test-race:
+	@echo "Testing with race detector..."
+	@go test -race ./...
+
+vet:
+	@echo "Running go vet..."
+	@go vet ./...
+
+vuln:
+	@echo "Running govulncheck..."
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 # Integrations Tests for the application
 itest:
 	@echo "Running integration tests..."
@@ -90,4 +102,4 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test clean watch docker-run docker-down itest templ-install
+.PHONY: all build run test test-race vet vuln clean watch docker-run docker-down itest templ-install
