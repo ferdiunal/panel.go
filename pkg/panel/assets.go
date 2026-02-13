@@ -35,6 +35,7 @@ package panel
 import (
 	"embed"
 	"io/fs"
+	"os"
 )
 
 // embedFS, Go'nun embed özelliği kullanılarak ui/ dizinindeki tüm dosyaları içerir.
@@ -78,49 +79,59 @@ var embedFS embed.FS
 //
 // # Dönüş Değerleri
 //
-// - `fs.FS`: Dosya sistemi arayüzü. Gömülü dosyalara erişim sağlar.
+// - `fs.FS`: Dosya sistemi arayüzü. Dosyalara erişim sağlar.
 // - `error`: İşlem sırasında oluşan hata. Başarılı durumda nil döndürülür.
+//
+// # Dosya Sistemi Öncelik Sırası
+//
+// 1. **Plugin UI (assets/ui/)**: Eğer proje dizininde assets/ui/ varsa, öncelikle bu kullanılır
+//    - Plugin sistemi UI build'i bu dizine kopyalar
+//    - Custom field'lar ve plugin UI'ları bu dizinde bulunur
+//
+// 2. **Embedded UI (pkg/panel/ui/)**: Plugin UI yoksa, binary'ye gömülü UI kullanılır
+//    - Varsayılan Panel.go UI
+//    - Harici dosya bağımlılığı yok
+//
+// 3. **Fallback (nil)**: useEmbed=false ise nil döndürülür
+//    - Geliştirme ortamında disk'ten dosyaları yüklemek için
 //
 // # Kullanım Senaryoları
 //
-// ## Senaryo 1: Üretim Ortamında Gömülü Dosyaları Kullan
+// ## Senaryo 1: Plugin Kullanımı (Üretim)
 //
+//	// Plugin oluşturulduğunda UI build assets/ui/ dizinine kopyalanır
 //	fs, err := GetFileSystem(true)
-//	if err != nil {
-//		log.Fatalf("Dosya sistemi alınamadı: %v", err)
-//	}
-//	// fs'i HTTP sunucusunda kullan
-//	http.Handle("/ui/", http.FileServer(http.FS(fs)))
+//	// fs -> assets/ui/ (plugin UI)
 //
-// ## Senaryo 2: Geliştirme Ortamında Disk'ten Dosyaları Yükle
+// ## Senaryo 2: Varsayılan Panel (Üretim)
+//
+//	// assets/ui/ dizini yoksa, embedded UI kullanılır
+//	fs, err := GetFileSystem(true)
+//	// fs -> pkg/panel/ui/ (embedded)
+//
+// ## Senaryo 3: Geliştirme Ortamı
 //
 //	fs, err := GetFileSystem(false)
-//	if err != nil || fs == nil {
-//		// Fallback: Disk'ten dosyaları yükle
-//		fs = os.DirFS("./pkg/panel/ui")
-//	}
-//	// fs'i HTTP sunucusunda kullan
-//	http.Handle("/ui/", http.FileServer(http.FS(fs)))
-//
-// ## Senaryo 3: Ortam Değişkenine Göre Karar Ver
-//
-//	useEmbedded := os.Getenv("USE_EMBEDDED_UI") == "true"
-//	fs, err := GetFileSystem(useEmbedded)
 //	if err != nil || fs == nil {
 //		fs = os.DirFS("./pkg/panel/ui")
 //	}
 //
 // # Detaylı Açıklama
 //
-// Bu fonksiyon, Panel uygulamasının UI dosyalarını yönetmek için iki farklı strateji sunar:
+// Bu fonksiyon, Panel uygulamasının UI dosyalarını yönetmek için üç farklı strateji sunar:
 //
-// 1. **Gömülü Dosya Sistemi (useEmbed=true)**:
+// 1. **Plugin UI (assets/ui/)**:
+//    - Plugin sistemi kullanıldığında UI build bu dizine kopyalanır
+//    - Custom field'lar ve plugin UI'ları içerir
+//    - Öncelikli olarak kontrol edilir
+//
+// 2. **Gömülü Dosya Sistemi (useEmbed=true)**:
 //    - Binary'ye gömülü ui/ dizinini kullanır
 //    - fs.Sub() kullanarak "ui" alt dizinine erişim sağlar
-//    - Üretim ortamında tercih edilir
+//    - Üretim ortamında fallback olarak kullanılır
 //    - Harici dosya bağımlılığı yoktur
 //
-// 2. **Disk Dosya Sistemi (useEmbed=false)**:
+// 3. **Disk Dosya Sistemi (useEmbed=false)**:
 //    - nil döndürür
 //    - Çağıran taraf os.DirFS() kullanarak disk'ten dosyaları yükler
 //    - Geliştirme ortamında tercih edilir
@@ -128,6 +139,7 @@ var embedFS embed.FS
 //
 // # Avantajlar
 //
+// - **Plugin Desteği**: Plugin UI'ları otomatik olarak algılanır ve kullanılır
 // - **Esnek Dağıtım**: Üretim ve geliştirme ortamları için farklı stratejiler
 // - **Performans**: Gömülü dosyalar disk I/O'dan kaçınır
 // - **Güvenlik**: Dosyalar binary'ye gömülü olduğu için değiştirilmesi zor
@@ -141,6 +153,7 @@ var embedFS embed.FS
 //
 // # Önemli Notlar
 //
+// - assets/ui/ dizini varsa, öncelikli olarak kullanılır (plugin UI)
 // - fs.Sub() fonksiyonu, embedFS'in "ui" alt dizinine erişim sağlar
 // - Döndürülen fs.FS arayüzü thread-safe'dir
 // - Dosya izinleri korunmaz, tüm dosyalar okunabilir olur
@@ -154,6 +167,7 @@ var embedFS embed.FS
 //
 // # Performans Özellikleri
 //
+// - Plugin UI (assets/ui/): O(n) erişim süresi (disk I/O'ya bağlı)
 // - Gömülü dosya sistemi: O(1) erişim süresi (bellekten)
 // - Disk dosya sistemi: O(n) erişim süresi (disk I/O'ya bağlı)
 // - fs.Sub() işlemi: Çok hızlı, sadece referans oluşturur
@@ -174,9 +188,18 @@ var embedFS embed.FS
 //
 // - fs.Sub(): Dosya sisteminin alt dizinine erişim sağlar
 // - os.DirFS(): Disk'ten dosyaları yükler
+// - os.Stat(): Dizin varlığını kontrol eder
 // - http.FileServer(): HTTP sunucusunda dosyaları sunar
 //
 func GetFileSystem(useEmbed bool) (fs.FS, error) {
+	// 1. Önce assets/ui/ dizinini kontrol et (plugin UI)
+	// Plugin sistemi kullanıldığında UI build bu dizine kopyalanır
+	if _, err := os.Stat("assets/ui"); err == nil {
+		// assets/ui/ dizini var, plugin UI'ı kullan
+		return os.DirFS("assets/ui"), nil
+	}
+
+	// 2. Embedded UI kullan (varsayılan Panel.go UI)
 	if useEmbed {
 		// embedFS'in "ui" alt dizinine erişim sağla.
 		// fs.Sub() fonksiyonu, embedFS'in "ui" dizinini kök olarak ayarlar.
@@ -187,7 +210,8 @@ func GetFileSystem(useEmbed bool) (fs.FS, error) {
 		// - fs.Sub() sonrası: index.html
 		return fs.Sub(embedFS, "ui")
 	}
-	// Geliştirme ortamında, çağıran taraf os.DirFS() kullanarak disk'ten dosyaları yükler.
+
+	// 3. Fallback: Geliştirme ortamında, çağıran taraf os.DirFS() kullanarak disk'ten dosyaları yükler.
 	// Bu, sıcak yenileme (hot reload) ve hızlı geliştirme için uygun.
 	return nil, nil
 }
