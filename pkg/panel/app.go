@@ -476,7 +476,7 @@ func New(config Config) *Panel {
 					return c.Next()
 				}
 
-				htmlBytes, err := assetsFS.ReadFile("index.html")
+				htmlBytes, err := fs.ReadFile(assetsFS, "index.html")
 				if err != nil {
 					return c.Status(500).SendString("Failed to load UI")
 				}
