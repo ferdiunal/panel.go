@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	appContext "github.com/ferdiunal/panel.go/internal/context"
@@ -24,27 +25,61 @@ type UserPolicy struct{}
 
 // ViewAny, kullanıcının listeyi görüntüleyip görüntüleyemeyeceğini belirler.
 func (p UserPolicy) ViewAny(ctx *appContext.Context) bool {
-	return true
+	authUser := ctx.User()
+	return authUser != nil && authUser.Role == domainUser.RoleAdmin
 }
 
 // View, kullanıcının belirli bir kaydı görüntüleyip görüntüleyemeyeceğini belirler.
 func (p UserPolicy) View(ctx *appContext.Context, model interface{}) bool {
-	return true
+	authUser := ctx.User()
+	if authUser == nil {
+		return false
+	}
+	if authUser.Role == domainUser.RoleAdmin {
+		return true
+	}
+
+	userModel, ok := model.(*domainUser.User)
+	if !ok || userModel == nil {
+		return false
+	}
+	return userModel.ID == authUser.ID
 }
 
 // Create, yeni bir kullanıcı oluşturma yetkisini kontrol eder.
 func (p UserPolicy) Create(ctx *appContext.Context) bool {
-	return true
+	authUser := ctx.User()
+	return authUser != nil && authUser.Role == domainUser.RoleAdmin
 }
 
 // Update, mevcut bir kullanıcıyı güncelleme yetkisini kontrol eder.
 func (p UserPolicy) Update(ctx *appContext.Context, model interface{}) bool {
-	return true
+	authUser := ctx.User()
+	if authUser == nil {
+		return false
+	}
+	if authUser.Role == domainUser.RoleAdmin {
+		return true
+	}
+	if model == nil {
+		return false
+	}
+
+	userModel, ok := model.(*domainUser.User)
+	if !ok || userModel == nil {
+		return false
+	}
+	return userModel.ID == authUser.ID
 }
 
 // Delete, bir kullanıcıyı silme yetkisini kontrol eder.
 // Kendini silmeyi engeller.
 func (p UserPolicy) Delete(ctx *appContext.Context, model interface{}) bool {
+	authUser := ctx.User()
+	if authUser == nil || authUser.Role != domainUser.RoleAdmin {
+		return false
+	}
+
 	// Genel yetki kontrolü (model nil ise)
 	if model == nil {
 		return true
@@ -52,11 +87,6 @@ func (p UserPolicy) Delete(ctx *appContext.Context, model interface{}) bool {
 
 	userModel, ok := model.(*domainUser.User)
 	if !ok {
-		return false
-	}
-
-	authUser := ctx.User()
-	if authUser == nil {
 		return false
 	}
 
@@ -117,6 +147,19 @@ func GetUserResource() resource.Resource {
 					}),
 				fields.Text("Name").Placeholder("Enter your name"),
 				fields.Email("Email").Placeholder("Enter your email"),
+				fields.Text("Role", "role").
+					Placeholder("admin or user").
+					Modify(func(value interface{}) interface{} {
+						role, ok := value.(string)
+						if !ok {
+							return domainUser.RoleUser
+						}
+						role = strings.ToLower(strings.TrimSpace(role))
+						if role != domainUser.RoleAdmin {
+							return domainUser.RoleUser
+						}
+						return role
+					}),
 				fields.Password("Password").
 					Nullable().
 					OnlyOnForm().
