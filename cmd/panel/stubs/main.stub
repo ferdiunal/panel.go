@@ -1,0 +1,63 @@
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/ferdiunal/panel.go/pkg/panel"
+	"github.com/ferdiunal/panel.go/pkg/resource"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+func main() {
+	// Veritabanı bağlantısı (SQLite)
+	db, err := gorm.Open(sqlite.Open("{{.ProjectName}}.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	// Panel konfigürasyonu
+	cfg := panel.Config{
+		EncryptionCookie: encryptcookie.Config{
+			Key:    os.Getenv("COOKIE_ENCRYPTION_KEY"),
+			Except: []string{"csrf_token"},
+		},
+		Database: panel.DatabaseConfig{
+			Instance: db,
+		},
+		Features: panel.FeatureConfig{
+			Register:       true,
+			ForgotPassword: true,
+		},
+		Server: panel.ServerConfig{
+			Host: "localhost",
+			Port: "8080",
+		},
+		Environment: "development",
+		Storage: panel.StorageConfig{
+			Path: "./storage/public",
+			URL:  "/storage",
+		},
+		Permissions: panel.PermissionConfig{
+			Path: "permissions.toml",
+		},
+		Resources: []resource.Resource{
+			// Resource'larınızı buraya ekleyin
+			// Örnek: blog.NewBlogResource(),
+		},
+	}
+
+	// Panel'i başlat
+	app, err := panel.New(cfg)
+	if err != nil {
+		log.Fatal("Failed to create panel:", err)
+	}
+
+	// Sunucuyu başlat
+	log.Printf("🚀 Panel.go starting on http://%s:%s\n", cfg.Server.Host, cfg.Server.Port)
+	if err := app.Listen(cfg.Server.Host + ":" + cfg.Server.Port); err != nil {
+		log.Fatal("Failed to start server:", err)
+	}
+}
