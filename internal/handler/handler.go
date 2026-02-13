@@ -42,6 +42,8 @@ func (h *FieldHandler) SetElements(elements []fields.Element) {
 
 // NewResourceHandler creates a FieldHandler from a Resource definition
 func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storageURL string) *FieldHandler {
+	elements := fields.CloneElements(res.Fields())
+
 	var provider data.DataProvider
 	if repo := res.Repository(db); repo != nil {
 		provider = repo
@@ -52,7 +54,7 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	cards := res.Cards()
 
 	var searchCols []string
-	for _, field := range res.Fields() {
+	for _, field := range elements {
 		if field.IsSearchable() {
 			searchCols = append(searchCols, field.GetKey())
 		}
@@ -63,7 +65,7 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	return &FieldHandler{
 		DB:          db,
 		Provider:    provider,
-		Elements:    res.Fields(),
+		Elements:    elements,
 		Policy:      res.Policy(),
 		Resource:    res,
 		StoragePath: storagePath,
@@ -76,6 +78,8 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 
 // NewLensHandler creates a FieldHandler from a Resource and Lens definition
 func NewLensHandler(db *gorm.DB, res resource.Resource, lens resource.Lens) *FieldHandler {
+	lensElements := fields.CloneElements(lens.Fields())
+
 	// Use Lens.Query to get the base query
 	lensQuery := lens.Query(db)
 
@@ -83,7 +87,7 @@ func NewLensHandler(db *gorm.DB, res resource.Resource, lens resource.Lens) *Fie
 	provider := data.NewGormDataProvider(lensQuery, res.Model())
 
 	var searchCols []string
-	for _, field := range lens.Fields() {
+	for _, field := range lensElements {
 		if field.IsSearchable() {
 			searchCols = append(searchCols, field.GetKey())
 		}
@@ -93,7 +97,7 @@ func NewLensHandler(db *gorm.DB, res resource.Resource, lens resource.Lens) *Fie
 
 	return &FieldHandler{
 		Provider: provider,
-		Elements: lens.Fields(),
+		Elements: lensElements,
 		Title:    lens.Name(),
 		Resource: res,
 	}
@@ -641,7 +645,7 @@ func (h *FieldHandler) List(c *context.Context) error {
 
 	response := make([]map[string]interface{}, 0)
 
-	for _, element := range ctx.Elements {
+	for _, element := range fields.CloneElements(ctx.Elements) {
 		// Resolve value if resource is present
 		if ctx.Resource != nil {
 			element.Extract(ctx.Resource)

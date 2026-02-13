@@ -24,6 +24,9 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 // CreateUser implements the domain repository interface (typed)
 func (r *UserRepository) CreateUser(ctx context.Context, u *user.User) error {
 	u.ID = uuid.NewUUID().String()
+	if u.Role == "" {
+		u.Role = user.RoleUser
+	}
 	return r.db.WithContext(ctx).Create(u).Error
 }
 
@@ -32,6 +35,9 @@ func (r *UserRepository) Create(ctx context.Context, data map[string]interface{}
 	// Generate UUID if not present
 	if _, ok := data["id"]; !ok || data["id"] == "" {
 		data["id"] = uuid.NewUUID().String()
+	}
+	if _, ok := data["role"]; !ok || data["role"] == "" {
+		data["role"] = user.RoleUser
 	}
 	return r.GormDataProvider.Create(ctx, data)
 }

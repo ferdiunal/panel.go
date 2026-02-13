@@ -31,6 +31,9 @@ func (h *Handler) RegisterEmail(c *context.Context) error {
 		if err == auth.ErrEmailAlreadyExists {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 		}
+		if err == auth.ErrInvalidEmail || err == auth.ErrWeakPassword || err == auth.ErrInvalidName {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -53,6 +56,9 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 
 	session, err := h.service.LoginEmail(c.Context(), req.Email, req.Password, c.IP(), c.Get("User-Agent"))
 	if err != nil {
+		if err == auth.ErrTooManyAttempts {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": err.Error()})
+		}
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
