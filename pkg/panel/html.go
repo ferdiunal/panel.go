@@ -44,6 +44,8 @@ func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 	// Dil bilgisini al
 	lang := "en"
 
+	fmt.Println(config)
+
 	// Config'deki default language'i kullan
 	if config.I18n.Enabled && config.I18n.DefaultLanguage.String() != "" {
 		lang = config.I18n.DefaultLanguage.String()
