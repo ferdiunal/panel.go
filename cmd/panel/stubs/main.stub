@@ -7,13 +7,31 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/panel"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/sqlite"
+	// "gorm.io/driver/postgres" // PostgreSQL için uncomment edin
+	// "gorm.io/driver/mysql"    // MySQL için uncomment edin
 	"gorm.io/gorm"
 )
 
 func main() {
-	// Veritabanı bağlantısı (SQLite)
+	// .env dosyasını yükle
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found")
+	}
+
+	// Veritabanı bağlantısı
+	// SQLite (varsayılan)
 	db, err := gorm.Open(sqlite.Open("{{.ProjectName}}.db"), &gorm.Config{})
+
+	// PostgreSQL için:
+	// dsn := os.Getenv("DATABASE_DSN")
+	// db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	// MySQL için:
+	// dsn := os.Getenv("DATABASE_DSN")
+	// db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -32,10 +50,10 @@ func main() {
 			ForgotPassword: true,
 		},
 		Server: panel.ServerConfig{
-			Host: "localhost",
-			Port: "8080",
+			Host: os.Getenv("HOST"),
+			Port: os.Getenv("PORT"),
 		},
-		Environment: "development",
+		Environment: os.Getenv("ENVIRONMENT"),
 		Storage: panel.StorageConfig{
 			Path: "./storage/public",
 			URL:  "/storage",
