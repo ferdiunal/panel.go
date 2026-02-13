@@ -352,6 +352,10 @@ type Config struct {
 	/// I18n, çoklu dil desteği yapılandırmasını tutar
 	/// Uygulamanın farklı dillerde gösterilmesini sağlar
 	I18n I18nConfig
+
+	/// Plugins, plugin sistemi yapılandırmasını tutar
+	/// Plugin'lerin otomatik keşfi ve yüklenmesi için kullanılır
+	Plugins PluginConfig
 }
 
 // / # SettingsConfig - Dinamik Ayarlar Yapılandırması
@@ -845,4 +849,54 @@ type I18nConfig struct {
 	/// Varsayılan: "yaml"
 	/// Değerler: "yaml", "json", "toml"
 	FormatBundleFile string
+}
+
+// / # PluginConfig - Plugin Sistemi Yapılandırması
+// /
+// / Plugin sisteminin yapılandırma ayarlarını tutar.
+// / Plugin'lerin otomatik keşfi ve yüklenmesi için kullanılır.
+// /
+// / ## Kullanım Senaryoları
+// / - Plugin'leri otomatik keşfetme
+// / - Plugin klasörünü belirleme
+// / - Plugin yükleme stratejisi
+// /
+// / ## Örnek Kullanım
+// / ```go
+// / pluginConfig := PluginConfig{
+// /     AutoDiscover: true,
+// /     Path:         "./plugins",
+// / }
+// / ```
+// /
+// / ## Plugin Yükleme Stratejileri
+// / 1. **Manuel Import (Önerilen)**: Plugin'ler compile-time'da import edilir
+// /    ```go
+// /    import _ "github.com/user/my-plugin"
+// /    ```
+// / 2. **Auto-discovery (Opsiyonel)**: Plugin'ler runtime'da keşfedilir
+// /    ```go
+// /    config.Plugins.AutoDiscover = true
+// /    config.Plugins.Path = "./plugins"
+// /    ```
+// /
+// / ## Avantajlar
+// / - Manuel import: Type-safe, compile-time kontrol
+// / - Auto-discovery: Dinamik plugin yükleme
+// /
+// / ## Önemli Notlar
+// / - AutoDiscover varsayılan olarak false'tur
+// / - Manuel import tercih edilir (type-safe)
+// / - Auto-discovery opsiyoneldir
+type PluginConfig struct {
+	/// AutoDiscover, plugin'lerin otomatik keşfedilip keşfedilmeyeceğini belirtir
+	/// true: Plugin'ler otomatik keşfedilir, false: Manuel import gereklidir
+	/// Varsayılan: false (manuel import önerilir)
+	AutoDiscover bool
+
+	/// Path, plugin'lerin bulunduğu klasör yoludur
+	/// Varsayılan: "./plugins"
+	/// Örnek: "./plugins", "/etc/panel/plugins"
+	/// UYARI: AutoDiscover true olmalıdır
+	Path string
 }

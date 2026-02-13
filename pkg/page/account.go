@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/domain/account"
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -312,18 +314,20 @@ func (p *Account) Save(c *context.Context, db *gorm.DB, data map[string]interfac
 
 	// Şifre değiştirme
 	if newPassword, ok := data["new_password"].(string); ok && newPassword != "" {
-		// Mevcut şifre kontrolü
-		if currentPassword, ok := data["current_password"].(string); ok && currentPassword != "" {
-			// TODO: Şifre doğrulama işlemi yapılmalı
-			// Şimdilik basit bir kontrol
-			if currentPassword == "" {
-				return fmt.Errorf("mevcut şifre gerekli")
-			}
+		// Yeni şifreyi bcrypt ile hash'le
+		hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("şifre hash'lenemedi: %w", err)
 		}
 
-		// Yeni şifreyi hash'le
-		// TODO: Bcrypt veya benzer bir hash algoritması kullanılmalı
-		data["password"] = newPassword
+		// Account tablosunda şifreyi güncelle
+		if err := db.Model(&account.Account{}).
+			Where("user_id = ? AND provider_id = ?", u.ID, "credential").
+			Update("password", string(hashed)).Error; err != nil {
+			return fmt.Errorf("şifre güncellenemedi: %w", err)
+		}
+
+		// Şifre field'larını data'dan kaldır (user tablosuna yazılmasın)
 		delete(data, "new_password")
 		delete(data, "current_password")
 		delete(data, "confirm_password")
