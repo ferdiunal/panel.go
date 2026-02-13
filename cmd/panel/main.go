@@ -390,16 +390,100 @@ func publishSkills() {
 func initProject() {
 	fmt.Println("🚀 Initializing Panel.go project...\n")
 
-	fmt.Println("📦 Publishing stubs...")
+	// Proje adını al (mevcut dizin adı)
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current directory: %v\n", err)
+		return
+	}
+	projectName := filepath.Base(cwd)
+
+	fmt.Println("📦 Creating project files...")
+	createProjectFiles(projectName)
+
+	fmt.Println("\n📦 Publishing stubs...")
 	publishStubs()
 
 	fmt.Println("\n🎯 Publishing skills...")
 	publishSkills()
 
 	fmt.Println("\n✅ Project initialized successfully!")
+	fmt.Println("\nProject structure:")
+	fmt.Println("  ├── main.go           # Application entry point")
+	fmt.Println("  ├── go.mod            # Go module definition")
+	fmt.Println("  ├── .env              # Environment configuration")
+	fmt.Println("  ├── .panel/stubs/     # Code generation templates")
+	fmt.Println("  └── .claude/skills/   # Claude Code skills")
 	fmt.Println("\nNext steps:")
-	fmt.Println("  1. Create a resource: panel make:resource blog")
-	fmt.Println("  2. Create a model: panel make:model blog")
-	fmt.Println("  3. Customize stubs in .panel/stubs/")
-	fmt.Println("  4. Use Claude Code skills with /panel-go-resource")
+	fmt.Println("  1. Update .env with your configuration")
+	fmt.Println("  2. Run: go mod tidy")
+	fmt.Println("  3. Run: go run main.go")
+	fmt.Println("  4. Create a resource: panel make:resource blog")
+	fmt.Println("  5. Use Claude Code skills with /panel-go-resource")
+}
+
+// createProjectFiles, proje başlangıç dosyalarını oluşturur.
+func createProjectFiles(projectName string) {
+	// main.go oluştur
+	data := map[string]string{
+		"ProjectName": projectName,
+	}
+	createFileFromStub("main.stub", "main.go", data)
+
+	// go.mod oluştur
+	modData := map[string]string{
+		"ModuleName": projectName,
+	}
+	createFileFromStub("go.mod.stub", "go.mod", modData)
+
+	// .env oluştur
+	envContent, err := stubsFS.ReadFile("stubs/env.stub")
+	if err != nil {
+		fmt.Printf("Error reading env.stub: %v\n", err)
+		return
+	}
+	if err := os.WriteFile(".env", envContent, 0644); err != nil {
+		fmt.Printf("Error creating .env: %v\n", err)
+		return
+	}
+	fmt.Printf("Created: .env\n")
+
+	// .gitignore oluştur (eğer yoksa)
+	if _, err := os.Stat(".gitignore"); os.IsNotExist(err) {
+		gitignoreContent := `# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.db
+
+# Test binary
+*.test
+
+# Output
+*.out
+
+# Go workspace file
+go.work
+
+# Environment
+.env
+
+# Storage
+storage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+`
+		if err := os.WriteFile(".gitignore", []byte(gitignoreContent), 0644); err != nil {
+			fmt.Printf("Error creating .gitignore: %v\n", err)
+		} else {
+			fmt.Printf("Created: .gitignore\n")
+		}
+	}
 }

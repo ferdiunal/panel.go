@@ -1,0 +1,12 @@
+module {{.ModuleName}}
+
+go 1.25.0
+
+toolchain go1.25.0
+
+require (
+	github.com/ferdiunal/panel.go latest
+	github.com/gofiber/fiber/v2 v2.52.9
+	gorm.io/driver/sqlite v1.6.0
+	gorm.io/gorm v1.31.1
+)
