@@ -63,6 +63,7 @@ const (
 	TYPE_BOOLEAN         ElementType = core.TYPE_BOOLEAN
 	TYPE_SELECT          ElementType = core.TYPE_SELECT
 	TYPE_PANEL           ElementType = core.TYPE_PANEL
+	TYPE_TABS            ElementType = core.TYPE_TABS
 	TYPE_RELATIONSHIP    ElementType = core.TYPE_RELATIONSHIP
 	TYPE_BADGE           ElementType = core.TYPE_BADGE
 	TYPE_CODE            ElementType = core.TYPE_CODE
