@@ -282,6 +282,26 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 
 	/// ### Alanları Hazırla
 	/// Sayfanın tüm alanlarını (fields) işle ve gerekli verileri enjekte et
+
+	/// Account page için kullanıcı bilgilerini yükle
+	var accountUser *user.User
+	if pg.Slug() == "account" {
+		userID := c.Ctx.Locals("user_id")
+		if userID == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "User not authenticated",
+			})
+		}
+
+		var u user.User
+		if err := p.Db.First(&u, userID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+		accountUser = &u
+	}
+
 	var fieldsList []map[string]interface{}
 	for _, f := range pg.Fields() {
 		/// Alanı JSON formatına dönüştür
@@ -304,6 +324,23 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 					case "forgot_password":
 						serialized["data"] = p.Config.SettingsValues.ForgotPassword
 					}
+				}
+			}
+		}
+
+		/// Account page için özel işleme
+		/// Account sayfasında, alanların değerleri kullanıcı bilgilerinden enjekte edilir
+		if pg.Slug() == "account" && accountUser != nil {
+			if key, ok := serialized["key"].(string); ok {
+				switch key {
+				case "name":
+					serialized["data"] = accountUser.Name
+				case "email":
+					serialized["data"] = accountUser.Email
+				case "image":
+					serialized["data"] = accountUser.Image
+				case "new_password", "current_password", "confirm_password":
+					serialized["data"] = "" // Şifre field'ları boş döndürülür
 				}
 			}
 		}
