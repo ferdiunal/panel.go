@@ -7,7 +7,6 @@ package panel
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/ferdiunal/panel.go/pkg/i18n"

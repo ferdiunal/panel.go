@@ -57,14 +57,11 @@ func main() {
 	}
 
 	// Panel'i başlat
-	app, err := panel.New(cfg)
-	if err != nil {
-		log.Fatal("Failed to create panel:", err)
-	}
+	app := panel.New(cfg)
 
 	// Sunucuyu başlat
 	log.Printf("🚀 Panel.go starting on http://%s:%s\n", cfg.Server.Host, cfg.Server.Port)
-	if err := app.Listen(cfg.Server.Host + ":" + cfg.Server.Port); err != nil {
+	if err := app.Start(); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

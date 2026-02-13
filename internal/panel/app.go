@@ -18,6 +18,7 @@ import (
 	obs "github.com/ferdiunal/panel.go/internal/observability"
 	"github.com/ferdiunal/panel.go/internal/page"
 	"github.com/ferdiunal/panel.go/internal/resource"
+	resourceAudit "github.com/ferdiunal/panel.go/internal/resource/audit"
 	resourceUser "github.com/ferdiunal/panel.go/internal/resource/user"
 	"github.com/ferdiunal/panel.go/internal/service/auth"
 	"github.com/gofiber/fiber/v2"
@@ -118,6 +119,9 @@ func New(config Config) *Panel {
 	} else {
 		p.RegisterResource(resourceUser.GetUserResource())
 	}
+
+	// Register Audit Log Resource (readonly, admin only)
+	p.RegisterResource(resourceAudit.GetAuditLogResource())
 
 	// Register Pages from Config
 	if p.Config.DashboardPage != nil {
