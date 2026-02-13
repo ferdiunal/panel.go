@@ -1,97 +1,362 @@
-# Yetkilendirme ve Koşullu Görünürlük (Authorization & Conditionals)
+# Yetkilendirme (Authorization) Rehberi
 
-Panel SDK, kaynaklara erişimi kontrol etmek ve alanların (fields) görünürlüğünü dinamik olarak yönetmek için güçlü bir yapı sunar.
+Yetkilendirme, kullanıcıların hangi işlemleri yapabileceğini kontrol eder. Panel.go'da bu, Policy (Politika) sistemi aracılığıyla yapılır.
 
-## Politikalar (Policies)
+## Temel Kavramlar
 
-Politikalar, bir kullanıcının belirli bir kaynak üzerinde işlem yapıp yapamayacağını belirleyen mantığı kapsüller.
+### Policy Nedir?
 
-### Policy Arayüzü
+Policy, bir resource (kaynak) üzerinde yapılabilecek işlemleri kontrol eden bir yapıdır. Her resource'un kendi politikası vardır.
 
-Herhangi bir yetkilendirme mantığı `auth.Policy` arayüzünü uygulamalıdır:
+### Desteklenen İşlemler
 
 ```go
 type Policy interface {
-    ViewAny(ctx context.Context) bool             // Liste sayfasına erişim
-    View(ctx context.Context, model interface{}) bool // Detay sayfasına erişim
-    Create(ctx context.Context) bool              // Yeni oluşturma izni
-    Update(ctx context.Context, model interface{}) bool // Güncelleme izni
-    Delete(ctx context.Context, model interface{}) bool // Silme izni
+	// Tüm kaynakları görme izni
+	ViewAny(ctx *context.Context) bool
+
+	// Belirli bir kaynağı görme izni
+	View(ctx *context.Context, model any) bool
+
+	// Kaynak oluşturma izni
+	Create(ctx *context.Context) bool
+
+	// Kaynak güncelleme izni
+	Update(ctx *context.Context, model any) bool
+
+	// Kaynak silme izni
+	Delete(ctx *context.Context, model any) bool
+
+	// Kaynak geri yükleme izni
+	Restore(ctx *context.Context, model any) bool
+
+	// Kaynak kalıcı silme izni
+	ForceDelete(ctx *context.Context, model any) bool
 }
 ```
 
-### Policy Oluşturma
+## Basit Policy Örneği
 
-Örneğin, sadece adminlerin blog yazılarını silebileceği bir senaryo:
+Herkesin tüm işlemleri yapabileceği bir policy:
 
 ```go
-type BlogPolicy struct {}
+type PostPolicy struct{}
 
-func (p *BlogPolicy) ViewAny(ctx context.Context) bool {
-    return true // Herkes görebilir
+func (p *PostPolicy) ViewAny(ctx *context.Context) bool {
+	return true // Herkes yazıları görebilir
 }
 
-func (p *BlogPolicy) View(ctx context.Context, model interface{}) bool {
-    return true
+func (p *PostPolicy) View(ctx *context.Context, model any) bool {
+	return true // Herkes yazıları görebilir
 }
 
-func (p *BlogPolicy) Create(ctx context.Context) bool {
-    user := ctx.Value("user").(*User)
-    return user.IsAdmin
+func (p *PostPolicy) Create(ctx *context.Context) bool {
+	return true // Herkes yazı oluşturabilir
 }
 
-func (p *BlogPolicy) Update(ctx context.Context, model interface{}) bool {
-    user := ctx.Value("user").(*User)
-    blog := model.(*Blog)
-    return user.IsAdmin || blog.UserID == user.ID
+func (p *PostPolicy) Update(ctx *context.Context, model any) bool {
+	return true // Herkes yazı güncelleyebilir
 }
 
-func (p *BlogPolicy) Delete(ctx context.Context, model interface{}) bool {
-    user := ctx.Value("user").(*User)
-    return user.IsAdmin
+func (p *PostPolicy) Delete(ctx *context.Context, model any) bool {
+	return true // Herkes yazı silebilir
+}
+
+func (p *PostPolicy) Restore(ctx *context.Context, model any) bool {
+	return false // Geri yükleme desteklenmiyor
+}
+
+func (p *PostPolicy) ForceDelete(ctx *context.Context, model any) bool {
+	return false // Kalıcı silme desteklenmiyor
 }
 ```
 
-### Kaynağa Tanımlama
+## Gelişmiş Policy Örneği
 
-Politikayı kaynağınıza (Resource) `Policy()` metodu ile eklersiniz:
+Rol tabanlı yetkilendirme:
 
 ```go
-func (r *BlogResource) Policy() auth.Policy {
-    return &BlogPolicy{}
+type PostPolicy struct{}
+
+// Yardımcı fonksiyonlar
+func isAdmin(ctx *context.Context) bool {
+	// Context'ten kullanıcı bilgisini al
+	user := ctx.User()
+	return user != nil && user.Role == "admin"
+}
+
+func isEditor(ctx *context.Context) bool {
+	user := ctx.User()
+	return user != nil && user.Role == "editor"
+}
+
+func isAuthor(ctx *context.Context, post *Post) bool {
+	user := ctx.User()
+	return user != nil && post.AuthorID == user.ID
+}
+
+// Policy metodları
+func (p *PostPolicy) ViewAny(ctx *context.Context) bool {
+	// Herkes yazıları görebilir
+	return true
+}
+
+func (p *PostPolicy) View(ctx *context.Context, model any) bool {
+	post := model.(*Post)
+	// Yayınlanmış yazılar herkes görebilir
+	if post.Status == "published" {
+		return true
+	}
+	// Taslak yazıları sadece yazar ve admin görebilir
+	return isAuthor(ctx, post) || isAdmin(ctx)
+}
+
+func (p *PostPolicy) Create(ctx *context.Context) bool {
+	// Sadece editor ve admin yazı oluşturabilir
+	return isEditor(ctx) || isAdmin(ctx)
+}
+
+func (p *PostPolicy) Update(ctx *context.Context, model any) bool {
+	post := model.(*Post)
+	// Yazar kendi yazısını güncelleyebilir
+	if isAuthor(ctx, post) {
+		return true
+	}
+	// Admin herhangi bir yazıyı güncelleyebilir
+	return isAdmin(ctx)
+}
+
+func (p *PostPolicy) Delete(ctx *context.Context, model any) bool {
+	post := model.(*Post)
+	// Yazar kendi yazısını silebilir
+	if isAuthor(ctx, post) {
+		return true
+	}
+	// Admin herhangi bir yazıyı silebilir
+	return isAdmin(ctx)
+}
+
+func (p *PostPolicy) Restore(ctx *context.Context, model any) bool {
+	// Sadece admin geri yükleyebilir
+	return isAdmin(ctx)
+}
+
+func (p *PostPolicy) ForceDelete(ctx *context.Context, model any) bool {
+	// Sadece admin kalıcı silebilir
+	return isAdmin(ctx)
 }
 ```
 
-Bu tanımlandığında, Panel SDK tüm CRUD işlemlerinde (`Index`, `Show`, `Store`, `Update`, `Destroy`) otomatik olarak bu metodları kontrol eder. Erişim izni yoksa `403 Forbidden` döner.
+## Kullanıcı Bilgisine Erişim
 
-## Koşullu Alanlar (Conditional Fields)
-
-Bazen bir alanın sadece belirli durumlarda (örneğin sadece güncelleme formunda veya sadece adminler için) görünmesini istersiniz. Bunun için `CanSee` metodunu kullanabilirsiniz.
-
-### Kullanım
+Context'ten kullanıcı bilgisine erişebilirsiniz:
 
 ```go
-fields.Text("API Key", "api_key").
-    CanSee(func(ctx context.Context) bool {
-        user := ctx.Value("user").(User)
-        return user.IsAdmin
-    }),
+func (p *PostPolicy) Update(ctx *context.Context, model any) bool {
+	// Kullanıcı bilgisini al
+	user := ctx.User()
+	
+	if user == nil {
+		return false // Giriş yapmamış
+	}
+
+	// Kullanıcı bilgilerini kullan
+	post := model.(*Post)
+	
+	// Kullanıcı ID'si
+	if post.AuthorID == user.ID {
+		return true
+	}
+
+	// Kullanıcı rolü
+	if user.Role == "admin" {
+		return true
+	}
+
+	return false
+}
 ```
 
-Eğer `CanSee` false dönerse, alan API yanıtından tamamen çıkarılır ve frontend'de görüntülenmez. Ayrıca `Store` ve `Update` işlemlerinde de bu alanın değeri işlenmez.
-
-### Hazır Kısayollar
-
-Sık kullanılan durumlar için hazır metodlar da mevcuttur:
-
-*   `OnList()` / `HideOnList()`
-*   `OnDetail()` / `HideOnDetail()`
-*   `OnForm()` / `HideOnCreate()` / `HideOnUpdate()`
-*   `OnlyOnDetail()`
-
-Örnek:
+## Örnek: Yorum Yönetimi
 
 ```go
-fields.ID().OnlyOnDetail(), // Sadece detay sayfasında görünür
-fields.Text("Password").HideOnList().HideOnUpdate(), // Listede ve güncellemede gizli
+type Comment struct {
+	ID        string
+	PostID    string
+	AuthorID  string
+	Content   string
+	Status    string // pending, approved, rejected
+	CreatedAt time.Time
+}
+
+type CommentPolicy struct{}
+
+func (p *CommentPolicy) ViewAny(ctx *context.Context) bool {
+	// Herkes onaylı yorumları görebilir
+	return true
+}
+
+func (p *CommentPolicy) View(ctx *context.Context, model any) bool {
+	comment := model.(*Comment)
+	user := ctx.User()
+
+	// Onaylı yorumlar herkes görebilir
+	if comment.Status == "approved" {
+		return true
+	}
+
+	// Yorum yazarı kendi yorumunu görebilir
+	if user != nil && comment.AuthorID == user.ID {
+		return true
+	}
+
+	// Admin tüm yorumları görebilir
+	if user != nil && user.Role == "admin" {
+		return true
+	}
+
+	return false
+}
+
+func (p *CommentPolicy) Create(ctx *context.Context) bool {
+	// Giriş yapmış kullanıcılar yorum yapabilir
+	return ctx.User() != nil
+}
+
+func (p *CommentPolicy) Update(ctx *context.Context, model any) bool {
+	comment := model.(*Comment)
+	user := ctx.User()
+
+	// Yorum yazarı kendi yorumunu güncelleyebilir
+	if user != nil && comment.AuthorID == user.ID {
+		return true
+	}
+
+	// Admin herhangi bir yorumu güncelleyebilir
+	if user != nil && user.Role == "admin" {
+		return true
+	}
+
+	return false
+}
+
+func (p *CommentPolicy) Delete(ctx *context.Context, model any) bool {
+	comment := model.(*Comment)
+	user := ctx.User()
+
+	// Yorum yazarı kendi yorumunu silebilir
+	if user != nil && comment.AuthorID == user.ID {
+		return true
+	}
+
+	// Admin herhangi bir yorumu silebilir
+	if user != nil && user.Role == "admin" {
+		return true
+	}
+
+	return false
+}
+
+func (p *CommentPolicy) Restore(ctx *context.Context, model any) bool {
+	// Sadece admin geri yükleyebilir
+	user := ctx.User()
+	return user != nil && user.Role == "admin"
+}
+
+func (p *CommentPolicy) ForceDelete(ctx *context.Context, model any) bool {
+	// Sadece admin kalıcı silebilir
+	user := ctx.User()
+	return user != nil && user.Role == "admin"
+}
 ```
+
+## İpuçları
+
+1. **Güvenlik**: Her zaman context'i kontrol edin, nil olabilir
+2. **Performans**: Policy metodlarında ağır veritabanı sorguları yapmayın
+3. **Tutarlılık**: Aynı kuralları API ve UI'da uygulayın
+4. **Loglama**: Yetkilendirme başarısızlıklarını loglayın
+5. **Test**: Policy'leri kapsamlı şekilde test edin
+
+## Örnek: Departman Tabanlı Yetkilendirme
+
+```go
+type EmployeePolicy struct{}
+
+func (p *EmployeePolicy) ViewAny(ctx *context.Context) bool {
+	user := ctx.User()
+	// HR ve admin tüm çalışanları görebilir
+	return user != nil && (user.Department == "HR" || user.Role == "admin")
+}
+
+func (p *EmployeePolicy) View(ctx *context.Context, model any) bool {
+	employee := model.(*Employee)
+	user := ctx.User()
+
+	if user == nil {
+		return false
+	}
+
+	// Kendi bilgilerini görebilir
+	if employee.ID == user.ID {
+		return true
+	}
+
+	// Aynı departmandaki yönetici görebilir
+	if user.Role == "manager" && employee.Department == user.Department {
+		return true
+	}
+
+	// HR ve admin görebilir
+	if user.Department == "HR" || user.Role == "admin" {
+		return true
+	}
+
+	return false
+}
+
+func (p *EmployeePolicy) Create(ctx *context.Context) bool {
+	user := ctx.User()
+	// Sadece HR ve admin oluşturabilir
+	return user != nil && (user.Department == "HR" || user.Role == "admin")
+}
+
+func (p *EmployeePolicy) Update(ctx *context.Context, model any) bool {
+	employee := model.(*Employee)
+	user := ctx.User()
+
+	if user == nil {
+		return false
+	}
+
+	// Kendi bilgilerini güncelleyebilir
+	if employee.ID == user.ID {
+		return true
+	}
+
+	// HR ve admin güncelleyebilir
+	return user.Department == "HR" || user.Role == "admin"
+}
+
+func (p *EmployeePolicy) Delete(ctx *context.Context, model any) bool {
+	user := ctx.User()
+	// Sadece admin silebilir
+	return user != nil && user.Role == "admin"
+}
+
+func (p *EmployeePolicy) Restore(ctx *context.Context, model any) bool {
+	user := ctx.User()
+	return user != nil && user.Role == "admin"
+}
+
+func (p *EmployeePolicy) ForceDelete(ctx *context.Context, model any) bool {
+	user := ctx.User()
+	return user != nil && user.Role == "admin"
+}
+```
+
+## Sonraki Adımlar
+
+- [Başlangıç Rehberi](./Getting-Started.md) - Temel kurulum
+- [Alanlar Rehberi](./Fields.md) - Alan tanımı
+- [API Referansı](./API-Reference.md) - Tüm metodlar

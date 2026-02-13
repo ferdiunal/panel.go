@@ -34,11 +34,24 @@ func (u *UserResource) Fields() []fields.Element {
 }
 ```
 
-## Sonraki Adımlar
+## Dokümantasyon
 
--   Mevcut geniş UI öğeleri yelpazesini görmek için **[Alanlar (Fields)](Fields)** bölümünü inceleyin.
--   Verilerinizi yapılandırmak ve sorguları optimize etmek için **[Kaynaklar (Resources)](Resources)** hakkında bilgi edinin.
--   Özel raporlar ve görünümler oluşturmak için **[Lensler (Lenses)](Lenses)**'i keşfedin.
--   Erişim kontrolü ve görünürlük için **[Yetkilendirme (Authorization)](Authorization)** sayfasını okuyun.
--   UI entegrasyonu ve yanıt yapıları için **[API Referansı (API)](API-Reference)** bölümüne bakın.
--   Özel gösterge panelleri oluşturmak için **[Sayfalar (Pages)](Pages)** dokümantasyonunu inceleyin.
+### Başlangıç
+
+-   **[Başlarken (Getting Started)](Getting-Started)** - Panel SDK'yı kurun ve ilk kaynağınızı oluşturun
+-   **[Kaynaklar (Resources)](Resources)** - Kaynakları tanımlayın ve yapılandırın
+
+### Temel Kavramlar
+
+-   **[Alanlar (Fields)](Fields)** - Tüm alan türleri ve seçenekleri
+-   **[İlişkiler (Relationships)](Relationships)** - BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo
+-   **[Yetkilendirme (Authorization)](Authorization)** - Erişim kontrolü ve politikalar
+
+### İleri Seviye
+
+-   **[Gelişmiş Kullanım (Advanced Usage)](Advanced-Usage)** - Özel alanlar, middleware, hooks
+-   **[API Referansı (API Reference)](API-Reference)** - Tüm metodlar ve parametreler
+-   **[Lensler (Lenses)](Lenses)** - Özel raporlar ve görünümler
+-   **[Sayfalar (Pages)](Pages)** - Özel gösterge panelleri
+-   **[Ayarlar (Settings)](Settings)** - Uygulama ayarları
+-   **[Widgets](Widgets)** - Gösterge paneli widget'ları

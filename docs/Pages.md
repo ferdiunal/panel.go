@@ -4,16 +4,16 @@ Sayfalar (Pages), Panel SDK'da kaynaklar (resources) dışında kalan özel gör
 
 ## Sayfa Tanımlama
 
-Bir sayfa oluşturmak için `page.Page` arayüzünü implemente eden bir struct tanımlamanız gerekir.
+Bir sayfa oluşturmak için `page.Page` arayüzünü implemente eden bir struct tanımlamanız veya `page.Base` yapısını kullanmanız gerekir.
 
 ```go
 import (
-    "panel.go/internal/page"
-    "panel.go/internal/widget"
+    "github.com/ferdiunal/panel.go/pkg/page"
+    "github.com/ferdiunal/panel.go/pkg/widget"
 )
 
 type Dashboard struct {
-    page.Base // Temel implementasyon için gömülü struct
+    page.Base // Temel implementasyon
 }
 
 // Slug, sayfanın URL'deki kimliğidir (örn: /api/pages/dashboard)
@@ -26,9 +26,14 @@ func (d *Dashboard) Title() string {
     return "Genel Bakış"
 }
 
-// Widgets, sayfada gösterilecek bileşenleri tanımlar
-func (d *Dashboard) Widgets() []widget.Widget {
-    return []widget.Widget{
+// Icon (Lucide React ikon ismi)
+func (d *Dashboard) Icon() string {
+    return "layout-dashboard"
+}
+
+// Cards, sayfada gösterilecek bileşenleri tanımlar
+func (d *Dashboard) Cards() []widget.Card {
+    return []widget.Card{
         widget.NewCountWidget("Toplam Kullanıcı", &user.User{}),
         widget.NewTrendWidget("Kayıt Trendi", &user.User{}, "created_at"),
     }
@@ -37,18 +42,28 @@ func (d *Dashboard) Widgets() []widget.Widget {
 
 ## Sayfa Kaydetme (Registration)
 
-Oluşturduğunuz sayfayı uygulamanıza tanıtmak için `RegisterPage` metodunu kullanmalısınız. Bu işlem genellikle `main.go` içerisinde yapılır.
+Sayfaları `main.go` içerisinde yapılandırabilirsiniz:
 
 ```go
 func main() {
-    // ... uygulama yapılandırması ...
+    cfg := panel.Config{
+        // Varsayılan Dashboard sayfasını değiştirme
+        DashboardPage: &Dashboard{},
+        
+        // Settings sayfasına özel alanlar ekleme
+        SettingsPage: &page.Settings{
+            Elements: []fields.Element{
+                 fields.Text("Support Email", "support_email"),
+            },
+        },
+    }
     
-    p := panel.New(config)
+    app := panel.New(cfg)
     
-    // Sayfayı kaydet
-    p.RegisterPage(&Dashboard{})
+    // Özel bir sayfayı manuel kaydetme
+    app.RegisterPage(&CustomPage{})
     
-    p.Start()
+    app.Start()
 }
 ```
 
@@ -66,11 +81,13 @@ Kayıtlı sayfalara aşağıdaki endpointler üzerinden erişilebilir:
   "slug": "dashboard",
   "title": "Genel Bakış",
   "meta": {
-    "widgets": [
+    "cards": [
       {
         "component": "value-metric",
         "title": "Toplam Kullanıcı",
-        "value": 150,
+        "data": {
+            "value": 150
+        },
         "width": "1/3"
       },
       // ... diğer widget'lar
