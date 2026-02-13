@@ -8,7 +8,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -18,8 +18,9 @@ func main() {
 		log.Println("Warning: .env file not found")
 	}
 
-	// SQLite veritabanı bağlantısı
-	db, err := gorm.Open(sqlite.Open("{{.ProjectName}}.db"), &gorm.Config{})
+	// MySQL veritabanı bağlantısı
+	dsn := os.Getenv("DATABASE_DSN")
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
