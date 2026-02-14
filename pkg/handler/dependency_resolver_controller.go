@@ -22,10 +22,12 @@
 // ```go
 // // Router'a endpoint ekleme
 // app.Post("/resources/:resource/fields/resolve-dependencies",
-//     func(c *fiber.Ctx) error {
-//         ctx := context.New(c)
-//         return HandleResolveDependencies(fieldHandler, ctx)
-//     },
+//
+//	func(c *fiber.Ctx) error {
+//	    ctx := context.New(c)
+//	    return HandleResolveDependencies(fieldHandler, ctx)
+//	},
+//
 // )
 // ```
 //
@@ -37,6 +39,8 @@
 package handler
 
 import (
+	"reflect"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
@@ -58,28 +62,32 @@ import (
 //
 // ### 1. Create İşlemi
 // ```json
-// {
-//   "formData": {
-//     "country_id": 1,
-//     "name": "John Doe"
-//   },
-//   "context": "create",
-//   "changedFields": ["country_id"],
-//   "resourceId": null
-// }
+//
+//	{
+//	  "formData": {
+//	    "country_id": 1,
+//	    "name": "John Doe"
+//	  },
+//	  "context": "create",
+//	  "changedFields": ["country_id"],
+//	  "resourceId": null
+//	}
+//
 // ```
 //
 // ### 2. Update İşlemi
 // ```json
-// {
-//   "formData": {
-//     "country_id": 2,
-//     "city_id": 5
-//   },
-//   "context": "update",
-//   "changedFields": ["country_id"],
-//   "resourceId": 123
-// }
+//
+//	{
+//	  "formData": {
+//	    "country_id": 2,
+//	    "city_id": 5
+//	  },
+//	  "context": "update",
+//	  "changedFields": ["country_id"],
+//	  "resourceId": 123
+//	}
+//
 // ```
 //
 // ## Validasyon Kuralları
@@ -135,53 +143,61 @@ type ResolveDependenciesRequest struct {
 // ## Request Body Örneği
 //
 // ```json
-// {
-//   "formData": {
-//     "country_id": 1,
-//     "city_id": null,
-//     "district_id": null
-//   },
-//   "context": "create",
-//   "changedFields": ["country_id"],
-//   "resourceId": null
-// }
+//
+//	{
+//	  "formData": {
+//	    "country_id": 1,
+//	    "city_id": null,
+//	    "district_id": null
+//	  },
+//	  "context": "create",
+//	  "changedFields": ["country_id"],
+//	  "resourceId": null
+//	}
+//
 // ```
 //
 // ## Response Örneği
 //
 // ### Başarılı Response (200 OK)
 // ```json
-// {
-//   "fields": {
-//     "city_id": {
-//       "options": [
-//         {"value": 1, "label": "Istanbul"},
-//         {"value": 2, "label": "Ankara"}
-//       ],
-//       "value": null,
-//       "disabled": false
-//     },
-//     "district_id": {
-//       "options": [],
-//       "value": null,
-//       "disabled": true
-//     }
-//   }
-// }
+//
+//	{
+//	  "fields": {
+//	    "city_id": {
+//	      "options": [
+//	        {"value": 1, "label": "Istanbul"},
+//	        {"value": 2, "label": "Ankara"}
+//	      ],
+//	      "value": null,
+//	      "disabled": false
+//	    },
+//	    "district_id": {
+//	      "options": [],
+//	      "value": null,
+//	      "disabled": true
+//	    }
+//	  }
+//	}
+//
 // ```
 //
 // ### Hata Response (400 Bad Request)
 // ```json
-// {
-//   "error": "Invalid context. Must be 'create' or 'update'"
-// }
+//
+//	{
+//	  "error": "Invalid context. Must be 'create' or 'update'"
+//	}
+//
 // ```
 //
 // ### Dairesel Bağımlılık Hatası (400 Bad Request)
 // ```json
-// {
-//   "error": "Circular dependency detected: field_a -> field_b -> field_a"
-// }
+//
+//	{
+//	  "error": "Circular dependency detected: field_a -> field_b -> field_a"
+//	}
+//
 // ```
 //
 // ## Kullanım Senaryoları
@@ -252,30 +268,32 @@ type ResolveDependenciesRequest struct {
 // ## Test Örneği
 //
 // ```go
-// func TestHandleResolveDependencies(t *testing.T) {
-//     app := fiber.New()
-//     handler := &FieldHandler{
-//         Elements: []fields.Element{
-//             fields.NewSelect("country_id").DependsOn("region_id"),
-//             fields.NewSelect("city_id").DependsOn("country_id"),
-//         },
-//     }
 //
-//     app.Post("/resolve", func(c *fiber.Ctx) error {
-//         ctx := context.New(c)
-//         return HandleResolveDependencies(handler, ctx)
-//     })
+//	func TestHandleResolveDependencies(t *testing.T) {
+//	    app := fiber.New()
+//	    handler := &FieldHandler{
+//	        Elements: []fields.Element{
+//	            fields.NewSelect("country_id").DependsOn("region_id"),
+//	            fields.NewSelect("city_id").DependsOn("country_id"),
+//	        },
+//	    }
 //
-//     req := httptest.NewRequest("POST", "/resolve", strings.NewReader(`{
-//         "formData": {"country_id": 1},
-//         "context": "create",
-//         "changedFields": ["country_id"]
-//     }`))
-//     req.Header.Set("Content-Type", "application/json")
+//	    app.Post("/resolve", func(c *fiber.Ctx) error {
+//	        ctx := context.New(c)
+//	        return HandleResolveDependencies(handler, ctx)
+//	    })
 //
-//     resp, _ := app.Test(req)
-//     assert.Equal(t, 200, resp.StatusCode)
-// }
+//	    req := httptest.NewRequest("POST", "/resolve", strings.NewReader(`{
+//	        "formData": {"country_id": 1},
+//	        "context": "create",
+//	        "changedFields": ["country_id"]
+//	    }`))
+//	    req.Header.Set("Content-Type", "application/json")
+//
+//	    resp, _ := app.Test(req)
+//	    assert.Equal(t, 200, resp.StatusCode)
+//	}
+//
 // ```
 //
 // ## İlgili Tipler ve Fonksiyonlar
@@ -293,17 +311,23 @@ func HandleResolveDependencies(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
+	// Accept "edit" as an alias for "update" from frontend mode naming.
+	if req.Context == "edit" {
+		req.Context = "update"
+	}
+
 	// Validate context
 	if req.Context != "create" && req.Context != "update" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid context. Must be 'create' or 'update'",
+			"error": "Invalid context. Must be 'create', 'edit', or 'update'",
 		})
 	}
 
 	// Convert elements to Schema fields
-	schemaFields := make([]*fields.Schema, 0, len(h.Elements))
-	for _, element := range h.Elements {
-		if schema, ok := element.(*fields.Schema); ok {
+	elements := h.getElements(c)
+	schemaFields := make([]*fields.Schema, 0, len(elements))
+	for _, element := range elements {
+		if schema := schemaFromElement(element); schema != nil {
 			schemaFields = append(schemaFields, schema)
 		}
 	}
@@ -330,4 +354,38 @@ func HandleResolveDependencies(h *FieldHandler, c *context.Context) error {
 	return c.JSON(fiber.Map{
 		"fields": updates,
 	})
+}
+
+// schemaFromElement extracts the embedded Schema pointer from any field element.
+// Relationship fields embed Schema as an anonymous field, so direct type assertion
+// to *fields.Schema is insufficient.
+func schemaFromElement(element fields.Element) *fields.Schema {
+	if schema, ok := element.(*fields.Schema); ok {
+		return schema
+	}
+
+	v := reflect.ValueOf(element)
+	if !v.IsValid() {
+		return nil
+	}
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+
+	schemaField := v.FieldByName("Schema")
+	if !schemaField.IsValid() || !schemaField.CanAddr() {
+		return nil
+	}
+
+	if schema, ok := schemaField.Addr().Interface().(*fields.Schema); ok {
+		return schema
+	}
+
+	return nil
 }

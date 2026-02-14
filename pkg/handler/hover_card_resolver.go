@@ -47,51 +47,59 @@ import (
 // POST isteği:
 // ```json
 // POST /api/resource/posts/resolver/author_id
-// {
-//   "id": 5,
-//   "record_id": 123
-// }
+//
+//	{
+//	  "id": 5,
+//	  "record_id": 123
+//	}
+//
 // ```
 //
 // # Response Format
 //
 // Başarılı durumda:
 // ```json
-// {
-//   "data": {
-//     "avatar": "https://example.com/avatar.jpg",
-//     "name": "John Doe",
-//     "email": "john@example.com",
-//     "phone": "+1 234 567 8900"
-//   }
-// }
+//
+//	{
+//	  "data": {
+//	    "avatar": "https://example.com/avatar.jpg",
+//	    "name": "John Doe",
+//	    "email": "john@example.com",
+//	    "phone": "+1 234 567 8900"
+//	  }
+//	}
+//
 // ```
 //
 // Hata durumlarında:
 // ```json
-// {
-//   "error": "Field not found"
-// }
+//
+//	{
+//	  "error": "Field not found"
+//	}
+//
 // ```
 // veya
 // ```json
-// {
-//   "error": "Hover card not configured for this field"
-// }
+//
+//	{
+//	  "error": "Hover card not configured for this field"
+//	}
+//
 // ```
 //
 // # Parametreler
 //
-// - `h *FieldHandler`: Field handler'ı, field'ların tanımlandığı ve yönetildiği yapı.
-//   Bu yapı üzerinden field listesine (Elements) erişilir.
+//   - `h *FieldHandler`: Field handler'ı, field'ların tanımlandığı ve yönetildiği yapı.
+//     Bu yapı üzerinden field listesine (Elements) erişilir.
 //
-// - `c *context.Context`: Fiber context wrapper'ı. HTTP request/response işlemleri için kullanılır.
-//   URL parametrelerine, query parametrelerine, request body'sine ve response yazma işlemlerine erişim sağlar.
+//   - `c *context.Context`: Fiber context wrapper'ı. HTTP request/response işlemleri için kullanılır.
+//     URL parametrelerine, query parametrelerine, request body'sine ve response yazma işlemlerine erişim sağlar.
 //
 // # Dönüş Değeri
 //
-// - `error`: İşlem başarılı ise nil, hata durumunda error döner.
-//   Fiber framework'ü bu error'ı otomatik olarak HTTP response'a dönüştürür.
+//   - `error`: İşlem başarılı ise nil, hata durumunda error döner.
+//     Fiber framework'ü bu error'ı otomatik olarak HTTP response'a dönüştürür.
 //
 // # İşlem Akışı
 //
@@ -160,7 +168,7 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 		// Query veya body'den parametreleri al
 		var params struct {
 			ID       interface{} `json:"id" query:"id"`
-			Type     string      `json:"type" query:"type"`       // MorphTo için
+			Type     string      `json:"type" query:"type"`           // MorphTo için
 			RecordID interface{} `json:"record_id" query:"record_id"` // Ana kayıt ID'si (context için)
 		}
 
@@ -183,7 +191,7 @@ func HandleHoverCardResolve(h *FieldHandler) fiber.Handler {
 
 		// Field'ı bul
 		var targetField fields.Element
-		for _, field := range h.Elements {
+		for _, field := range h.getElements(&context.Context{Ctx: c}) {
 			if field.GetKey() == fieldName {
 				targetField = field
 				break

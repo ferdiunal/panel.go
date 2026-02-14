@@ -116,8 +116,7 @@ func (r *UserFieldResolver) ResolveFields(ctx *context.Context) []fields.Element
             SetLabel("Telefon").
             SetRequired(false),
         
-        fields.NewBelongsTo("role_id", "roles").
-            SetLabel("Rol").
+        fields.BelongsTo("Rol", "role_id", "roles").
             DisplayUsing("name"),
     }
 }

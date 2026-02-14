@@ -623,6 +623,12 @@ func New(config Config) *Panel {
 		p.RegisterResource(res)
 	}
 
+	// Auto-discover resources from global registry
+	// Requires resources to register themselves via init() functions
+	for _, res := range resource.List() {
+		p.RegisterResource(res)
+	}
+
 	// Register Pages from Config
 	// Kullanıcı tarafından tanımlanan sayfaları kaydet
 	for _, pg := range p.Config.Pages {
@@ -727,6 +733,7 @@ func New(config Config) *Panel {
 		apiGroup.Get("/resource/:resource/cards", context.Wrap(p.handleResourceCards))
 		apiGroup.Get("/resource/:resource/cards/:index", context.Wrap(p.handleResourceCard))
 		apiGroup.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))                  // List available lenses
+		apiGroup.Get("/resource/:resource/lens/:lens/cards", context.Wrap(p.handleResourceLensCards))     // Lens cards
 		apiGroup.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens))                // Lens data
 		apiGroup.Get("/resource/:resource/morphable/:field", context.Wrap(p.handleMorphable))             // MorphTo field options
 		apiGroup.Get("/resource/:resource/actions", context.Wrap(p.handleResourceActions))                // List available actions
@@ -1559,7 +1566,7 @@ func (p *Panel) handleResourceLens(c *context.Context) error {
 
 	// Find Lens
 	var targetLens resource.Lens
-	for _, l := range res.Lenses() {
+	for _, l := range res.GetLenses() {
 		if l.Slug() == lensSlug {
 			targetLens = l
 			break
@@ -1577,6 +1584,36 @@ func (p *Panel) handleResourceLens(c *context.Context) error {
 
 	// Use the lens controller
 	return handler.HandleLens(h, c)
+}
+
+// handleResourceLensCards returns cards for the selected lens.
+func (p *Panel) handleResourceLensCards(c *context.Context) error {
+	slug := c.Params("resource")
+	lensSlug := c.Params("lens")
+
+	res, ok := p.resources[slug]
+	if !ok {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Resource not found",
+		})
+	}
+
+	var targetLens resource.Lens
+	for _, l := range res.GetLenses() {
+		if l.Slug() == lensSlug {
+			targetLens = l
+			break
+		}
+	}
+
+	if targetLens == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Lens not found",
+		})
+	}
+
+	h := handler.NewLensHandler(p.Db, res, targetLens)
+	return handler.HandleLensCards(h, c)
 }
 
 // / # handleMorphable Metodu

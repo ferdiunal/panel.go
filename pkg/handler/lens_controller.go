@@ -23,13 +23,22 @@
 //
 // ```
 // Client Request → Router → HandleLensIndex/HandleLens → Resource.Lenses()
-//                                                       → Lens.Query()
-//                                                       → Filtered Data
+//
+//	→ Lens.Query()
+//	→ Filtered Data
+//
 // ```
 package handler
 
 import (
+	"math"
+	"net/url"
+	"strconv"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/data"
+	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/query"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -63,29 +72,32 @@ import (
 // ## Yanıt Formatı
 //
 // ```json
-// {
-//   "data": [
-//     {
-//       "name": "Most Popular Products",
-//       "slug": "most-popular-products"
-//     },
-//     {
-//       "name": "Recent Users",
-//       "slug": "recent-users"
-//     }
-//   ]
-// }
+//
+//	{
+//	  "data": [
+//	    {
+//	      "name": "Most Popular Products",
+//	      "slug": "most-popular-products"
+//	    },
+//	    {
+//	      "name": "Recent Users",
+//	      "slug": "recent-users"
+//	    }
+//	  ]
+//	}
+//
 // ```
 //
 // ## Kullanım Örneği
 //
 // ```go
 // // Router tanımlaması
-// app.Get("/api/:resource/lenses", func(c *fiber.Ctx) error {
-//     handler := NewFieldHandler(resource)
-//     ctx := context.New(c)
-//     return HandleLensIndex(handler, ctx)
-// })
+//
+//	app.Get("/api/:resource/lenses", func(c *fiber.Ctx) error {
+//	    handler := NewFieldHandler(resource)
+//	    ctx := context.New(c)
+//	    return HandleLensIndex(handler, ctx)
+//	})
 //
 // // İstemci tarafı kullanım
 // // GET /api/products/lenses
@@ -95,9 +107,9 @@ import (
 // ## Hata Durumları
 //
 // 1. **Resource Bulunamadı (404)**
-//    - Durum: `h.Resource == nil`
-//    - Yanıt: `{"error": "Resource not found"}`
-//    - Sebep: Geçersiz resource adı veya kayıt edilmemiş resource
+//   - Durum: `h.Resource == nil`
+//   - Yanıt: `{"error": "Resource not found"}`
+//   - Sebep: Geçersiz resource adı veya kayıt edilmemiş resource
 //
 // ## Önemli Notlar
 //
@@ -125,7 +137,13 @@ func HandleLensIndex(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	lenses := h.Resource.Lenses()
+	if h.Policy != nil && !h.Policy.ViewAny(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	lenses := h.Resource.GetLenses()
 	response := make([]map[string]interface{}, 0)
 
 	for _, lens := range lenses {
@@ -187,36 +205,39 @@ func HandleLensIndex(h *FieldHandler, c *context.Context) error {
 // ## Yanıt Formatı
 //
 // ```json
-// {
-//   "data": [
-//     {
-//       "id": 1,
-//       "name": "Product A",
-//       "popularity_score": 95
-//     }
-//   ],
-//   "meta": {
-//     "current_page": 1,
-//     "per_page": 15,
-//     "total": 42
-//   }
-// }
+//
+//	{
+//	  "data": [
+//	    {
+//	      "id": 1,
+//	      "name": "Product A",
+//	      "popularity_score": 95
+//	    }
+//	  ],
+//	  "meta": {
+//	    "current_page": 1,
+//	    "per_page": 15,
+//	    "total": 42
+//	  }
+//	}
+//
 // ```
 //
 // ## Kullanım Örneği
 //
 // ```go
 // // Router tanımlaması
-// app.Get("/api/:resource/lens/:lens", func(c *fiber.Ctx) error {
-//     resourceName := c.Params("resource")
-//     lensSlug := c.Params("lens")
 //
-//     // Lens handler oluştur (query otomatik uygulanır)
-//     handler := NewLensHandler(resourceName, lensSlug)
-//     ctx := context.New(c)
+//	app.Get("/api/:resource/lens/:lens", func(c *fiber.Ctx) error {
+//	    resourceName := c.Params("resource")
+//	    lensSlug := c.Params("lens")
 //
-//     return HandleLens(handler, ctx)
-// })
+//	    // Lens handler oluştur (query otomatik uygulanır)
+//	    handler := NewLensHandler(resourceName, lensSlug)
+//	    ctx := context.New(c)
+//
+//	    return HandleLens(handler, ctx)
+//	})
 //
 // // İstemci tarafı kullanım
 // // GET /api/products/lens/most-popular?page=1&per_page=20
@@ -226,15 +247,17 @@ func HandleLensIndex(h *FieldHandler, c *context.Context) error {
 // ## Lens Query Örneği
 //
 // ```go
-// type MostPopularLens struct {
-//     base.Lens
-// }
 //
-// func (l *MostPopularLens) Query(query interface{}) interface{} {
-//     db := query.(*gorm.DB)
-//     return db.Where("popularity_score > ?", 80).
-//            Order("popularity_score DESC")
-// }
+//	type MostPopularLens struct {
+//	    base.Lens
+//	}
+//
+//	func (l *MostPopularLens) Query(query interface{}) interface{} {
+//	    db := query.(*gorm.DB)
+//	    return db.Where("popularity_score > ?", 80).
+//	           Order("popularity_score DESC")
+//	}
+//
 // ```
 //
 // ## Önemli Notlar
@@ -272,7 +295,197 @@ func HandleLensIndex(h *FieldHandler, c *context.Context) error {
 // - 🔒 SQL injection'a karşı parameterized query kullanılmalıdır
 // - 🔒 Hassas veriler lens query'sinde filtrelenmelidir
 func HandleLens(h *FieldHandler, c *context.Context) error {
-	// Lens handler is already configured with filtered query via NewLensHandler
-	// We can directly use the Index logic but with the lens's filtered dataset
-	return HandleResourceIndex(h, c)
+	ctx := c.Resource()
+	if ctx != nil {
+		ctx.VisibilityCtx = fields.ContextIndex
+	}
+
+	if h.Policy != nil && !h.Policy.ViewAny(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	elements := h.getElements(c)
+	if len(elements) == 0 {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "No fields defined for this lens",
+		})
+	}
+
+	resourceName := c.Params("resource")
+	queryParams := query.ParseResourceQuery(c.Ctx, resourceName)
+
+	var sorts []data.Sort
+	for _, s := range queryParams.Sorts {
+		sorts = append(sorts, data.Sort{
+			Column:    s.Column,
+			Direction: s.Direction,
+		})
+	}
+
+	if len(sorts) == 0 {
+		if h.Resource != nil {
+			for _, s := range h.Resource.GetSortable() {
+				sorts = append(sorts, data.Sort{
+					Column:    s.Column,
+					Direction: s.Direction,
+				})
+			}
+		}
+		if len(sorts) == 0 {
+			sorts = append(sorts, data.Sort{
+				Column:    "created_at",
+				Direction: "desc",
+			})
+		}
+	}
+
+	req := data.QueryRequest{
+		Page:            queryParams.Page,
+		PerPage:         queryParams.PerPage,
+		Sorts:           sorts,
+		Search:          queryParams.Search,
+		Filters:         queryParams.Filters,
+		ViaResource:     queryParams.ViaResource,
+		ViaResourceId:   queryParams.ViaResourceId,
+		ViaRelationship: queryParams.ViaRelationship,
+	}
+
+	relationshipFields := []fields.RelationshipField{}
+	for _, element := range elements {
+		if relField, ok := fields.IsRelationshipField(element); ok {
+			if relField == nil {
+				continue
+			}
+			relationshipFields = append(relationshipFields, relField)
+		}
+	}
+
+	if gormProvider, ok := h.Provider.(*data.GormDataProvider); ok {
+		gormProvider.SetRelationshipFields(relationshipFields)
+	}
+
+	result, err := h.Provider.Index(c, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	resources := make([]map[string]interface{}, 0, len(result.Items))
+	for _, item := range result.Items {
+		res := h.resolveResourceFields(c.Ctx, c.Resource(), item, elements)
+		policy := map[string]bool{
+			"view":   h.Policy == nil || h.Policy.View(c, item),
+			"update": h.Policy == nil || h.Policy.Update(c, item),
+			"delete": h.Policy == nil || h.Policy.Delete(c, item),
+		}
+		res["policy"] = policy
+		resources = append(resources, res)
+	}
+
+	headers := make([]map[string]interface{}, 0)
+	for _, element := range elements {
+		if !element.IsVisible(c.Resource()) {
+			continue
+		}
+
+		ctxStr := element.GetContext()
+		serialized := element.JsonSerialize()
+
+		if ctxStr != fields.HIDE_ON_LIST &&
+			ctxStr != fields.ONLY_ON_CREATE &&
+			ctxStr != fields.ONLY_ON_UPDATE &&
+			ctxStr != fields.ONLY_ON_FORM &&
+			ctxStr != fields.ONLY_ON_DETAIL {
+			headers = append(headers, serialized)
+		}
+	}
+
+	prevPageURL, nextPageURL := buildLensPageURLs(c, result.Page, result.PerPage, result.Total)
+
+	hasID := false
+	for _, res := range resources {
+		idField, ok := res["id"]
+		if !ok || idField == nil {
+			continue
+		}
+		if idMap, ok := idField.(map[string]interface{}); ok {
+			if idVal, ok := idMap["data"]; ok && idVal != nil {
+				hasID = true
+				break
+			}
+			continue
+		}
+		hasID = true
+		break
+	}
+
+	name := h.Title
+	if name == "" && h.Lens != nil {
+		name = h.Lens.Name()
+	}
+
+	return c.JSON(fiber.Map{
+		"name":        name,
+		"resources":   resources,
+		"data":        resources, // Backward compatibility for older clients/tests.
+		"prevPageUrl": prevPageURL,
+		"nextPageUrl": nextPageURL,
+		"perPage":     result.PerPage,
+		"softDeletes": false,
+		"hasId":       hasID,
+		"headers":     headers,
+	})
+}
+
+// HandleLensCards lists lens specific cards.
+func HandleLensCards(h *FieldHandler, c *context.Context) error {
+	if h.Policy != nil && !h.Policy.ViewAny(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	if h.Lens == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Lens not found",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"data": h.Lens.GetCards(c),
+	})
+}
+
+func buildLensPageURLs(c *context.Context, page, perPage int, total int64) (string, string) {
+	if perPage <= 0 {
+		return "", ""
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(perPage)))
+	if totalPages <= 0 {
+		return "", ""
+	}
+
+	rawQuery := string(c.Ctx.Request().URI().QueryString())
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		values = url.Values{}
+	}
+
+	path := c.Path()
+	var prevURL string
+	var nextURL string
+
+	if page > 1 {
+		values.Set("page", strconv.Itoa(page-1))
+		prevURL = path + "?" + values.Encode()
+	}
+
+	if page < totalPages {
+		values.Set("page", strconv.Itoa(page+1))
+		nextURL = path + "?" + values.Encode()
+	}
+
+	return prevURL, nextURL
 }

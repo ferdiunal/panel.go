@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/ferdiunal/panel.go/pkg/action"
@@ -10,6 +11,63 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
+
+func actionIsStandalone(act action.Action) bool {
+	if standalone, ok := act.(interface{ IsStandalone() bool }); ok {
+		return standalone.IsStandalone()
+	}
+	return false
+}
+
+func actionIsSole(act action.Action) bool {
+	if sole, ok := act.(interface{ IsSole() bool }); ok {
+		return sole.IsSole()
+	}
+	return false
+}
+
+func isEmptyRequiredActionFieldValue(value interface{}) bool {
+	switch v := value.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(v) == ""
+	case []interface{}:
+		return len(v) == 0
+	case []string:
+		return len(v) == 0
+	case map[string]interface{}:
+		return len(v) == 0
+	default:
+		return false
+	}
+}
+
+func validateRequiredActionFields(act action.Action, payload map[string]interface{}) error {
+	for _, field := range act.GetFields() {
+		meta := field.JsonSerialize()
+		required, _ := meta["required"].(bool)
+		if !required {
+			if props, ok := meta["props"].(map[string]interface{}); ok {
+				required, _ = props["required"].(bool)
+			}
+		}
+		if !required {
+			continue
+		}
+
+		key := field.GetKey()
+		value, ok := payload[key]
+		if !ok || isEmptyRequiredActionFieldValue(value) {
+			fieldName := field.GetName()
+			if strings.TrimSpace(fieldName) == "" {
+				fieldName = key
+			}
+			return fmt.Errorf("%s is required", fieldName)
+		}
+	}
+	return nil
+}
 
 // HandleActionList, bir kaynak için kullanılabilir action'ların listesini döndüren HTTP handler fonksiyonudur.
 // Bu fonksiyon, action metadata'larını (isim, slug, ikon, onay ayarları, görünürlük bayrakları ve alan tanımları)
@@ -122,6 +180,8 @@ func HandleActionList(h *FieldHandler, c *context.Context) error {
 				"onlyOnIndex":       newAction.OnlyOnIndex(),
 				"onlyOnDetail":      newAction.OnlyOnDetail(),
 				"showInline":        newAction.ShowInline(),
+				"standalone":        actionIsStandalone(newAction),
+				"sole":              actionIsSole(newAction),
 				"fields":            fields,
 			})
 		}
@@ -359,9 +419,24 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	if len(body.IDs) == 0 {
+	isStandalone := actionIsStandalone(targetAction)
+	isSole := actionIsSole(targetAction)
+
+	if len(body.IDs) == 0 && !isStandalone {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "No items selected",
+		})
+	}
+
+	if isSole && len(body.IDs) > 1 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "This action can only run on a single item",
+		})
+	}
+
+	if err := validateRequiredActionFields(targetAction, body.Fields); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
 		})
 	}
 
@@ -373,63 +448,64 @@ func HandleActionExecute(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	// Load models in parallel using async fan-out/fan-in pattern
-	modelType := reflect.TypeOf(h.Resource.Model())
-
-	// Handle pointer types
-	if modelType.Kind() == reflect.Ptr {
-		modelType = modelType.Elem()
-	}
-
-	// Result struct for goroutine communication
-	type modelResult struct {
-		model interface{}
-		err   error
-		id    string
-	}
-
-	// Create buffered channel for results (non-blocking sends)
-	results := make(chan modelResult, len(body.IDs))
-
-	// WaitGroup to track goroutine completion
-	var wg sync.WaitGroup
-	wg.Add(len(body.IDs))
-
-	// Fan-out: Launch goroutines asynchronously
-	for _, id := range body.IDs {
-		go func(id string) {
-			defer wg.Done() // Mark goroutine as done when finished
-
-			model := reflect.New(modelType).Interface()
-			err := db.First(model, "id = ?", id).Error
-
-			// Send result to channel
-			results <- modelResult{model: model, err: err, id: id}
-		}(id)
-	}
-
-	// Close channel when all goroutines complete (async closer)
-	go func() {
-		wg.Wait()      // Wait for all goroutines to finish
-		close(results) // Close channel to signal completion
-	}()
-
-	// Fan-in: Collect results from channel
 	models := make([]interface{}, 0, len(body.IDs))
-	var firstError error
+	if len(body.IDs) > 0 {
+		// Load models in parallel using async fan-out/fan-in pattern
+		modelType := reflect.TypeOf(h.Resource.Model())
 
-	for result := range results {
-		if result.err != nil && firstError == nil {
-			firstError = result.err
-		} else if result.err == nil {
-			models = append(models, result.model)
+		// Handle pointer types
+		if modelType.Kind() == reflect.Ptr {
+			modelType = modelType.Elem()
 		}
-	}
 
-	if firstError != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": firstError.Error(),
-		})
+		// Result struct for goroutine communication
+		type modelResult struct {
+			model interface{}
+			err   error
+			id    string
+		}
+
+		// Create buffered channel for results (non-blocking sends)
+		results := make(chan modelResult, len(body.IDs))
+
+		// WaitGroup to track goroutine completion
+		var wg sync.WaitGroup
+		wg.Add(len(body.IDs))
+
+		// Fan-out: Launch goroutines asynchronously
+		for _, id := range body.IDs {
+			go func(id string) {
+				defer wg.Done() // Mark goroutine as done when finished
+
+				model := reflect.New(modelType).Interface()
+				err := db.First(model, "id = ?", id).Error
+
+				// Send result to channel
+				results <- modelResult{model: model, err: err, id: id}
+			}(id)
+		}
+
+		// Close channel when all goroutines complete (async closer)
+		go func() {
+			wg.Wait()      // Wait for all goroutines to finish
+			close(results) // Close channel to signal completion
+		}()
+
+		// Fan-in: Collect results from channel
+		var firstError error
+		for result := range results {
+			if result.err != nil && firstError == nil {
+				firstError = result.err
+			} else if result.err == nil {
+				models = append(models, result.model)
+			}
+		}
+
+		if firstError != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": firstError.Error(),
+			})
+		}
 	}
 
 	// Store fields, DB and Provider in context locals for action execution

@@ -2,9 +2,9 @@ package {{.PackageName}}
 
 import (
 	"gorm.io/gorm"
-{{if ne .ModelPkg .PackageName}}
+
 	"{{.ModelImportPath}}"
-{{end}}
+
 	"github.com/ferdiunal/panel.go/pkg/data"
 )
 

@@ -1832,6 +1832,9 @@ func (b *OptimizedBase) ResolveField(fieldName string, item any) (any, error) {
 		if field.GetKey() == fieldName {
 			field.Extract(item)
 			serialized := field.JsonSerialize()
+			if val, ok := serialized["data"]; ok {
+				return val, nil
+			}
 			if val, ok := serialized["value"]; ok {
 				return val, nil
 			}

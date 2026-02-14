@@ -262,7 +262,7 @@ func HandleMorphable(h *FieldHandler, c *context.Context) error {
 
 	// Find the MorphTo field
 	var morphToField *fields.MorphTo
-	for _, element := range h.Elements {
+	for _, element := range h.getElements(c) {
 		if element.GetKey() == fieldKey {
 			if mt, ok := element.(*fields.MorphTo); ok {
 				morphToField = mt

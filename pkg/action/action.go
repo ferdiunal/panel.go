@@ -20,12 +20,13 @@ import (
 // - Seçili öğeleri toplu güncelleme
 //
 // Örnek Kullanım:
-//   action := action.New("Delete Products").
-//       Destructive().
-//       Handle(func(ctx *action.ActionContext) error {
-//           // Seçili ürünleri sil
-//           return ctx.DB.Delete(ctx.Models).Error
-//       })
+//
+//	action := action.New("Delete Products").
+//	    Destructive().
+//	    Handle(func(ctx *action.ActionContext) error {
+//	        // Seçili ürünleri sil
+//	        return ctx.DB.Delete(ctx.Models).Error
+//	    })
 type Action interface {
 	// Bu metod, kullanıcı arayüzünde gösterilecek aksiyon adını döndürür.
 	// Örneğin: "Delete", "Export", "Archive"
@@ -130,16 +131,17 @@ type Action interface {
 // - Özel iş mantığı aksiyonları
 //
 // Örnek Kullanım:
-//   deleteAction := action.New("Delete Selected").
-//       SetIcon("trash").
-//       Destructive().
-//       Confirm("Bu öğeleri silmek istediğinizden emin misiniz?").
-//       Handle(func(ctx *action.ActionContext) error {
-//           return ctx.DB.Delete(ctx.Models).Error
-//       }).
-//       AuthorizeUsing(func(ctx *action.ActionContext) bool {
-//           return ctx.User.IsAdmin
-//       })
+//
+//	deleteAction := action.New("Delete Selected").
+//	    SetIcon("trash").
+//	    Destructive().
+//	    Confirm("Bu öğeleri silmek istediğinizden emin misiniz?").
+//	    Handle(func(ctx *action.ActionContext) error {
+//	        return ctx.DB.Delete(ctx.Models).Error
+//	    }).
+//	    AuthorizeUsing(func(ctx *action.ActionContext) bool {
+//	        return ctx.User.IsAdmin
+//	    })
 //
 // Alan Açıklamaları:
 // - Name: Kullanıcı arayüzünde gösterilecek aksiyon adı
@@ -186,6 +188,12 @@ type BaseAction struct {
 	// Satır içi gösterilecekse true
 	ShowInlineFlag bool
 
+	// Model seçimi olmadan çalıştırılabilirse true
+	StandaloneFlag bool
+
+	// Sadece tek model seçimi ile çalıştırılabilirse true
+	SoleFlag bool
+
 	// Aksiyon için gerekli form alanları
 	Fields []core.Element
 
@@ -210,8 +218,9 @@ type BaseAction struct {
 //   - Diğer alanlar: boş/false
 //
 // Örnek Kullanım:
-//   action := action.New("Delete Products")
-//   // Slug otomatik olarak "delete-products" olur
+//
+//	action := action.New("Delete Products")
+//	// Slug otomatik olarak "delete-products" olur
 //
 // Önemli Notlar:
 // - Slug otomatik oluşturulur ancak SetSlug() ile değiştirilebilir
@@ -249,7 +258,8 @@ func New(name string) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.SetName("Delete Products")
+//
+//	action.SetName("Delete Products")
 func (a *BaseAction) SetName(name string) *BaseAction {
 	a.Name = name
 	return a
@@ -264,7 +274,8 @@ func (a *BaseAction) SetName(name string) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.SetSlug("custom-delete-action")
+//
+//	action.SetSlug("custom-delete-action")
 //
 // Önemli Notlar:
 // - Slug otomatik olarak New() fonksiyonunda oluşturulur
@@ -283,9 +294,10 @@ func (a *BaseAction) SetSlug(slug string) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.SetIcon("trash")
-//   action.SetIcon("download")
-//   action.SetIcon("archive")
+//
+//	action.SetIcon("trash")
+//	action.SetIcon("download")
+//	action.SetIcon("archive")
 func (a *BaseAction) SetIcon(icon string) *BaseAction {
 	a.Icon = icon
 	return a
@@ -300,8 +312,9 @@ func (a *BaseAction) SetIcon(icon string) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.Confirm("Bu ürünleri silmek istediğinizden emin misiniz?")
-//   action.Confirm("Bu işlem geri alınamaz. Devam etmek istiyor musunuz?")
+//
+//	action.Confirm("Bu ürünleri silmek istediğinizden emin misiniz?")
+//	action.Confirm("Bu işlem geri alınamaz. Devam etmek istiyor musunuz?")
 //
 // Önemli Notlar:
 // - Onay mesajı boş bırakılırsa, onay iletişim kutusu gösterilmez
@@ -322,9 +335,10 @@ func (a *BaseAction) Confirm(text string) *BaseAction {
 // Varsayılan Değer: "Confirm"
 //
 // Örnek Kullanım:
-//   action.ConfirmButton("Sil")
-//   action.ConfirmButton("Onayla")
-//   action.ConfirmButton("Devam Et")
+//
+//	action.ConfirmButton("Sil")
+//	action.ConfirmButton("Onayla")
+//	action.ConfirmButton("Devam Et")
 func (a *BaseAction) ConfirmButton(text string) *BaseAction {
 	a.ConfirmButtonText = text
 	return a
@@ -341,8 +355,9 @@ func (a *BaseAction) ConfirmButton(text string) *BaseAction {
 // Varsayılan Değer: "Cancel"
 //
 // Örnek Kullanım:
-//   action.CancelButton("İptal")
-//   action.CancelButton("Vazgeç")
+//
+//	action.CancelButton("İptal")
+//	action.CancelButton("Vazgeç")
 func (a *BaseAction) CancelButton(text string) *BaseAction {
 	a.CancelButtonText = text
 	return a
@@ -355,7 +370,8 @@ func (a *BaseAction) CancelButton(text string) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.Destructive()
+//
+//	action.Destructive()
 //
 // Önemli Notlar:
 // - Silme, kalıcı değişiklik gibi işlemler için kullanılır
@@ -372,7 +388,8 @@ func (a *BaseAction) Destructive() *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.ShowOnlyOnIndex()
+//
+//	action.ShowOnlyOnIndex()
 //
 // Önemli Notlar:
 // - ShowOnlyOnDetail() ile birlikte kullanılamaz
@@ -388,7 +405,8 @@ func (a *BaseAction) ShowOnlyOnIndex() *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.ShowOnlyOnDetail()
+//
+//	action.ShowOnlyOnDetail()
 //
 // Önemli Notlar:
 // - ShowOnlyOnIndex() ile birlikte kullanılamaz
@@ -404,12 +422,28 @@ func (a *BaseAction) ShowOnlyOnDetail() *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.ShowInlineAction()
+//
+//	action.ShowInlineAction()
 //
 // Önemli Notlar:
 // - Satır içi aksiyonlar, her satırda ayrı düğme olarak gösterilir
 // - Toplu işlem aksiyonları ile birlikte kullanılabilir
 func (a *BaseAction) ShowInlineAction() *BaseAction {
+	a.ShowInlineFlag = true
+	return a
+}
+
+// Standalone marks the action runnable without selecting models.
+func (a *BaseAction) Standalone() *BaseAction {
+	a.StandaloneFlag = true
+	a.SoleFlag = false
+	return a
+}
+
+// Sole marks the action runnable only with exactly one selected model.
+func (a *BaseAction) Sole() *BaseAction {
+	a.SoleFlag = true
+	a.StandaloneFlag = false
 	a.ShowInlineFlag = true
 	return a
 }
@@ -423,10 +457,11 @@ func (a *BaseAction) ShowInlineAction() *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.WithFields(
-//       &fields.Text{Name: "reason", Label: "Neden"},
-//       &fields.Select{Name: "category", Label: "Kategori"},
-//   )
+//
+//	action.WithFields(
+//	    &fields.Text{Name: "reason", Label: "Neden"},
+//	    &fields.Select{Name: "category", Label: "Kategori"},
+//	)
 //
 // Önemli Notlar:
 // - Alanlar, aksiyon gerçekleştirilmeden önce kullanıcıdan toplanır
@@ -445,13 +480,14 @@ func (a *BaseAction) WithFields(fields ...core.Element) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.Handle(func(ctx *ActionContext) error {
-//       // Seçili modelleri işle
-//       for _, model := range ctx.Models {
-//           // İşlem yap
-//       }
-//       return nil
-//   })
+//
+//	action.Handle(func(ctx *ActionContext) error {
+//	    // Seçili modelleri işle
+//	    for _, model := range ctx.Models {
+//	        // İşlem yap
+//	    }
+//	    return nil
+//	})
 //
 // Önemli Notlar:
 // - Bu metod zorunludur, aksi takdirde Execute() hata döndürür
@@ -471,11 +507,12 @@ func (a *BaseAction) Handle(fn func(ctx *ActionContext) error) *BaseAction {
 // Döndürür: Yapılandırılmış BaseAction pointer'ı (method chaining için)
 //
 // Örnek Kullanım:
-//   action.AuthorizeUsing(func(ctx *ActionContext) bool {
-//       // Sadece yöneticiler bu aksiyonu çalıştırabilir
-//       user := ctx.User.(*User)
-//       return user.IsAdmin
-//   })
+//
+//	action.AuthorizeUsing(func(ctx *ActionContext) bool {
+//	    // Sadece yöneticiler bu aksiyonu çalıştırabilir
+//	    user := ctx.User.(*User)
+//	    return user.IsAdmin
+//	})
 //
 // Önemli Notlar:
 // - Bu metod ayarlanmazsa, aksiyon her zaman çalıştırılabilir
@@ -498,8 +535,9 @@ func (a *BaseAction) AuthorizeUsing(fn func(ctx *ActionContext) bool) *BaseActio
 // Döndürür: Aksiyonun adı (string)
 //
 // Örnek Kullanım:
-//   action := action.New("Delete Products")
-//   name := action.GetName() // "Delete Products"
+//
+//	action := action.New("Delete Products")
+//	name := action.GetName() // "Delete Products"
 func (a *BaseAction) GetName() string {
 	return a.Name
 }
@@ -510,8 +548,9 @@ func (a *BaseAction) GetName() string {
 // Döndürür: URL-güvenli slug (string)
 //
 // Örnek Kullanım:
-//   action := action.New("Delete Products")
-//   slug := action.GetSlug() // "delete-products"
+//
+//	action := action.New("Delete Products")
+//	slug := action.GetSlug() // "delete-products"
 func (a *BaseAction) GetSlug() string {
 	return a.Slug
 }
@@ -522,8 +561,9 @@ func (a *BaseAction) GetSlug() string {
 // Döndürür: Simge adı (string)
 //
 // Örnek Kullanım:
-//   action.SetIcon("trash")
-//   icon := action.GetIcon() // "trash"
+//
+//	action.SetIcon("trash")
+//	icon := action.GetIcon() // "trash"
 func (a *BaseAction) GetIcon() string {
 	return a.Icon
 }
@@ -534,8 +574,9 @@ func (a *BaseAction) GetIcon() string {
 // Döndürür: Onay mesajı (string)
 //
 // Örnek Kullanım:
-//   action.Confirm("Bu işlemi gerçekleştirmek istediğinizden emin misiniz?")
-//   text := action.GetConfirmText()
+//
+//	action.Confirm("Bu işlemi gerçekleştirmek istediğinizden emin misiniz?")
+//	text := action.GetConfirmText()
 //
 // Önemli Notlar:
 // - Onay mesajı boş ise, onay iletişim kutusu gösterilmez
@@ -551,8 +592,9 @@ func (a *BaseAction) GetConfirmText() string {
 // Varsayılan Değer: "Confirm"
 //
 // Örnek Kullanım:
-//   action.ConfirmButton("Sil")
-//   text := action.GetConfirmButtonText() // "Sil"
+//
+//	action.ConfirmButton("Sil")
+//	text := action.GetConfirmButtonText() // "Sil"
 func (a *BaseAction) GetConfirmButtonText() string {
 	return a.ConfirmButtonText
 }
@@ -565,8 +607,9 @@ func (a *BaseAction) GetConfirmButtonText() string {
 // Varsayılan Değer: "Cancel"
 //
 // Örnek Kullanım:
-//   action.CancelButton("İptal")
-//   text := action.GetCancelButtonText() // "İptal"
+//
+//	action.CancelButton("İptal")
+//	text := action.GetCancelButtonText() // "İptal"
 func (a *BaseAction) GetCancelButtonText() string {
 	return a.CancelButtonText
 }
@@ -577,8 +620,9 @@ func (a *BaseAction) GetCancelButtonText() string {
 // Döndürür: true ise yıkıcı, false ise güvenli
 //
 // Örnek Kullanım:
-//   action.Destructive()
-//   isDestructive := action.IsDestructive() // true
+//
+//	action.Destructive()
+//	isDestructive := action.IsDestructive() // true
 //
 // Önemli Notlar:
 // - Yıkıcı aksiyonlar, ön uçta kırmızı renkle gösterilir
@@ -593,8 +637,9 @@ func (a *BaseAction) IsDestructive() bool {
 // Döndürür: true ise sadece liste görünümünde göster
 //
 // Örnek Kullanım:
-//   action.ShowOnlyOnIndex()
-//   onlyIndex := action.OnlyOnIndex() // true
+//
+//	action.ShowOnlyOnIndex()
+//	onlyIndex := action.OnlyOnIndex() // true
 //
 // Önemli Notlar:
 // - true ise, aksiyon detay görünümünde gizlenir
@@ -608,8 +653,9 @@ func (a *BaseAction) OnlyOnIndex() bool {
 // Döndürür: true ise sadece detay görünümünde göster
 //
 // Örnek Kullanım:
-//   action.ShowOnlyOnDetail()
-//   onlyDetail := action.OnlyOnDetail() // true
+//
+//	action.ShowOnlyOnDetail()
+//	onlyDetail := action.OnlyOnDetail() // true
 //
 // Önemli Notlar:
 // - true ise, aksiyon liste görünümünde gizlenir
@@ -623,13 +669,24 @@ func (a *BaseAction) OnlyOnDetail() bool {
 // Döndürür: true ise satır içi göster
 //
 // Örnek Kullanım:
-//   action.ShowInlineAction()
-//   inline := action.ShowInline() // true
+//
+//	action.ShowInlineAction()
+//	inline := action.ShowInline() // true
 //
 // Önemli Notlar:
 // - true ise, aksiyon her satırda ayrı düğme olarak gösterilir
 func (a *BaseAction) ShowInline() bool {
 	return a.ShowInlineFlag
+}
+
+// IsStandalone reports whether the action can run without selected models.
+func (a *BaseAction) IsStandalone() bool {
+	return a.StandaloneFlag
+}
+
+// IsSole reports whether the action requires exactly one selected model.
+func (a *BaseAction) IsSole() bool {
+	return a.SoleFlag
 }
 
 // Bu metod, aksiyonu gerçekleştirmek için gerekli olan form alanlarını döndürür.
@@ -638,10 +695,11 @@ func (a *BaseAction) ShowInline() bool {
 // Döndürür: core.Element alanlarının dilimi
 //
 // Örnek Kullanım:
-//   fields := action.GetFields()
-//   for _, field := range fields {
-//       // Her alanı işle
-//   }
+//
+//	fields := action.GetFields()
+//	for _, field := range fields {
+//	    // Her alanı işle
+//	}
 //
 // Önemli Notlar:
 // - Alanlar, aksiyon gerçekleştirilmeden önce kullanıcıdan toplanır
@@ -660,17 +718,18 @@ func (a *BaseAction) GetFields() []core.Element {
 // Döndürür: Hata varsa error, başarılı ise nil
 //
 // İşlem Akışı:
-//   1. HandleFunc'in tanımlanıp tanımlanmadığını kontrol et
-//   2. ctx.Locals("action_fields") ile form verilerini al
-//   3. ctx.Locals("db") ile veritabanı bağlantısını al
-//   4. ActionContext oluştur
-//   5. HandleFunc'i çağır
+//  1. HandleFunc'in tanımlanıp tanımlanmadığını kontrol et
+//  2. ctx.Locals("action_fields") ile form verilerini al
+//  3. ctx.Locals("db") ile veritabanı bağlantısını al
+//  4. ActionContext oluştur
+//  5. HandleFunc'i çağır
 //
 // Örnek Kullanım:
-//   err := action.Execute(ctx, selectedItems)
-//   if err != nil {
-//       // Hata işle
-//   }
+//
+//	err := action.Execute(ctx, selectedItems)
+//	if err != nil {
+//	    // Hata işle
+//	}
 //
 // Önemli Notlar:
 // - HandleFunc ayarlanmamışsa, hata döndürür
@@ -724,14 +783,15 @@ func (a *BaseAction) Execute(ctx *context.Context, items []any) error {
 // Döndürür: true ise aksiyon çalıştırılabilir, false ise gizle
 //
 // İşlem Akışı:
-//   1. CanRunFunc'in tanımlanıp tanımlanmadığını kontrol et
-//   2. Tanımlanmamışsa, true döndür (varsayılan olarak çalıştırılabilir)
-//   3. Tanımlanmışsa, CanRunFunc'i çağır ve sonucunu döndür
+//  1. CanRunFunc'in tanımlanıp tanımlanmadığını kontrol et
+//  2. Tanımlanmamışsa, true döndür (varsayılan olarak çalıştırılabilir)
+//  3. Tanımlanmışsa, CanRunFunc'i çağır ve sonucunu döndür
 //
 // Örnek Kullanım:
-//   if action.CanRun(actionCtx) {
-//       // Aksiyonu çalıştır
-//   }
+//
+//	if action.CanRun(actionCtx) {
+//	    // Aksiyonu çalıştır
+//	}
 //
 // Önemli Notlar:
 // - CanRunFunc ayarlanmamışsa, aksiyon her zaman çalıştırılabilir

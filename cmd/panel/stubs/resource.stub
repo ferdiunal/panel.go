@@ -2,14 +2,18 @@ package {{.PackageName}}
 
 import (
 	"gorm.io/gorm"
-{{if ne .ModelPkg .PackageName}}
+
 	"{{.ModelImportPath}}"
-{{end}}
+
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2"
 )
+
+func init() {
+	resource.Register("{{.Identifier}}", New{{.ResourceName}}Resource())
+}
 
 type {{.ResourceName}}Resource struct {
 	resource.OptimizedBase
@@ -44,4 +48,8 @@ func New{{.ResourceName}}Resource() *{{.ResourceName}}Resource {
 
 func (r *{{.ResourceName}}Resource) Repository(db *gorm.DB) data.DataProvider {
 	return New{{.ResourceName}}Repository(db)
+}
+
+func (r *{{.ResourceName}}Resource) With() []string {
+	return []string{}
 }

@@ -1,69 +1,127 @@
 # Lensler (Lenses)
 
-Lensler, kaynaklarınızın (resources) belirli bir filtrelenmiş veya özelleştirilmiş görünümünü oluşturmanıza olanak tanır. Standart `Index` görünümünün aksine, Lensler belirli bir soruyu yanıtlamak veya özel bir rapor sunmak için tasarlanmıştır.
+Lens, bir resource'un "özel liste görünümü"dür. Index'in aynısı değildir; kendi query'si, field'ları ve kartları olabilir.
 
-Örneğin, "En Çok Satış Yapan Kullanıcılar" veya "Onay Bekleyen Yorumlar" gibi durumlar için idealdir.
+Tipik kullanım:
+- "Onay Bekleyen Siparişler"
+- "Son 7 Gün Aktif Kullanıcılar"
+- "Yüksek Riskli İşlemler"
 
-## Bir Lens Tanımlama
+## Lens Arayüzü
 
-`Lens` arayüzü (interface) dört temel metodu içerir:
+`pkg/resource/lens.go` içindeki lens kontratı:
 
-1.  `Name()`: UI'da görünecek isim.
-2.  `Slug()`: URL'de kullanılacak benzersiz tanımlayıcı.
-3.  `Query()`: Veritabanı sorgusunu özelleştirebileceğiniz yer.
-4.  `Fields()`: Bu lens görünümünde hangi alanların gösterileceği.
+- `Name() string`
+- `Slug() string`
+- `Query(db *gorm.DB) *gorm.DB`
+- `Fields() []fields.Element`
+- `GetFields(ctx *context.Context) []fields.Element`
+- `GetCards(ctx *context.Context) []widget.Card`
 
-### Örnek: En Popüler Bloglar
+Not:
+- `GetFields()` ile dinamik field üretilebilir.
+- Lens field'ı boş dönerse resource field'ları fallback olarak kullanılır.
+
+## Örnek Lens
 
 ```go
-type MostPopularBlogsLens struct{}
+type ActiveUsersLens struct{}
 
-func (l *MostPopularBlogsLens) Name() string { 
-    return "En Popüler Bloglar" 
+func (l *ActiveUsersLens) Name() string { return "Aktif Kullanıcılar" }
+func (l *ActiveUsersLens) Slug() string { return "active-users" }
+
+func (l *ActiveUsersLens) Query(db *gorm.DB) *gorm.DB {
+	return db.Where("status = ?", "active").Order("created_at DESC")
 }
 
-func (l *MostPopularBlogsLens) Slug() string { 
-    return "most-popular" 
+func (l *ActiveUsersLens) Fields() []fields.Element {
+	return []fields.Element{
+		fields.ID("ID"),
+		fields.Text("Ad", "name"),
+		fields.Text("E-posta", "email"),
+	}
 }
 
-func (l *MostPopularBlogsLens) Query(db *gorm.DB) *gorm.DB {
-    // Sadece 1000'den fazla görüntülenen blogları filtrele
-    // ve görüntülenme sayısına göre sırala
-    return db.Where("views > ?", 1000).Order("views desc")
+func (l *ActiveUsersLens) GetFields(ctx *context.Context) []fields.Element {
+	return l.Fields()
 }
 
-func (l *MostPopularBlogsLens) Fields() []fields.Element {
-    return []fields.Element{
-        fields.ID(),
-        fields.Text("Başlık", "Title"),
-        fields.Number("Görüntülenme", "Views"),
-        // İlişkileri de gösterebilirsiniz
-        fields.Link("Yazar", "user_id"), 
-    }
+func (l *ActiveUsersLens) GetCards(ctx *context.Context) []widget.Card {
+	return []widget.Card{}
 }
 ```
 
-## Kaynağa Lens Ekleme
-
-Oluşturduğunuz Lensi kullanmak için, ilgili Kaynağın (Resource) `Lenses` metoduna eklemeniz gerekir:
+## Resource'a Ekleme
 
 ```go
-func (r *BlogResource) Lenses() []resource.Lens {
-    return []resource.Lens{
-        &MostPopularBlogsLens{},
-        &RecentBlogsLens{},
-    }
+func (r *UserResource) Lenses() []resource.Lens {
+	return []resource.Lens{
+		&ActiveUsersLens{},
+	}
 }
 ```
 
-## Erişim (Routing)
+## Endpoint'ler
 
-Kaydettiğiniz Lenslere aşağıdaki otomatik API rotası üzerinden erişilebilir:
+### Lens listesi
+
+`GET /api/resource/:resource/lenses`
+
+Örnek yanıt:
+
+```json
+{
+  "data": [
+    { "name": "Aktif Kullanıcılar", "slug": "active-users" }
+  ]
+}
+```
+
+### Lens verisi
 
 `GET /api/resource/:resource/lens/:lens`
 
-Örneğin, yukarıdaki "En Popüler Bloglar" lensine erişmek için:
+Desteklenen query parametreleri:
+- `page`
+- `per_page`
+- `search`
+- `sort_by` + `sort_order`
 
-`GET /api/resource/blogs/lens/most-popular`
+Uyumluluk için:
+- `sort_column` + `sort_direction` da desteklenir.
 
-Bu istek, standart `Index` yanıt formatında ancak Lens'in `Query` filtresi uygulanmış ve `Fields` tanımındaki alanları içeren bir JSON döner.
+Örnek yanıt:
+
+```json
+{
+  "name": "Aktif Kullanıcılar",
+  "resources": [],
+  "prevPageUrl": null,
+  "nextPageUrl": null,
+  "perPage": 25,
+  "softDeletes": false,
+  "hasId": true,
+  "headers": [],
+  "data": []
+}
+```
+
+Not:
+- `data`, eski istemciler için geriye dönük uyumluluk alanıdır.
+- Yeni istemci için ana liste `resources` alanıdır.
+
+### Lens kartları
+
+`GET /api/resource/:resource/lens/:lens/cards`
+
+Örnek yanıt:
+
+```json
+{
+  "data": []
+}
+```
+
+## Yetki
+
+Lens endpoint'leri `ViewAny` policy kontrolünden geçer. Policy false dönerse `403 Unauthorized` alınır.

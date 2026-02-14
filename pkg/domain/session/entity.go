@@ -35,7 +35,7 @@ type Session struct {
 	// Kimlik doğrulama işlemlerinde kullanılan güvenli bir string'dir
 	// Örnek: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 	// Uyarı: Bu alan benzersiz olmalıdır, aynı token iki oturumda olamaz
-	Token string `json:"token" gorm:"uniqueIndex"`
+	Token string `json:"token" gorm:"uniqueIndex;not null"`
 
 	// UserID: Oturumun ait olduğu kullanıcının ID'si
 	// Foreign Key olarak user tablosuna referans verir

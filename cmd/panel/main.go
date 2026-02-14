@@ -188,6 +188,7 @@ func getModulePath() string {
 }
 
 // makeResource, yeni bir resource (kaynak) oluşturur.
+// Model dosyası da otomatik olarak internal/domain/<name>/entity.go'da oluşturulur.
 func makeResource(name string) {
 	// İsim normalizasyonu
 	caser := cases.Title(language.English)
@@ -196,31 +197,55 @@ func makeResource(name string) {
 	identifier := strings.ToLower(name) + "s" // blogs
 	label := resourceName + "s"               // Blogs
 	modelName := resourceName                 // Blog
+	tableName := identifier                   // blogs (plural tablo ismi)
 
-	// Dizin: internal/resource/<name>
-	dir := filepath.Join("internal", "resource", packageName)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Printf("Error creating directory: %v\n", err)
+	// Module path'ini al (go.mod'dan)
+	modulePath := getModulePath()
+
+	// 1. Model dosyasını oluştur: internal/entity/entity.go
+	modelDir := filepath.Join("internal", "entity")
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		fmt.Printf("Error creating model directory: %v\n", err)
 		return
 	}
 
-	// Module path'ini al
-	modulePath := getModulePath()
+	modelPath := filepath.Join(modelDir, "entity.go")
+	modelData := map[string]string{
+		"PackageName": "entity",
+		"ModelName":   modelName,
+		"TableName":   tableName,
+	}
+
+	// Model dosyası zaten varsa append et, yoksa oluştur
+	if _, err := os.Stat(modelPath); err == nil {
+		appendFileFromStub("model_struct.stub", modelPath, modelData)
+		fmt.Printf("Modified: %s (appended struct)\n", modelPath)
+	} else {
+		createFileFromStub("model.stub", modelPath, modelData)
+	}
+
+	// 2. Resource dosyalarını oluştur: internal/resource/<name>/
+	dir := filepath.Join("internal", "resource", packageName)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating resource directory: %v\n", err)
+		return
+	}
 
 	// Şablonlar için veri
 	data := map[string]string{
 		"PackageName":     packageName,
 		"ResourceName":    resourceName,
 		"ModelName":       modelName,
-		"ModelPkg":        packageName,                                    // Model package (varsayılan olarak resource ile aynı)
-		"ModulePath":      modulePath,                                     // go.mod'dan okunan module path
-		"ModelImportPath": modulePath + "/internal/domain/" + packageName, // Model import path (varsayılan)
+		"ModelPkg":        "entity",                        // Model package adı
+		"ModulePath":      modulePath,                      // go.mod'dan okunan module path
+		"ModelImportPath": modulePath + "/internal/entity", // Model import path
 		"Slug":            identifier,
 		"Title":           label,
 		"Label":           label,
 		"Identifier":      identifier,
 		"Group":           "Content",
 		"Icon":            "circle",
+		"TableName":       tableName,
 	}
 
 	// İşlenecek stub'lar
@@ -236,7 +261,62 @@ func makeResource(name string) {
 		createFileFromStub(stub, target, data)
 	}
 
-	fmt.Printf("Resource %s generated successfully in %s\n", resourceName, dir)
+	fmt.Printf("\n✅ Resource %s generated successfully!\n", resourceName)
+	fmt.Printf("   Model:    %s\n", modelPath)
+	fmt.Printf("   Resource: %s\n", dir)
+	fmt.Printf("   Table:    %s (plural)\n", tableName)
+	fmt.Printf("   Import:   %s\n", modulePath+"/internal/domain/"+packageName)
+
+	// 3. main.go dosyasına import ekle
+	importPath := modulePath + "/internal/resource/" + packageName
+	addImportToMain("main.go", importPath)
+}
+
+// addImportToMain, main.go dosyasına anonymous import ekler.
+func addImportToMain(mainPath, importPath string) {
+	content, err := os.ReadFile(mainPath)
+	if err != nil {
+		// main.go bulunamazsa sessizce geç (belki proje kök dizininde değiliz)
+		return
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var newLines []string
+	imported := false
+	inImportBlock := false
+	targetImport := fmt.Sprintf("\t_ \"%s\"", importPath)
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Zaten ekli mi kontrol et
+		if strings.Contains(line, importPath) {
+			imported = true
+		}
+
+		if strings.HasPrefix(trimmed, "import (") {
+			inImportBlock = true
+		}
+
+		// Import bloğunun sonuna ekle (bloğu kapatan parantezden hemen önce)
+		if inImportBlock && strings.HasPrefix(trimmed, ")") && !imported {
+			newLines = append(newLines, targetImport)
+			imported = true
+			inImportBlock = false
+		}
+
+		newLines = append(newLines, line)
+	}
+
+	if imported {
+		if err := os.WriteFile(mainPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+			fmt.Printf("Error updating %s: %v\n", mainPath, err)
+		} else {
+			fmt.Printf("Updated %s with import: %s\n", mainPath, importPath)
+		}
+	} else {
+		fmt.Printf("Warning: Could not automatically add import to %s. Please add: _ \"%s\"\n", mainPath, importPath)
+	}
 }
 
 // makePage, yeni bir sayfa (page) oluşturur.
@@ -291,9 +371,10 @@ func makeModel(name string) {
 	caser := cases.Title(language.English)
 	modelName := caser.String(name)      // Blog
 	packageName := strings.ToLower(name) // blog
+	tableName := packageName + "s"       // blogs (plural tablo ismi)
 
-	// Dizin: internal/domain/<name>
-	dir := filepath.Join("internal", "domain", packageName)
+	// Dizin: internal/entity
+	dir := filepath.Join("internal", "entity")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Printf("Error creating directory: %v\n", err)
 		return
@@ -303,12 +384,19 @@ func makeModel(name string) {
 
 	// Şablonlar için veri
 	data := map[string]string{
-		"PackageName": packageName,
+		"PackageName": "entity",
 		"ModelName":   modelName,
+		"TableName":   tableName,
 	}
 
-	createFileFromStub("model.stub", targetPath, data)
-	fmt.Printf("Model %s generated successfully at %s\n", modelName, targetPath)
+	// Model dosyası zaten varsa append et, yoksa oluştur
+	if _, err := os.Stat(targetPath); err == nil {
+		appendFileFromStub("model_struct.stub", targetPath, data)
+		fmt.Printf("Model %s appended successfully to %s (table: %s)\n", modelName, targetPath, tableName)
+	} else {
+		createFileFromStub("model.stub", targetPath, data)
+		fmt.Printf("Model %s generated successfully at %s (table: %s)\n", modelName, targetPath, tableName)
+	}
 }
 
 // createFileFromStub, stub dosyasından şablon işleyerek yeni bir dosya oluşturur.
@@ -346,6 +434,46 @@ func createFileFromStub(stubName, targetPath string, data map[string]string) {
 	fmt.Printf("Created: %s\n", targetPath)
 }
 
+// appendFileFromStub, stub dosyasından şablon işleyerek mevcut dosyanın sonuna ekler.
+func appendFileFromStub(stubName, targetPath string, data map[string]string) {
+	// Stub dosyasını gömülü dosya sisteminden oku
+	path := stubName
+	if !strings.HasPrefix(path, "stubs/") {
+		path = filepath.Join("stubs", stubName)
+	}
+
+	content, err := stubsFS.ReadFile(path)
+	if err != nil {
+		fmt.Printf("Error reading stub %s: %v\n", path, err)
+		return
+	}
+
+	// Şablonu işle
+	tmpl, err := template.New(stubName).Parse(string(content))
+	if err != nil {
+		fmt.Printf("Error parsing template %s: %v\n", stubName, err)
+		return
+	}
+
+	// Dosyayı append modunda aç
+	f, err := os.OpenFile(targetPath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Error opening file %s: %v\n", targetPath, err)
+		return
+	}
+	defer f.Close()
+
+	// Bir satır boşluk ekle
+	if _, err := f.WriteString("\n"); err != nil {
+		fmt.Printf("Error writing newline to file %s: %v\n", targetPath, err)
+	}
+
+	if err := tmpl.Execute(f, data); err != nil {
+		fmt.Printf("Error executing template %s: %v\n", stubName, err)
+	}
+	fmt.Printf("Appended: %s\n", targetPath)
+}
+
 // publishStubs, SDK'daki stub dosyalarını kullanıcının projesine kopyalar.
 func publishStubs() {
 	targetDir := filepath.Join(".panel", "stubs")
@@ -357,6 +485,7 @@ func publishStubs() {
 	// Stub dosyalarını listele
 	stubs := []string{
 		"model.stub",
+		"model_struct.stub",
 		"resource.stub",
 		"policy.stub",
 		"repository.stub",

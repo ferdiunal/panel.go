@@ -22,6 +22,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+const formNullSentinel = "__PANEL_NULL__"
+
 // / Bu yapı, panel API'sinde kaynak (resource) işlemlerini yönetmek için kullanılan
 // / merkezi HTTP istek işleyicisidir. Tüm CRUD operasyonları, alan (field) çözümleme,
 // / yetkilendirme ve bildirim işlemlerini koordine eder.
@@ -76,10 +78,36 @@ type FieldHandler struct {
 	StoragePath         string
 	StorageURL          string
 	Resource            resource.Resource
+	Lens                resource.Lens
 	Cards               []widget.Card
 	Title               string
 	DialogType          resource.DialogType
 	NotificationService *notification.Service
+}
+
+func collectSearchableColumns(elements []fields.Element) []string {
+	columns := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for _, element := range elements {
+		searchable, ok := element.(interface{ IsSearchable() bool })
+		if !ok || !searchable.IsSearchable() {
+			continue
+		}
+
+		key := element.GetKey()
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		columns = append(columns, key)
+	}
+
+	return columns
 }
 
 // / Bu fonksiyon, özel bir veri sağlayıcı (DataProvider) ile yeni bir FieldHandler oluşturur.
@@ -268,6 +296,11 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 		provider = data.NewGormDataProvider(db, res.Model())
 	}
 
+	if gormProvider, ok := provider.(*data.GormDataProvider); ok {
+		gormProvider.SetWith(res.With())
+		gormProvider.SetSearchColumns(collectSearchableColumns(res.Fields()))
+	}
+
 	// Initialize notification service with provider
 	notificationService := notification.NewService(provider)
 
@@ -373,22 +406,23 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 // / - `NewResourceHandler`: Tam özellikli resource handler oluşturma
 // / - `NewFieldHandler`: Minimal handler oluşturma
 func NewLensHandler(client interface{}, res resource.Resource, lens resource.Lens) *FieldHandler {
-	// TODO: Lens.Query metodu Ent'e geçirildiğinde güncellenecek
-	// Şimdilik doğrudan EntDataProvider kullanıyoruz
-
-	// Type assertion for Ent client
-	entClient, ok := client.(*gorm.DB)
+	// Type assertion for GORM DB
+	db, ok := client.(*gorm.DB)
 	if !ok {
-		// TODO: Add GORM support
-		panic("client must be *ent.Client for lens handler")
+		panic("client must be *gorm.DB for lens handler")
 	}
-	provider := data.NewGormDataProvider(entClient, res.Model())
+	provider := data.NewGormDataProvider(db, res.Model())
+	provider.SetWith(res.With())
+	provider.SetBaseQuery(lens.GetQuery())
+	provider.SetSearchColumns(collectSearchableColumns(lens.Fields()))
 
 	return &FieldHandler{
 		Provider: provider,
 		Elements: nil, // Lazy load edilecek
+		Policy:   res.Policy(),
 		Title:    lens.Name(),
 		Resource: res,
+		Lens:     lens,
 	}
 }
 
@@ -414,6 +448,18 @@ func NewLensHandler(client interface{}, res resource.Resource, lens resource.Len
 // / 4. Cache'de yoksa GetFieldsWithContext ile resolve et ve cache'e ekle
 // / 5. GetFieldsWithContext yoksa fallback (Resource.Fields() çağır)
 func (h *FieldHandler) getElements(ctx *context.Context) []fields.Element {
+	// Lens-specific field resolution has priority.
+	if h.Lens != nil {
+		if ctx != nil {
+			if lensFields := h.Lens.GetFields(ctx); len(lensFields) > 0 {
+				return lensFields
+			}
+		}
+		if lensFields := h.Lens.Fields(); len(lensFields) > 0 {
+			return lensFields
+		}
+	}
+
 	if ctx == nil {
 		// Fallback: context yoksa eski davranış
 		return h.Resource.Fields()
@@ -1177,6 +1223,7 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 // / - `Element.GetModifyCallback`: Veri modifikasyon callback
 func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, error) {
 	var body = make(map[string]interface{})
+	elements := h.getElements(c)
 
 	// Check content type
 	ctype := c.Ctx.Get("Content-Type")
@@ -1204,7 +1251,7 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 				}
 
 				var isFileType bool
-				for _, el := range h.Elements {
+				for _, el := range elements {
 					if el.GetKey() == normalizedKey {
 						if el.JsonSerialize()["type"] == fields.TYPE_FILE ||
 							el.JsonSerialize()["type"] == fields.TYPE_VIDEO ||
@@ -1231,7 +1278,7 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 
 				// Check for matching element and callback
 				var callback fields.StorageCallbackFunc
-				for _, el := range h.Elements {
+				for _, el := range elements {
 					if el.GetKey() == key {
 						callback = el.GetStorageCallback()
 						break
@@ -1259,11 +1306,11 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 		// Handle missing BelongsToMany fields in multipart/form-data
 		// If a BelongsToMany field is missing from the request, it implies the user unchecked all options.
 		// We set it to an empty slice so GormDataProvider clears the relationships.
-		for _, el := range h.Elements {
+		for _, el := range elements {
 			if _, ok := fields.IsRelationshipField(el); ok {
 				// We specifically check for BelongsToMany by view or type if interface allows
 				// Using reflection or type check if possible, or View/Type string
-				if el.JsonSerialize()["view"] == "belongs-to-many-field" {
+				if strings.HasPrefix(el.GetView(), "belongs-to-many-field") {
 					key := el.GetKey()
 					if _, exists := body[key]; !exists {
 						body[key] = []interface{}{}
@@ -1273,8 +1320,31 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 		}
 	}
 
+	// Convert explicit frontend null sentinel values to nil for relationship fields.
+	for _, el := range elements {
+		key := el.GetKey()
+		rawVal, exists := body[key]
+		if !exists {
+			continue
+		}
+
+		strVal, ok := rawVal.(string)
+		if !ok || strVal != formNullSentinel {
+			continue
+		}
+
+		// MorphTo is handled below by splitting into *_type and *_id fields.
+		if strings.HasPrefix(el.GetView(), "morph-to-field") {
+			continue
+		}
+
+		if _, isRelationship := fields.IsRelationshipField(el); isRelationship {
+			body[key] = nil
+		}
+	}
+
 	// Apply ModifyCallback for all fields
-	for _, el := range h.Elements {
+	for _, el := range elements {
 		if val, ok := body[el.GetKey()]; ok {
 			if callback := el.GetModifyCallback(); callback != nil {
 				body[el.GetKey()] = callback(val, c.Ctx)
@@ -1283,8 +1353,8 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 	}
 
 	// Handle MorphTo fields: parse JSON object {"type":"...", "id":"..."} into separate fields
-	for _, el := range h.Elements {
-		if el.JsonSerialize()["view"] == "morph-to-field" {
+	for _, el := range elements {
+		if strings.HasPrefix(el.GetView(), "morph-to-field") {
 			key := el.GetKey()
 			typeKey := key + "_type"
 			idKey := key + "_id"
@@ -1293,6 +1363,12 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 				// Parse MorphTo value - can be JSON string, map, or already separated
 				switch v := val.(type) {
 				case string:
+					if v == formNullSentinel {
+						body[typeKey] = nil
+						body[idKey] = nil
+						delete(body, key)
+						continue
+					}
 					// JSON string from form-data: {"type":"posts","id":"1"}
 					if strings.HasPrefix(v, "{") {
 						var morphData map[string]interface{}
@@ -1300,7 +1376,7 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 							if morphType, ok := morphData["type"].(string); ok && morphType != "" {
 								body[typeKey] = morphType
 							}
-							if morphID := morphData["id"]; morphID != nil {
+							if morphID, exists := morphData["id"]; exists {
 								body[idKey] = morphID
 							}
 						}
@@ -1310,7 +1386,7 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 					if morphType, ok := v["type"].(string); ok && morphType != "" {
 						body[typeKey] = morphType
 					}
-					if morphID := v["id"]; morphID != nil {
+					if morphID, exists := v["id"]; exists {
 						body[idKey] = morphID
 					}
 				}

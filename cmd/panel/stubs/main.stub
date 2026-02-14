@@ -60,10 +60,7 @@ func main() {
 			DefaultLanguage:  language.Turkish,
 			FormatBundleFile: "yaml",
 		},
-		Resources: []resource.Resource{
-			// Resource'larınızı buraya ekleyin
-			// Örnek: blog.NewBlogResource(),
-		},
+		// Resources are auto-discovered via anonymous imports
 		Pages: []page.Page{
 			pages.NewDashboard(),
 			pages.NewSettings(),

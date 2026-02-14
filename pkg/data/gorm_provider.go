@@ -105,6 +105,8 @@ type GormDataProvider struct {
 	DB *gorm.DB
 	/// Veritabanı modeli (struct veya struct pointer)
 	Model interface{}
+	/// Lens gibi özel senaryolar için taban sorgu modifikasyonu
+	BaseQuery func(*gorm.DB) *gorm.DB
 	/// Arama yapılacak kolon isimleri
 	SearchColumns []string
 	/// Eager loading için yüklenecek ilişkiler
@@ -341,6 +343,11 @@ func (p *GormDataProvider) SetSearchColumns(cols []string) {
 // / - Tüm CRUD operasyonlarında (Index, Show, Create, Update) geçerlidir
 func (p *GormDataProvider) SetWith(rels []string) {
 	p.WithRelationships = rels
+}
+
+// SetBaseQuery, tüm sorgulara uygulanacak taban query callback'ini ayarlar.
+func (p *GormDataProvider) SetBaseQuery(query func(*gorm.DB) *gorm.DB) {
+	p.BaseQuery = query
 }
 
 // / # applyFilters
@@ -694,6 +701,11 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 
 	stdCtx := p.getContext(ctx)
 	db := p.DB.WithContext(stdCtx).Model(p.Model)
+
+	// Apply base query (e.g. lens query) before dynamic filters and search.
+	if p.BaseQuery != nil {
+		db = p.BaseQuery(db)
+	}
 
 	// Apply Eager Loading with GORM Preload
 	// WORKAROUND: Direkt olarak WithRelationships kullan çünkü relationshipFields boş olabilir

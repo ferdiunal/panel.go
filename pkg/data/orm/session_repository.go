@@ -40,8 +40,9 @@ type SessionRepository struct {
 // - *SessionRepository: Yapılandırılmış SessionRepository pointer'ı
 //
 // Kullanım Örneği:
-//   db := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-//   repo := NewSessionRepository(db)
+//
+//	db := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+//	repo := NewSessionRepository(db)
 //
 // Önemli Notlar:
 // - db parametresi nil olmamalıdır, aksi takdirde runtime hatası oluşur
@@ -62,15 +63,16 @@ func NewSessionRepository(db *gorm.DB) *SessionRepository {
 // - error: İşlem başarılı ise nil, aksi takdirde hata mesajı
 //
 // Kullanım Örneği:
-//   newSession := &session.Session{
-//       UserID: 1,
-//       Token: "abc123xyz",
-//       ExpiresAt: time.Now().Add(24 * time.Hour),
-//   }
-//   err := repo.Create(ctx, newSession)
-//   if err != nil {
-//       log.Printf("Oturum oluşturulamadı: %v", err)
-//   }
+//
+//	newSession := &session.Session{
+//	    UserID: 1,
+//	    Token: "abc123xyz",
+//	    ExpiresAt: time.Now().Add(24 * time.Hour),
+//	}
+//	err := repo.Create(ctx, newSession)
+//	if err != nil {
+//	    log.Printf("Oturum oluşturulamadı: %v", err)
+//	}
 //
 // Önemli Notlar:
 // - Session nesnesi nil olmamalıdır
@@ -93,14 +95,15 @@ func (r *SessionRepository) Create(ctx context.Context, s *session.Session) erro
 // - error: İşlem başarılı ise nil, aksi takdirde hata mesajı
 //
 // Kullanım Örneği:
-//   session, err := repo.FindByID(ctx, 42)
-//   if err != nil {
-//       if errors.Is(err, gorm.ErrRecordNotFound) {
-//           log.Println("Oturum bulunamadı")
-//       }
-//       return
-//   }
-//   log.Printf("Oturum bulundu: %+v", session)
+//
+//	session, err := repo.FindByID(ctx, 42)
+//	if err != nil {
+//	    if errors.Is(err, gorm.ErrRecordNotFound) {
+//	        log.Println("Oturum bulunamadı")
+//	    }
+//	    return
+//	}
+//	log.Printf("Oturum bulundu: %+v", session)
 //
 // Önemli Notlar:
 // - ID sıfır veya negatif olmamalıdır
@@ -127,17 +130,18 @@ func (r *SessionRepository) FindByID(ctx context.Context, id uint) (*session.Ses
 // - error: İşlem başarılı ise nil, aksi takdirde hata mesajı
 //
 // Kullanım Örneği:
-//   // HTTP isteğinden token alınır
-//   token := r.Header.Get("Authorization")
-//   session, err := repo.FindByToken(ctx, token)
-//   if err != nil {
-//       if errors.Is(err, gorm.ErrRecordNotFound) {
-//           http.Error(w, "Geçersiz token", http.StatusUnauthorized)
-//       }
-//       return
-//   }
-//   // Oturum geçerli, kullanıcı doğrulandı
-//   log.Printf("Kullanıcı doğrulandı: %d", session.UserID)
+//
+//	// HTTP isteğinden token alınır
+//	token := r.Header.Get("Authorization")
+//	session, err := repo.FindByToken(ctx, token)
+//	if err != nil {
+//	    if errors.Is(err, gorm.ErrRecordNotFound) {
+//	        http.Error(w, "Geçersiz token", http.StatusUnauthorized)
+//	    }
+//	    return
+//	}
+//	// Oturum geçerli, kullanıcı doğrulandı
+//	log.Printf("Kullanıcı doğrulandı: %d", session.UserID)
 //
 // Önemli Notlar:
 // - Token boş string olmamalıdır
@@ -148,7 +152,9 @@ func (r *SessionRepository) FindByID(ctx context.Context, id uint) (*session.Ses
 // - Context timeout'u aşılırsa işlem iptal edilir
 func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*session.Session, error) {
 	var s session.Session
-	if err := r.db.WithContext(ctx).Preload("User").First(&s, "token = ?", token).Error; err != nil {
+	// Take, First'e göre daha performanslıdır çünkü ORDER BY id eklemez.
+	// Token zaten benzersiz (unique) olduğu için sıralamaya gerek yoktur.
+	if err := r.db.WithContext(ctx).Preload("User").Take(&s, "token = ?", token).Error; err != nil {
 		return nil, err
 	}
 	return &s, nil
@@ -165,12 +171,13 @@ func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*ses
 // - error: İşlem başarılı ise nil, aksi takdirde hata mesajı
 //
 // Kullanım Örneği:
-//   err := repo.Delete(ctx, 42)
-//   if err != nil {
-//       log.Printf("Oturum silinemedi: %v", err)
-//       return
-//   }
-//   log.Println("Oturum başarıyla silindi")
+//
+//	err := repo.Delete(ctx, 42)
+//	if err != nil {
+//	    log.Printf("Oturum silinemedi: %v", err)
+//	    return
+//	}
+//	log.Println("Oturum başarıyla silindi")
 //
 // Önemli Notlar:
 // - ID sıfır veya negatif olmamalıdır
@@ -193,14 +200,15 @@ func (r *SessionRepository) Delete(ctx context.Context, id uint) error {
 // - error: İşlem başarılı ise nil, aksi takdirde hata mesajı
 //
 // Kullanım Örneği:
-//   // Kullanıcı çıkış yaptığında
-//   token := r.Header.Get("Authorization")
-//   err := repo.DeleteByToken(ctx, token)
-//   if err != nil {
-//       log.Printf("Oturum silinemedi: %v", err)
-//       return
-//   }
-//   log.Println("Oturum başarıyla sonlandırıldı")
+//
+//	// Kullanıcı çıkış yaptığında
+//	token := r.Header.Get("Authorization")
+//	err := repo.DeleteByToken(ctx, token)
+//	if err != nil {
+//	    log.Printf("Oturum silinemedi: %v", err)
+//	    return
+//	}
+//	log.Println("Oturum başarıyla sonlandırıldı")
 //
 // Önemli Notlar:
 // - Token boş string olmamalıdır
@@ -223,13 +231,14 @@ func (r *SessionRepository) DeleteByToken(ctx context.Context, token string) err
 // - error: İşlem başarılı ise nil, aksi takdirde hata mesajı
 //
 // Kullanım Örneği:
-//   // Kullanıcı hesabı silindiğinde tüm oturumlarını temizle
-//   err := repo.DeleteByUserID(ctx, userID)
-//   if err != nil {
-//       log.Printf("Kullanıcı oturumları silinemedi: %v", err)
-//       return
-//   }
-//   log.Printf("Kullanıcı %d'nin tüm oturumları silindi", userID)
+//
+//	// Kullanıcı hesabı silindiğinde tüm oturumlarını temizle
+//	err := repo.DeleteByUserID(ctx, userID)
+//	if err != nil {
+//	    log.Printf("Kullanıcı oturumları silinemedi: %v", err)
+//	    return
+//	}
+//	log.Printf("Kullanıcı %d'nin tüm oturumları silindi", userID)
 //
 // Önemli Notlar:
 // - userID sıfır veya negatif olmamalıdır

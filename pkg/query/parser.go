@@ -463,13 +463,22 @@ func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
 	}
 
 	// Sıralama (legacy format: sort_column + sort_direction)
-	if col := c.Query("sort_column"); col != "" {
-		dir := strings.ToLower(c.Query("sort_direction", "asc"))
+	// Compatibility: sort_by + sort_order (frontend lens view)
+	sortColumn := c.Query("sort_column")
+	if sortColumn == "" {
+		sortColumn = c.Query("sort_by")
+	}
+	if sortColumn != "" {
+		sortDirection := c.Query("sort_direction")
+		if sortDirection == "" {
+			sortDirection = c.Query("sort_order", "asc")
+		}
+		dir := strings.ToLower(sortDirection)
 		if dir != "asc" && dir != "desc" {
 			dir = "asc"
 		}
 		params.Sorts = append(params.Sorts, Sort{
-			Column:    col,
+			Column:    sortColumn,
 			Direction: dir,
 		})
 	}

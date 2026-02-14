@@ -2214,6 +2214,10 @@ func (r Base) ResolveField(fieldName string, item any) (any, error) {
 			field.Extract(item)
 			// Return the serialized value
 			serialized := field.JsonSerialize()
+			if val, ok := serialized["data"]; ok {
+				return val, nil
+			}
+			// Backward compatibility for older serializers.
 			if val, ok := serialized["value"]; ok {
 				return val, nil
 			}

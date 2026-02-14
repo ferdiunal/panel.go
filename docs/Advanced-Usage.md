@@ -277,10 +277,14 @@ func (r *PostResource) Fields() []fields.Element {
             WithEagerLoad(),
         fields.HasMany("Yorumlar", "comments", "comments").
             ForeignKey("post_id").
-            Query(func(q *fields.Query) *fields.Query {
-                return q.
-                    Where("approved", "=", true).
-                    OrderBy("created_at", "DESC").
+            Query(func(q interface{}) interface{} {
+                db, ok := q.(*gorm.DB)
+                if !ok || db == nil {
+                    return q
+                }
+                return db.
+                    Where("approved = ?", true).
+                    Order("created_at DESC").
                     Limit(5)
             }).
             WithEagerLoad(),
@@ -579,8 +583,12 @@ func (r *ProductResource) PerPage() int {
 ```go
 // ✓ İyi - Sadece gerekli alanları seç
 fields.HasMany("Posts", "posts", "posts").
-    Query(func(q *fields.Query) *fields.Query {
-        return q.Select("id", "title", "created_at")
+    Query(func(q interface{}) interface{} {
+        db, ok := q.(*gorm.DB)
+        if !ok || db == nil {
+            return q
+        }
+        return db.Select("id", "title", "created_at")
     })
 
 // ✗ Kaçın - Tüm alanları yükle
