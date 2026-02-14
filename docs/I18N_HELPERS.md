@@ -5,9 +5,10 @@ Bu dokümantasyon, Panel.go'da Laravel'deki `__()` helper'ına benzer şekilde �
 ## İçindekiler
 
 1. [Genel Bakış](#genel-bakış)
-2. [Helper Fonksiyonları](#helper-fonksiyonları)
-3. [Fields'larda Kullanım](#fieldslarda-kullanım)
-4. [Kullanım Örnekleri](#kullanım-örnekleri)
+2. [Middleware Yapılandırması](#middleware-yapılandırması)
+3. [Helper Fonksiyonları](#helper-fonksiyonları)
+4. [Fields'larda Kullanım](#fieldslarda-kullanım)
+5. [Kullanım Örnekleri](#kullanım-örnekleri)
 
 ---
 
@@ -23,6 +24,59 @@ Panel.go, Laravel'deki `__()` helper'ına benzer şekilde çalışan i18n helper
 - ✅ Fallback değer desteği
 - ✅ Çeviri varlık kontrolü
 - ✅ Mevcut dil bilgisi
+
+---
+
+## Middleware Yapılandırması
+
+Panel.go'da i18n desteği, Fiber i18n middleware'i kullanılarak sağlanır. Middleware, dil seçimini otomatik olarak yönetir ve çeviri fonksiyonlarını kullanıma hazır hale getirir.
+
+### Yapılandırma
+
+```go
+import "golang.org/x/text/language"
+
+config := panel.Config{
+    // ... diğer yapılandırmalar
+    I18n: panel.I18nConfig{
+        Enabled:          true,
+        RootPath:         "./locales",
+        AcceptLanguages:  []language.Tag{language.Turkish, language.English},
+        DefaultLanguage:  language.Turkish,
+        FormatBundleFile: "yaml",
+    },
+}
+```
+
+### Parametreler
+
+| Parametre | Tip | Varsayılan | Açıklama |
+|-----------|-----|------------|----------|
+| `Enabled` | bool | false | i18n'i etkinleştirir |
+| `RootPath` | string | "./locales" | Dil dosyalarının bulunduğu dizin |
+| `AcceptLanguages` | []language.Tag | [tr, en] | Desteklenen diller listesi |
+| `DefaultLanguage` | language.Tag | Turkish | Varsayılan dil (fallback) |
+| `FormatBundleFile` | string | "yaml" | Dil dosyası formatı (yaml, json, toml) |
+
+### Dil Seçimi
+
+Dil, şu sırayla belirlenir:
+
+1. **Query Parametresi**: `?lang=tr`
+2. **Accept-Language Header**: `Accept-Language: tr-TR,tr;q=0.9,en;q=0.8`
+3. **DefaultLanguage**: Fallback dil
+
+### Dil Değiştirme
+
+**Query parametresi ile:**
+```bash
+curl http://localhost:8080/api/resource/users?lang=en
+```
+
+**Header ile:**
+```bash
+curl -H "Accept-Language: en-US,en;q=0.9" http://localhost:8080/api/resource/users
+```
 
 ---
 
@@ -98,6 +152,126 @@ message := i18n.TransWithFallback(c, "unknown.key", "Varsayılan Mesaj")
 
 ## Fields'larda Kullanım
 
+### Resource Title ve Group i18n
+
+Resource'ların başlık ve grup isimlerini i18n ile yönetmek için `SetTitleFunc` ve `SetGroupFunc` kullanın:
+
+```go
+package resource
+
+import (
+	"github.com/ferdiunal/panel.go/pkg/i18n"
+	"github.com/ferdiunal/panel.go/pkg/resource"
+	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+)
+
+type UserResource struct {
+	resource.OptimizedBase
+}
+
+func NewUserResource() *UserResource {
+	r := &UserResource{}
+	r.SetModel(&User{})
+	r.SetSlug("users")
+
+	// i18n desteği için SetTitleFunc ve SetGroupFunc kullanın
+	r.SetTitleFunc(func(c *fiber.Ctx) string {
+		return i18n.Trans(c, "resources.users.title")
+	})
+	r.SetGroupFunc(func(c *fiber.Ctx) string {
+		return i18n.Trans(c, "resources.groups.user_management")
+	})
+
+	// Alternatif olarak statik değerler için:
+	// r.SetTitle("Users")
+	// r.SetGroup("User Management")
+
+	r.SetIcon("users")
+	r.SetNavigationOrder(1)
+	r.SetVisible(true)
+	return r
+}
+
+func (r *UserResource) Repository(db *gorm.DB) data.DataProvider {
+	return NewUserRepository(db)
+}
+```
+
+**Dil Dosyası:**
+```yaml
+# locales/tr.yaml
+resources:
+  groups:
+    user_management:
+      other: "Kullanıcı Yönetimi"
+  users:
+    title:
+      other: "Kullanıcılar"
+```
+
+### FieldResolver'da Güvenli i18n Kullanımı
+
+FieldResolver'da `ctx.Ctx` nil olabilir (resource initialization sırasında). Güvenli i18n kullanımı için `trans()` helper metodu kullanın:
+
+```go
+package resource
+
+import (
+	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/core"
+	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
+)
+
+type UserFieldResolver struct{}
+
+// trans, güvenli i18n çevirisi yapar. ctx veya ctx.Ctx nil ise fallback değeri döner.
+func (r *UserFieldResolver) trans(ctx *context.Context, key string, fallback string) string {
+	if ctx == nil || ctx.Ctx == nil {
+		return fallback
+	}
+	return i18n.Trans(ctx.Ctx, key)
+}
+
+func (r *UserFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
+	return []core.Element{
+		fields.ID().ReadOnly().OnlyOnDetail(),
+
+		fields.Text("name").
+			Label(r.trans(ctx, "fields.name", "Name")).
+			Placeholder(r.trans(ctx, "fields.name_placeholder", "Enter name")).
+			Required().
+			Searchable(),
+
+		fields.Email("email").
+			Label(r.trans(ctx, "fields.email", "Email")).
+			Placeholder(r.trans(ctx, "fields.email_placeholder", "Enter email")).
+			Required().
+			Searchable(),
+
+		fields.Select("role").
+			Label(r.trans(ctx, "fields.role", "Role")).
+			Placeholder(r.trans(ctx, "fields.role_placeholder", "Select role")).
+			Options(map[string]string{
+				"admin":  r.trans(ctx, "roles.admin", "Admin"),
+				"editor": r.trans(ctx, "roles.editor", "Editor"),
+				"viewer": r.trans(ctx, "roles.viewer", "Viewer"),
+			}),
+	}
+}
+```
+
+**Önemli Notlar:**
+- ✅ `ctx.Ctx` nil kontrolü yapın (resource initialization sırasında nil olabilir)
+- ✅ Fallback değerleri sağlayın (i18n dosyası yoksa veya context nil ise)
+- ✅ Select Options'larında da i18n kullanın
+- ✅ trans() helper metodunu struct'a ekleyin (kod tekrarını önler)
+
+---
+
+## Fields'larda Kullanım (Devamı)
+
 ### Resource Tanımında
 
 ```go
@@ -146,7 +320,7 @@ func (r *UserResource) Fields(c *fiber.Ctx) []fields.Field {
 
 ### Dil Dosyası Yapısı
 
-**locales/tr/messages.yaml:**
+**locales/tr.yaml:**
 ```yaml
 # Fields
 fields:
@@ -173,7 +347,7 @@ roles:
     other: "Görüntüleyici"
 ```
 
-**locales/en/messages.yaml:**
+**locales/en.yaml:**
 ```yaml
 # Fields
 fields:
@@ -529,7 +703,7 @@ message := i18n.Trans(c, "custom.message") // Panic olabilir
 ### Problem: Çeviriler gösterilmiyor
 
 **Çözüm:**
-1. Dil dosyalarının doğru dizinde olduğunu kontrol edin (`locales/tr/messages.yaml`)
+1. Dil dosyalarının doğru dizinde olduğunu kontrol edin (`locales/tr.yaml`)
 2. YAML formatının doğru olduğunu kontrol edin
 3. i18n middleware'inin etkin olduğunu kontrol edin
 4. Çeviri anahtarının doğru olduğunu kontrol edin

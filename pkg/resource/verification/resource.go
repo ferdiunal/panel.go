@@ -146,15 +146,12 @@ func NewVerificationResource() *VerificationResource {
 // - Her çağrıda yeni bir DataProvider örneği oluşturulur
 // - GORM ORM'i kullanarak veritabanı işlemleri gerçekleştirilir
 // - Verification modeli otomatik olarak tablo adı ve yapısını belirler
-func (r *VerificationResource) Repository(client interface{}) data.DataProvider {
-	// Type assertion to get Ent client
-	db, ok := client.(*gorm.DB)
-	if !ok {
-		// TODO: Add GORM support
+func (r *VerificationResource) Repository(client *gorm.DB) data.DataProvider {
+	if client == nil {
 		return nil
 	}
 
-	return data.NewGormDataProvider(db, &domainVerification.Verification{})
+	return data.NewGormDataProvider(client, &domainVerification.Verification{})
 }
 
 // Bu metod, Verification resource'u için özel görünümleri (lens'leri) döner.

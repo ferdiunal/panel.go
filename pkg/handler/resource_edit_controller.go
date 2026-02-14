@@ -232,7 +232,8 @@ func HandleResourceEdit(h *FieldHandler, c *context.Context) error {
 
 	// Filter for Update
 	var updateElements []fields.Element
-	for _, element := range h.Elements {
+	elements := h.getElements(c)
+	for _, element := range elements {
 		if !element.IsVisible(c.Resource()) {
 			continue
 		}

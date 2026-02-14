@@ -173,13 +173,10 @@ func NewUserResource() *UserResource {
 // - Veritabanı bağlantısı geçerli ve açık olmalıdır
 // - Bağlantı kapatıldıktan sonra veri sağlayıcı kullanılamaz
 // - Hata yönetimi, veri sağlayıcı tarafından yapılır
-func (r *UserResource) Repository(client interface{}) data.DataProvider {
-	// Type assertion to get Ent client
-	db, ok := client.(*gorm.DB)
-	if !ok {
-		// TODO: Add GORM support
+func (r *UserResource) Repository(client *gorm.DB) data.DataProvider {
+	if client == nil {
 		return nil
 	}
 
-	return NewUserDataProvider(db)
+	return NewUserDataProvider(client)
 }

@@ -2,9 +2,13 @@ package {{.PackageName}}
 
 import (
 	"gorm.io/gorm"
-
+{{if ne .ModelPkg .PackageName}}
+	"{{.ModelImportPath}}"
+{{end}}
 	"github.com/ferdiunal/panel.go/pkg/data"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/resource"
+	"github.com/gofiber/fiber/v2"
 )
 
 type {{.ResourceName}}Resource struct {
@@ -13,13 +17,25 @@ type {{.ResourceName}}Resource struct {
 
 func New{{.ResourceName}}Resource() *{{.ResourceName}}Resource {
 	r := &{{.ResourceName}}Resource{}
-	r.Model = &{{.ModelName}}{}
-	r.Slug = "{{.Identifier}}"
-	r.Title = "{{.Label}}"
-	r.Icon = "{{.Icon}}"
-	r.Group = "{{.Group}}"
-	r.NavigationOrder = 1
-	r.Visible = true
+	r.SetModel(&{{.ModelPkg}}.{{.ModelName}}{})
+	r.SetSlug("{{.Identifier}}")
+
+	// i18n desteği için SetTitleFunc ve SetGroupFunc kullanın
+	// Alternatif olarak statik değerler için SetTitle ve SetGroup kullanabilirsiniz
+	r.SetTitleFunc(func(c *fiber.Ctx) string {
+		return i18n.Trans(c, "resources.{{.Identifier}}.title")
+	})
+	r.SetGroupFunc(func(c *fiber.Ctx) string {
+		return i18n.Trans(c, "resources.groups.{{.Group}}")
+	})
+
+	// Veya statik değerler için:
+	// r.SetTitle("{{.Label}}")
+	// r.SetGroup("{{.Group}}")
+
+	r.SetIcon("{{.Icon}}")
+	r.SetNavigationOrder(1)
+	r.SetVisible(true)
 	r.SetPolicy(&{{.ResourceName}}Policy{})
 	r.SetFieldResolver(&{{.ResourceName}}FieldResolver{})
 	r.SetCardResolver(&{{.ResourceName}}CardResolver{})

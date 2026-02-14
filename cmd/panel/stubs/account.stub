@@ -1,0 +1,99 @@
+package {{.PackageName}}
+
+import (
+	"fmt"
+
+	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/page"
+	"gorm.io/gorm"
+)
+
+// Account, kullanıcı hesap ayarları sayfasıdır.
+// Kullanıcılar kendi profil bilgilerini düzenleyebilir.
+type Account struct {
+	page.OptimizedBase
+}
+
+// NewAccount, yeni bir Account instance'ı oluşturur.
+func NewAccount() *Account {
+	a := &Account{}
+
+	// Temel ayarlar
+	a.SetSlug("account")
+	a.SetIcon("user")
+	a.SetNavigationOrder(99) // Menünün sonunda
+	a.SetVisible(true)
+
+	// i18n desteği
+	// locales/tr.yaml: navigation.account: "Hesabım"
+	// locales/en.yaml: navigation.account: "My Account"
+	a.SetTitle("navigation.account")
+	a.SetDescription("pages.account.description")
+
+	// Form alanlarını dinamik olarak yönetmek için FieldResolver kullan
+	a.SetFieldResolver(&AccountFieldResolver{})
+
+	return a
+}
+
+// CanAccess, Account sayfasına erişim kontrolü yapar.
+// Tüm oturum açmış kullanıcılar erişebilir.
+func (a *Account) CanAccess(ctx *context.Context) bool {
+	return true
+}
+
+// AccountFieldResolver, Account form alanlarını dinamik olarak oluşturur.
+type AccountFieldResolver struct{}
+
+// ResolveFields, Account sayfasında gösterilecek form alanlarını döndürür.
+func (r *AccountFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	return []fields.Element{
+		// Örnek: Ad alanı
+		fields.Text("Name", "name").
+			Required().
+			Placeholder("Enter your name"),
+
+		// Örnek: E-posta alanı
+		fields.Email("Email", "email").
+			Required().
+			Placeholder("your@email.com"),
+
+		// Örnek: Şifre alanı
+		fields.Password("New Password", "password").
+			Placeholder("Leave blank to keep current password"),
+
+		// Daha fazla alan ekleyebilirsiniz:
+		// fields.Tel("Phone", "phone"),
+		// fields.Textarea("Bio", "bio"),
+	}
+}
+
+// Save, kullanıcı hesap bilgilerini günceller.
+func (a *Account) Save(ctx *context.Context, db *gorm.DB, data map[string]any) error {
+	// Mevcut kullanıcıyı al
+	u := ctx.User()
+	if u == nil {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	// Örnek: Adı güncelle
+	if name, ok := data["name"].(string); ok && name != "" {
+		u.Name = name
+	}
+
+	// Örnek: E-postayı güncelle
+	if email, ok := data["email"].(string); ok && email != "" {
+		u.Email = email
+	}
+
+	// Örnek: Şifreyi güncelle (boş değilse)
+	if password, ok := data["password"].(string); ok && password != "" {
+		// Şifreyi hash'le ve güncelle
+		// hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		// u.Password = string(hashedPassword)
+	}
+
+	// Veritabanına kaydet
+	return db.Save(u).Error
+}

@@ -279,7 +279,7 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	if ctx != nil && len(ctx.Elements) > 0 {
 		elements = ctx.Elements
 	} else {
-		elements = h.Elements
+		elements = h.getElements(c)
 	}
 
 	if len(elements) == 0 {
@@ -401,7 +401,7 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			"per_page":     result.PerPage,
 			"total":        result.Total,
 			"dialog_type":  h.DialogType,
-			"title":        h.Resource.Title(),
+			"title":        h.Resource.TitleWithContext(c.Ctx),
 			"headers":      headers,
 			"policy": fiber.Map{
 				"create":   h.Policy == nil || h.Policy.Create(c),

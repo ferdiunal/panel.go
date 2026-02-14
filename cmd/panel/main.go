@@ -45,7 +45,7 @@ import (
 //   - Dosyalar, stubs/ klasöründe *.stub uzantısıyla saklanır
 //   - Gömülü dosyalar, derleme zamanında sabitlenir ve değiştirilemez
 //
-//go:embed stubs/*.stub
+//go:embed stubs/*.stub stubs/*.yaml
 var stubsFS embed.FS
 
 // skillsFS, skills dizinindeki tüm skill dosyalarını gömülü dosya sistemi
@@ -94,7 +94,7 @@ func newMakeResourceCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "make:resource <name>",
 		Short: "Yeni bir resource oluşturur",
-		Long:  "Yeni bir resource (kaynak) oluşturur. Resource, policy ve repository dosyalarını oluşturur.",
+		Long:  "Yeni bir resource (kaynak) oluşturur. Resource, policy, repository, field resolver ve card resolver dosyalarını oluşturur.",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			makeResource(args[0])
@@ -167,6 +167,26 @@ func newInitCommand() *cobra.Command {
 	return cmd
 }
 
+// getModulePath, go.mod dosyasından module path'ini okur.
+func getModulePath() string {
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		fmt.Printf("Warning: Could not read go.mod: %v\n", err)
+		return "your-module-path"
+	}
+
+	// "module " ile başlayan satırı bul
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "module"))
+		}
+	}
+
+	return "your-module-path"
+}
+
 // makeResource, yeni bir resource (kaynak) oluşturur.
 func makeResource(name string) {
 	// İsim normalizasyonu
@@ -184,24 +204,32 @@ func makeResource(name string) {
 		return
 	}
 
+	// Module path'ini al
+	modulePath := getModulePath()
+
 	// Şablonlar için veri
 	data := map[string]string{
-		"PackageName":  packageName,
-		"ResourceName": resourceName,
-		"ModelName":    modelName,
-		"Slug":         identifier,
-		"Title":        label,
-		"Label":        label,
-		"Identifier":   identifier,
-		"Group":        "Content",
-		"Icon":         "circle",
+		"PackageName":     packageName,
+		"ResourceName":    resourceName,
+		"ModelName":       modelName,
+		"ModelPkg":        packageName,                                    // Model package (varsayılan olarak resource ile aynı)
+		"ModulePath":      modulePath,                                     // go.mod'dan okunan module path
+		"ModelImportPath": modulePath + "/internal/domain/" + packageName, // Model import path (varsayılan)
+		"Slug":            identifier,
+		"Title":           label,
+		"Label":           label,
+		"Identifier":      identifier,
+		"Group":           "Content",
+		"Icon":            "circle",
 	}
 
 	// İşlenecek stub'lar
 	stubs := map[string]string{
-		"resource.stub":   filepath.Join(dir, fmt.Sprintf("%s_resource.go", packageName)),
-		"policy.stub":     filepath.Join(dir, fmt.Sprintf("%s_policy.go", packageName)),
-		"repository.stub": filepath.Join(dir, fmt.Sprintf("%s_repository.go", packageName)),
+		"resource.stub":       filepath.Join(dir, fmt.Sprintf("%s_resource.go", packageName)),
+		"policy.stub":         filepath.Join(dir, fmt.Sprintf("%s_policy.go", packageName)),
+		"repository.stub":     filepath.Join(dir, fmt.Sprintf("%s_repository.go", packageName)),
+		"field_resolver.stub": filepath.Join(dir, fmt.Sprintf("%s_field_resolver.go", packageName)),
+		"card_resolver.stub":  filepath.Join(dir, fmt.Sprintf("%s_card_resolver.go", packageName)),
 	}
 
 	for stub, target := range stubs {
@@ -220,7 +248,7 @@ func makePage(name string) {
 	slug := strings.ToLower(name)        // dashboard
 	title := pageName                    // Dashboard
 
-	dir := filepath.Join("internal", "page")
+	dir := filepath.Join("internal", "pages")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Printf("Error creating directory: %v\n", err)
 		return
@@ -228,17 +256,32 @@ func makePage(name string) {
 
 	targetPath := filepath.Join(dir, fmt.Sprintf("%s.go", packageName))
 
+	// Özel stub varsa kullan (dashboard.stub, settings.stub, account.stub)
+	stubName := "page.stub"
+	switch slug {
+	case "dashboard":
+		stubName = "dashboard.stub"
+	case "settings":
+		stubName = "settings.stub"
+	case "account":
+		stubName = "account.stub"
+	}
+
+	// Module path'ini al
+	modulePath := getModulePath()
+
 	// Şablonlar için veri
 	data := map[string]string{
-		"PackageName": "page",
+		"PackageName": "pages",
 		"PageName":    pageName,
 		"Slug":        slug,
 		"Title":       title,
 		"Group":       "System",
 		"Icon":        "circle",
+		"ModulePath":  modulePath,
 	}
 
-	createFileFromStub("page.stub", targetPath, data)
+	createFileFromStub(stubName, targetPath, data)
 	fmt.Printf("Page %s generated successfully at %s\n", pageName, targetPath)
 }
 
@@ -320,6 +363,11 @@ func publishStubs() {
 		"page.stub",
 		"field_resolver.stub",
 		"card_resolver.stub",
+		"dashboard.stub",
+		"settings.stub",
+		"account.stub",
+		"i18n-pages-example.yaml",
+		"i18n-pages-example-en.yaml",
 	}
 
 	for _, stub := range stubs {
@@ -414,8 +462,17 @@ func initProject(database string) {
 		database = "sqlite"
 	}
 
+	// Module path'ini al
+	modulePath := getModulePath()
+
 	fmt.Printf("📦 Creating project files (database: %s)...\n", database)
 	createProjectFiles(projectName, database)
+
+	fmt.Println("\n📄 Creating default pages...")
+	createDefaultPages(modulePath)
+
+	fmt.Println("\n🌍 Creating locale files...")
+	createLocaleFiles()
 
 	fmt.Println("\n📦 Publishing stubs...")
 	publishStubs()
@@ -425,17 +482,19 @@ func initProject(database string) {
 
 	fmt.Println("\n✅ Project initialized successfully!")
 	fmt.Println("\nProject structure:")
-	fmt.Println("  ├── main.go           # Application entry point")
-	fmt.Println("  ├── go.mod            # Go module definition")
-	fmt.Println("  ├── .env              # Environment configuration")
-	fmt.Println("  ├── .panel/stubs/     # Code generation templates")
-	fmt.Println("  └── .claude/skills/   # Claude Code skills")
+	fmt.Println("  ├── main.go              # Application entry point")
+	fmt.Println("  ├── go.mod               # Go module definition")
+	fmt.Println("  ├── .env                 # Environment configuration")
+	fmt.Println("  ├── internal/pages/      # Custom pages (Dashboard, Settings, Account)")
+	fmt.Println("  ├── locales/             # i18n translation files")
+	fmt.Println("  ├── .panel/stubs/        # Code generation templates")
+	fmt.Println("  └── .claude/skills/      # Claude Code skills")
 	fmt.Println("\nNext steps:")
 	fmt.Println("  1. Update .env with your configuration")
 	fmt.Println("  2. Run: go mod tidy")
 	fmt.Println("  3. Run: go run main.go")
 	fmt.Println("  4. Create a resource: panel make:resource blog")
-	fmt.Println("  5. Use Claude Code skills with /panel-go-resource")
+	fmt.Println("  5. Create a page: panel make:page analytics")
 }
 
 // promptDatabaseSelection, kullanıcıya database seçimi için interactive prompt gösterir.
@@ -469,9 +528,11 @@ func createProjectFiles(projectName, database string) {
 	}
 
 	// main.go oluştur (database'e göre)
+	modulePath := getModulePath()
 	mainData := map[string]string{
 		"ProjectName": projectName,
 		"Database":    database,
+		"ModulePath":  modulePath,
 	}
 
 	// Database'e göre farklı stub kullan
@@ -567,4 +628,84 @@ func generateEncryptionKey() (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+// createDefaultPages, varsayılan Dashboard, Settings ve Account sayfalarını oluşturur.
+func createDefaultPages(modulePath string) {
+	dir := filepath.Join("internal", "pages")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating pages directory: %v\n", err)
+		return
+	}
+
+	// Şablonlar için veri
+	pages := []struct {
+		StubName string
+		FileName string
+		PageName string
+		Slug     string
+		Title    string
+		Icon     string
+	}{
+		{"dashboard.stub", "dashboard.go", "Dashboard", "dashboard", "Dashboard", "home"},
+		{"settings.stub", "settings.go", "Settings", "settings", "Settings", "settings"},
+		{"account.stub", "account.go", "Account", "account", "Account", "user"},
+	}
+
+	for _, p := range pages {
+		targetPath := filepath.Join(dir, p.FileName)
+
+		// Dosya zaten varsa atla
+		if _, err := os.Stat(targetPath); err == nil {
+			fmt.Printf("⏩ Skipped (already exists): %s\n", targetPath)
+			continue
+		}
+
+		data := map[string]string{
+			"PackageName": "pages",
+			"PageName":    p.PageName,
+			"Slug":        p.Slug,
+			"Title":       p.Title,
+			"Group":       "System",
+			"Icon":        p.Icon,
+			"ModulePath":  modulePath,
+		}
+		createFileFromStub(p.StubName, targetPath, data)
+	}
+}
+
+// createLocaleFiles, i18n dil dosyalarını locales/ dizinine kopyalar.
+func createLocaleFiles() {
+	localesDir := "locales"
+	if err := os.MkdirAll(localesDir, 0755); err != nil {
+		fmt.Printf("Error creating locales directory: %v\n", err)
+		return
+	}
+
+	// i18n dosyalarını kopyala
+	localeFiles := map[string]string{
+		"i18n-pages-example.yaml":    filepath.Join(localesDir, "tr.yaml"),
+		"i18n-pages-example-en.yaml": filepath.Join(localesDir, "en.yaml"),
+	}
+
+	for stub, target := range localeFiles {
+		// Dosya zaten varsa atla
+		if _, err := os.Stat(target); err == nil {
+			fmt.Printf("⏩ Skipped (already exists): %s\n", target)
+			continue
+		}
+
+		sourcePath := filepath.Join("stubs", stub)
+		content, err := stubsFS.ReadFile(sourcePath)
+		if err != nil {
+			fmt.Printf("Error reading %s: %v\n", stub, err)
+			continue
+		}
+
+		if err := os.WriteFile(target, content, 0644); err != nil {
+			fmt.Printf("Error writing %s: %v\n", target, err)
+			continue
+		}
+		fmt.Printf("✓ Created: %s\n", target)
+	}
 }

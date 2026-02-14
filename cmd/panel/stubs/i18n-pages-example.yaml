@@ -1,0 +1,71 @@
+# ============================================================================
+# i18n DİL DOSYASI ÖRNEĞİ - Sayfa Çevirileri (Türkçe)
+# ============================================================================
+#
+# Türkçe: locales/tr.yaml
+#
+# NOT: fiberi18n "description" kelimesini reserved key olarak kullanır.
+# Bu yüzden nested yapı yerine dot-notation kullanıyoruz.
+# ============================================================================
+
+# NAVIGATION - Menü Başlıkları
+navigation.dashboard: "Kontrol Paneli"
+navigation.settings: "Ayarlar"
+navigation.account: "Hesabım"
+navigation.users: "Kullanıcılar"
+navigation.products: "Ürünler"
+
+# PAGES - Sayfa Açıklamaları
+pages.dashboard.description: "Sistem istatistiklerini ve önemli metrikleri görüntüleyin"
+pages.dashboard.welcome: "Hoş geldiniz, {{.Name}}"
+pages.settings.description: "Uygulama ayarlarını yönetin"
+pages.settings.saved: "Ayarlar başarıyla kaydedildi"
+pages.settings.error: "Ayarlar kaydedilirken hata oluştu"
+pages.account.description: "Hesap bilgilerinizi düzenleyin"
+pages.account.profile_updated: "Profil bilgileriniz güncellendi"
+pages.account.password_changed: "Şifreniz başarıyla değiştirildi"
+
+# WIDGETS - Widget Başlıkları
+widgets.total_users: "Toplam Kullanıcı"
+widgets.active_sessions: "Aktif Oturum"
+widgets.monthly_revenue: "Aylık Gelir"
+widgets.pending_orders: "Bekleyen Sipariş"
+
+# FORM FIELDS - Form Alanı Etiketleri
+fields.name: "Ad"
+fields.email: "E-posta"
+fields.password: "Şifre"
+fields.new_password: "Yeni Şifre"
+fields.confirm_password: "Şifre Tekrar"
+fields.phone: "Telefon"
+fields.bio: "Biyografi"
+fields.site_name: "Site Adı"
+fields.admin_email: "Yönetici E-postası"
+
+# PLACEHOLDERS - Form Alanı Placeholder'ları
+placeholders.enter_name: "Adınızı girin"
+placeholders.enter_email: "E-posta adresinizi girin"
+placeholders.enter_password: "Şifrenizi girin"
+placeholders.leave_blank: "Değiştirmek istemiyorsanız boş bırakın"
+
+# VALIDATION - Doğrulama Mesajları
+validation.required: "Bu alan zorunludur"
+validation.invalid_email: "Geçersiz e-posta adresi"
+validation.password_min_length: "Şifre en az {{.Min}} karakter olmalıdır"
+validation.password_mismatch: "Şifreler eşleşmiyor"
+
+# ACTIONS - Buton ve Aksiyon Metinleri
+actions.save: "Kaydet"
+actions.cancel: "İptal"
+actions.delete: "Sil"
+actions.edit: "Düzenle"
+actions.create: "Oluştur"
+actions.update: "Güncelle"
+actions.back: "Geri"
+
+# MESSAGES - Genel Mesajlar
+messages.success: "İşlem başarıyla tamamlandı"
+messages.error: "Bir hata oluştu"
+messages.loading: "Yükleniyor..."
+messages.no_data: "Veri bulunamadı"
+messages.confirm_delete: "Silmek istediğinizden emin misiniz?"

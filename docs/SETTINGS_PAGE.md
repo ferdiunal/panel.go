@@ -33,7 +33,7 @@ pkg/
 **Ana Bileşenler:**
 - `Settings`: Ana sayfa struct'ı (Base'i embed eder)
 - `Setting`: Domain modeli (key-value çiftleri)
-- `Config.SettingsPage`: Opsiyonel yapılandırma
+- `Config.Pages`: Sayfaları `Pages` dizisi ile kaydedin
 
 ### Frontend (React/TypeScript)
 
@@ -45,13 +45,16 @@ Settings Page, panel'in standart sayfa render sistemi tarafından otomatik olara
 
 ### 1. Varsayılan Settings Page
 
-Panel başlatıldığında otomatik olarak varsayılan bir Settings Page oluşturulur:
+Panel başlatıldığında varsayılan sayfa **otomatik oluşturulmaz** (SDK modu). `panel init` komutu ile proje oluşturulduğunda `internal/pages/settings.go` dosyası otomatik oluşturulur.
 
 ```go
 package main
 
 import (
     "github.com/ferdiunal/panel.go/pkg/panel"
+    "github.com/ferdiunal/panel.go/pkg/page"
+    "github.com/ferdiunal/panel.go/pkg/fields"
+    "your-module/internal/pages"
 )
 
 func main() {
@@ -59,6 +62,9 @@ func main() {
         Database: panel.DatabaseConfig{Instance: db},
         Server: panel.ServerConfig{Host: "localhost", Port: "8080"},
         Environment: "development",
+        Pages: []page.Page{
+            pages.NewSettings(), // internal/pages/settings.go
+        },
     }
 
     p := panel.New(config)
@@ -163,7 +169,9 @@ func main() {
     config := panel.Config{
         Database: panel.DatabaseConfig{Instance: db},
         Server: panel.ServerConfig{Host: "localhost", Port: "8080"},
-        SettingsPage: customSettings, // Özel Settings Page kullan
+        Pages: []page.Page{
+            customSettings, // Özel Settings Page kullan
+        },
     }
 
     p := panel.New(config)

@@ -34,7 +34,7 @@ pkg/
 **Ana Bileşenler:**
 - `Account`: Ana sayfa struct'ı (Base'i embed eder)
 - `User`: Domain modeli (kullanıcı bilgileri)
-- `Config.AccountPage`: Opsiyonel yapılandırma
+- `Config.Pages`: Sayfaları `Pages` dizisi ile kaydedin
 
 ### Frontend (React/TypeScript)
 
@@ -46,13 +46,15 @@ Account Page, panel'in standart sayfa render sistemi tarafından otomatik olarak
 
 ### 1. Varsayılan Account Page
 
-Panel başlatıldığında otomatik olarak varsayılan bir Account Page oluşturulur:
+Panel başlatıldığında varsayılan sayfa **otomatik oluşturulmaz** (SDK modu). `panel init` komutu ile proje oluşturulduğunda `internal/pages/account.go` dosyası otomatik oluşturulur.
 
 ```go
 package main
 
 import (
     "github.com/ferdiunal/panel.go/pkg/panel"
+    "github.com/ferdiunal/panel.go/pkg/page"
+    "your-module/internal/pages"
 )
 
 func main() {
@@ -60,6 +62,9 @@ func main() {
         Database: panel.DatabaseConfig{Instance: db},
         Server: panel.ServerConfig{Host: "localhost", Port: "8080"},
         Environment: "development",
+        Pages: []page.Page{
+            pages.NewAccount(), // internal/pages/account.go
+        },
     }
 
     p := panel.New(config)
@@ -196,7 +201,9 @@ func main() {
     config := panel.Config{
         Database: panel.DatabaseConfig{Instance: db},
         Server: panel.ServerConfig{Host: "localhost", Port: "8080"},
-        AccountPage: customAccount, // Özel Account Page kullan
+        Pages: []page.Page{
+            customAccount, // Özel Account Page kullan
+        },
     }
 
     p := panel.New(config)

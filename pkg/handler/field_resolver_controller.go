@@ -198,7 +198,7 @@ func HandleFieldResolve(h *FieldHandler, c *context.Context) error {
 	// Not: Bu işlem O(n) karmaşıklığındadır. Çok sayıda alan varsa,
 	// performans için bir map yapısı kullanılabilir.
 	var targetField interface{}
-	for _, element := range h.Elements {
+	for _, element := range h.getElements(c) {
 		if element.GetKey() == fieldName {
 			targetField = element
 			break

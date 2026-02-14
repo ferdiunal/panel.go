@@ -27,16 +27,18 @@ Ayarlar sayfasını kullanmak için `Config` içinde etkinleştirmeniz ve alanla
 // main.go
 func main() {
     cfg := panel.Config{
-        // Settings sayfasını yapılandırma
-        SettingsPage: &page.Settings{
-            Elements: []fields.Element{
-                 // Standart alanlar
-                 fields.Text("Site Name", "site_name").Required(),
-                 fields.Switch("Registration Open", "register"),
-                 
-                 // Özel alanlar (Dinamik)
-                 fields.Text("Support Email", "support_email"),
-                 fields.Image("Logo", "site_logo"),
+        // Settings sayfasını Pages dizisi ile yapılandırma
+        Pages: []page.Page{
+            &page.Settings{
+                Elements: []fields.Element{
+                     // Standart alanlar
+                     fields.Text("Site Name", "site_name").Required(),
+                     fields.Switch("Registration Open", "register"),
+                     
+                     // Özel alanlar (Dinamik)
+                     fields.Text("Support Email", "support_email"),
+                     fields.Image("Logo", "site_logo"),
+                },
             },
         },
         // ...

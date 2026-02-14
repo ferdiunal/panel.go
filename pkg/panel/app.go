@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -46,9 +45,9 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/domain/setting"
 	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/domain/verification"
-	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/handler"
 	authHandler "github.com/ferdiunal/panel.go/pkg/handler/auth"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/middleware"
 	"github.com/ferdiunal/panel.go/pkg/notification"
 	"github.com/ferdiunal/panel.go/pkg/openapi"
@@ -166,6 +165,61 @@ type Panel struct {
 // / - Tüm kaynaklar ve sayfalar Start() çağrılmadan önce kayıtlı olmalıdır
 // / - Middleware sırası önemlidir ve değiştirilmemelidir
 // / - CSRF koruması test ortamında devre dışı bırakılır
+
+// / # langMiddleware Fonksiyonu
+// /
+// / URL parametresinden veya request'ten dil bilgisini alır ve c.Locals("lang") ile set eder.
+// / Bu middleware, i18n URL prefix özelliği için kullanılır.
+// /
+// / ## Parametreler
+// / - `config`: Panel yapılandırması (I18n ayarları için)
+// /
+// / ## Dönüş Değeri
+// / - `fiber.Handler`: Fiber middleware handler
+// /
+// / ## Davranış
+// / 1. URL parametresinden lang değerini alır (c.Params("lang"))
+// / 2. Eğer lang yoksa, i18n.GetLocale(c) kullanır (fiberi18n middleware'inin set ettiği değer)
+// / 3. Desteklenen diller arasında mı kontrol eder
+// / 4. Desteklenmiyorsa varsayılan dili kullanır
+// / 5. c.Locals("lang", lang) ile set eder
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / api := app.Group("/api")
+// / api.Use(langMiddleware(config))
+// / ```
+func langMiddleware(config Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		lang := c.Params("lang", "")
+
+		if lang == "" {
+			// Varsayılan dil için query param > header > cookie > config
+			if config.I18n.Enabled {
+				lang = i18n.GetLocale(c)
+			} else {
+				lang = config.I18n.DefaultLanguage.String()
+			}
+		}
+
+		// Desteklenen diller arasında mı kontrol et
+		supported := false
+		for _, acceptedLang := range config.I18n.AcceptLanguages {
+			if lang == acceptedLang.String() {
+				supported = true
+				break
+			}
+		}
+
+		if !supported {
+			lang = config.I18n.DefaultLanguage.String()
+		}
+
+		c.Locals("lang", lang)
+		return c.Next()
+	}
+}
+
 func New(config Config) *Panel {
 	// SECURITY: Configure Fiber with TrustProxy for production deployments behind reverse proxy
 	// This is REQUIRED for earlydata middleware to work securely
@@ -541,131 +595,9 @@ func New(config Config) *Panel {
 	}
 
 	// Register Pages from Config
-	if p.Config.DashboardPage != nil {
-		p.RegisterPage(p.Config.DashboardPage)
-	} else {
-		p.RegisterPage(&page.Dashboard{})
-	}
-	if p.Config.SettingsPage != nil {
-		p.RegisterPage(p.Config.SettingsPage)
-	} else {
-		// Default Settings Page
-		p.RegisterPage(&page.Settings{
-			Elements: []fields.Element{
-				fields.Text("Site Name", "site_name").
-					Label("Site Name").
-					Placeholder("Enter site name").
-					Default("Panel.go").
-					Required(),
-				fields.Text("Site URL", "site_url").
-					Label("Site URL").
-					Placeholder("https://example.com").
-					Required(),
-				fields.Image("Site Logo", "site_logo").
-					Label("Site Logo").
-					HelpText("Upload your site logo (PNG, JPG, WebP)").
-					StoreAs(func(c *fiber.Ctx, file *multipart.FileHeader) (string, error) {
-						storageUrl := "/storage/"
-						storagePath := "./storage/public"
-						ext := filepath.Ext(file.Filename)
-						filename := fmt.Sprintf("logo_%d%s", time.Now().UnixNano(), ext)
-						localPath := filepath.Join(storagePath, filename)
-						_ = os.MkdirAll(storagePath, 0755)
-						if err := c.SaveFile(file, localPath); err != nil {
-							return "", err
-						}
-						return fmt.Sprintf("%s%s", storageUrl, filename), nil
-					}),
-				fields.Textarea("Site Description", "site_description").
-					Label("Site Description").
-					Placeholder("Enter site description").
-					Rows(3),
-				fields.Email("Contact Email", "contact_email").
-					Label("Contact Email").
-					Placeholder("contact@example.com"),
-				fields.Tel("Contact Phone", "contact_phone").
-					Label("Contact Phone").
-					Placeholder("+90 555 123 4567"),
-				fields.Textarea("Contact Address", "contact_address").
-					Label("Contact Address").
-					Placeholder("Enter contact address").
-					Rows(2),
-				fields.Switch("Register Enable", "register_enable").
-					Label("User Registration").
-					HelpText("Allow new users to register").
-					Default(true),
-				fields.Switch("Forgot Password Enable", "forgot_password_enable").
-					Label("Forgot Password").
-					HelpText("Enable password reset functionality").
-					Default(false),
-				fields.Switch("Maintenance Mode", "maintenance_mode").
-					Label("Maintenance Mode").
-					HelpText("Put the site in maintenance mode").
-					Default(false),
-				fields.Switch("Debug Mode", "debug_mode").
-					Label("Debug Mode").
-					HelpText("Enable debug mode (development only)").
-					Default(false),
-			},
-		})
-	}
-
-	// Register Account Page
-	if p.Config.AccountPage != nil {
-		p.RegisterPage(p.Config.AccountPage)
-	} else {
-		// Default Account Page
-		p.RegisterPage(&page.Account{
-			Elements: []fields.Element{
-				fields.Text("Name", "name").
-					Label("Full Name").
-					Placeholder("Enter your full name").
-					Required(),
-				fields.Email("Email", "email").
-					Label("Email Address").
-					Placeholder("your@email.com").
-					Required(),
-				fields.Image("Image", "image").
-					Label("Profile Picture").
-					HelpText("Upload your profile picture"),
-				fields.Password("Current Password", "current_password").
-					Label("Current Password").
-					Placeholder("Enter current password").
-					HelpText("Required to change password"),
-				fields.Password("New Password", "new_password").
-					Label("New Password").
-					Placeholder("Enter new password").
-					HelpText("Leave blank to keep current password"),
-				fields.Password("Confirm Password", "confirm_password").
-					Label("Confirm Password").
-					Placeholder("Confirm new password"),
-				fields.Switch("Email Notifications", "email_notifications").
-					Label("Email Notifications").
-					HelpText("Receive notifications via email").
-					Default(true),
-				fields.Switch("SMS Notifications", "sms_notifications").
-					Label("SMS Notifications").
-					HelpText("Receive notifications via SMS").
-					Default(false),
-				fields.Select("Language", "language").
-					Label("Language").
-					Placeholder("Select language").
-					Options(map[string]string{
-						"en": "English",
-						"tr": "Türkçe",
-					}).
-					Default("en"),
-				fields.Select("Theme", "theme").
-					Label("Theme").
-					Placeholder("Select theme").
-					Options(map[string]string{
-						"light": "Light",
-						"dark":  "Dark",
-						"auto":  "Auto",
-					}).
-					Default("auto"),
-			},
-		})
+	// Kullanıcı tarafından tanımlanan sayfaları kaydet
+	for _, pg := range p.Config.Pages {
+		p.RegisterPage(pg)
 	}
 
 	// Register Dynamic Routes
@@ -701,10 +633,10 @@ func New(config Config) *Panel {
 
 		// Circuit Breaker oluştur
 		cb := circuitbreaker.New(circuitbreaker.Config{
-			FailureThreshold:       failureThreshold,
-			Timeout:                timeout,
-			SuccessThreshold:       successThreshold,
-			HalfOpenMaxConcurrent:  halfOpenMaxConcurrent,
+			FailureThreshold:      failureThreshold,
+			Timeout:               timeout,
+			SuccessThreshold:      successThreshold,
+			HalfOpenMaxConcurrent: halfOpenMaxConcurrent,
 			// IsFailure: Hangi hataların sayılacağını belirler (varsayılan: status >= 500)
 			IsFailure: func(c *fiber.Ctx, err error) bool {
 				// 500+ status kodları hata olarak sayılır
@@ -732,56 +664,77 @@ func New(config Config) *Panel {
 		api.Use(circuitbreaker.Middleware(cb))
 	}
 
-	// Auth Routes
-	authRoutes := api.Group("/auth")
-	// SECURITY: Strict rate limiting for authentication endpoints (10 req/min)
-	// TEMPORARY: Rate limiting disabled for development
-	// authRoutes.Use(middleware.AuthRateLimiter())
-	authRoutes.Post("/sign-in/email", context.Wrap(authH.LoginEmail))
-	authRoutes.Post("/sign-up/email", context.Wrap(authH.RegisterEmail))
-	authRoutes.Post("/sign-out", context.Wrap(authH.SignOut))
-	authRoutes.Post("/forgot-password", context.Wrap(authH.ForgotPassword))
-	authRoutes.Get("/session", context.Wrap(authH.GetSession))
+	// langMiddleware: URL parametresinden veya request'ten dil bilgisini al
+	api.Use(langMiddleware(config))
 
-	api.Get("/init", context.Wrap(p.handleInit)) // App Initialization
+	// registerAPIRoutes: Tüm API route'larını kaydet
+	// Bu closure fonksiyon, dual route registration için kullanılır
+	registerAPIRoutes := func(apiGroup fiber.Router) {
+		// Auth Routes
+		authRoutes := apiGroup.Group("/auth")
+		// SECURITY: Strict rate limiting for authentication endpoints (10 req/min)
+		// TEMPORARY: Rate limiting disabled for development
+		// authRoutes.Use(middleware.AuthRateLimiter())
+		authRoutes.Post("/sign-in/email", context.Wrap(authH.LoginEmail))
+		authRoutes.Post("/sign-up/email", context.Wrap(authH.RegisterEmail))
+		authRoutes.Post("/sign-out", context.Wrap(authH.SignOut))
+		authRoutes.Post("/forgot-password", context.Wrap(authH.ForgotPassword))
+		authRoutes.Get("/session", context.Wrap(authH.GetSession))
 
-	// Middleware
-	api.Use(context.Wrap(authH.SessionMiddleware))
-	// SECURITY: Rate limiting for general API endpoints (100 req/min)
-	// TEMPORARY: Rate limiting disabled for development
-	// api.Use(middleware.APIRateLimiter())
+		apiGroup.Get("/init", context.Wrap(p.handleInit)) // App Initialization
 
-	// Page Routes
-	api.Get("/pages", context.Wrap(p.handlePages))
-	api.Get("/pages/:slug", context.Wrap(p.handlePageDetail))
-	api.Post("/pages/:slug", context.Wrap(p.handlePageSave))
+		// Middleware
+		apiGroup.Use(context.Wrap(authH.SessionMiddleware))
+		// SECURITY: Rate limiting for general API endpoints (100 req/min)
+		// TEMPORARY: Rate limiting disabled for development
+		// apiGroup.Use(middleware.APIRateLimiter())
 
-	api.Get("/resource/:resource/cards", context.Wrap(p.handleResourceCards))
-	api.Get("/resource/:resource/cards/:index", context.Wrap(p.handleResourceCard))
-	api.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))                  // List available lenses
-	api.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens))                // Lens data
-	api.Get("/resource/:resource/morphable/:field", context.Wrap(p.handleMorphable))             // MorphTo field options
-	api.Get("/resource/:resource/actions", context.Wrap(p.handleResourceActions))                // List available actions
-	api.Post("/resource/:resource/actions/:action", context.Wrap(p.handleResourceActionExecute)) // Execute action
-	api.Get("/resource/:resource", context.Wrap(p.handleResourceIndex))
-	api.Post("/resource/:resource", context.Wrap(p.handleResourceStore))
-	api.Get("/resource/:resource/create", context.Wrap(p.handleResourceCreate)) // New Route
-	api.Get("/resource/:resource/:id", context.Wrap(p.handleResourceShow))
-	api.Get("/resource/:resource/:id/detail", context.Wrap(p.handleResourceDetail))
-	api.Get("/resource/:resource/:id/edit", context.Wrap(p.handleResourceEdit))
-	api.Post("/resource/:resource/:id/fields/:field/resolve", context.Wrap(p.handleFieldResolve))          // Field resolver endpoint
-	api.Post("/resource/:resource/fields/resolve-dependencies", context.Wrap(p.handleResolveDependencies)) // Dependency resolver endpoint
+		// Page Routes
+		apiGroup.Get("/pages", context.Wrap(p.handlePages))
+		apiGroup.Get("/pages/:slug", context.Wrap(p.handlePageDetail))
+		apiGroup.Post("/pages/:slug", context.Wrap(p.handlePageSave))
 
-	// Hover card resolver endpoints - Support GET, POST, PATCH, DELETE
-	api.Get("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))    // Hover card resolver (GET)
-	api.Post("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))   // Hover card resolver (POST)
-	api.Patch("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))  // Hover card resolver (PATCH)
-	api.Delete("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve)) // Hover card resolver (DELETE)
-	api.Put("/resource/:resource/:id", context.Wrap(p.handleResourceUpdate))
-	api.Delete("/resource/:resource/:id", context.Wrap(p.handleResourceDestroy))
-	api.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
+		// Resource Routes
+		apiGroup.Get("/resource/:resource/cards", context.Wrap(p.handleResourceCards))
+		apiGroup.Get("/resource/:resource/cards/:index", context.Wrap(p.handleResourceCard))
+		apiGroup.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))                  // List available lenses
+		apiGroup.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens))                // Lens data
+		apiGroup.Get("/resource/:resource/morphable/:field", context.Wrap(p.handleMorphable))             // MorphTo field options
+		apiGroup.Get("/resource/:resource/actions", context.Wrap(p.handleResourceActions))                // List available actions
+		apiGroup.Post("/resource/:resource/actions/:action", context.Wrap(p.handleResourceActionExecute)) // Execute action
+		apiGroup.Get("/resource/:resource", context.Wrap(p.handleResourceIndex))
+		apiGroup.Post("/resource/:resource", context.Wrap(p.handleResourceStore))
+		apiGroup.Get("/resource/:resource/create", context.Wrap(p.handleResourceCreate)) // New Route
+		apiGroup.Get("/resource/:resource/:id", context.Wrap(p.handleResourceShow))
+		apiGroup.Get("/resource/:resource/:id/detail", context.Wrap(p.handleResourceDetail))
+		apiGroup.Get("/resource/:resource/:id/edit", context.Wrap(p.handleResourceEdit))
+		apiGroup.Post("/resource/:resource/:id/fields/:field/resolve", context.Wrap(p.handleFieldResolve))          // Field resolver endpoint
+		apiGroup.Post("/resource/:resource/fields/resolve-dependencies", context.Wrap(p.handleResolveDependencies)) // Dependency resolver endpoint
 
-	// Notification Routes
+		// Hover card resolver endpoints - Support GET, POST, PATCH, DELETE
+		apiGroup.Get("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))    // Hover card resolver (GET)
+		apiGroup.Post("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))   // Hover card resolver (POST)
+		apiGroup.Patch("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve))  // Hover card resolver (PATCH)
+		apiGroup.Delete("/resource/:resource/resolver/:field", context.Wrap(p.handleHoverCardResolve)) // Hover card resolver (DELETE)
+		apiGroup.Put("/resource/:resource/:id", context.Wrap(p.handleResourceUpdate))
+		apiGroup.Delete("/resource/:resource/:id", context.Wrap(p.handleResourceDestroy))
+		apiGroup.Get("/navigation", context.Wrap(p.handleNavigation)) // Sidebar Navigation
+
+		// /resolve endpoint for dynamic routing check
+		apiGroup.Get("/resolve", context.Wrap(p.handleResolve))
+	}
+
+	// Prefix'siz route'lar (varsayılan dil veya URL prefix kapalı)
+	registerAPIRoutes(api)
+
+	// Prefix'li route'lar (URL prefix açıksa)
+	if config.I18n.Enabled && config.I18n.UseURLPrefix {
+		apiLang := app.Group("/api/:lang")
+		apiLang.Use(langMiddleware(config))
+		registerAPIRoutes(apiLang)
+	}
+
+	// Notification Routes (dual route registration dışında)
 	notificationProvider := data.NewGormDataProvider(db, &notificationDomain.Notification{})
 	notificationService := notification.NewService(notificationProvider)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
@@ -789,7 +742,7 @@ func New(config Config) *Panel {
 	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
 	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
 
-	// OpenAPI Routes
+	// OpenAPI Routes (dual route registration dışında)
 	openAPIConfig := openapi.SpecGeneratorConfig{
 		Title:       "Panel.go Admin Panel",
 		Version:     "1.0.0",
@@ -802,9 +755,6 @@ func New(config Config) *Panel {
 	api.Get("/docs/redoc", p.openAPIHandler.ReDocUI)
 	api.Get("/docs/rapidoc", p.openAPIHandler.RapidocUI)
 
-	// /resolve endpoint for dynamic routing check
-	api.Get("/resolve", context.Wrap(p.handleResolve))
-
 	// Boot Plugins: Load plugins from global registry and boot them
 	// Plugins register themselves via init() functions
 	// This must be called after all routes are registered
@@ -815,25 +765,25 @@ func New(config Config) *Panel {
 	return p
 }
 
-/// # bootPluginsFromRegistry Metodu
-///
-/// Global registry'den plugin'leri alır ve boot eder.
-/// Bu metod New() fonksiyonunda otomatik olarak çağrılır.
-///
-/// ## Parametreler
-/// Yok (alıcı: *Panel)
-///
-/// ## Dönüş Değeri
-/// - `error`: Plugin boot işlemi başarısızsa hata, aksi takdirde nil
-///
-/// ## Davranış
-/// 1. Global registry'den tüm plugin'leri alır
-/// 2. Her plugin'i RegisterPlugin ile kaydeder
-/// 3. BootPlugins ile tüm plugin'leri boot eder
-///
-/// ## Önemli Notlar
-/// - Bu metod New() fonksiyonunda otomatik olarak çağrılır
-/// - Plugin'ler init() fonksiyonunda global registry'ye kaydedilmelidir
+// / # bootPluginsFromRegistry Metodu
+// /
+// / Global registry'den plugin'leri alır ve boot eder.
+// / Bu metod New() fonksiyonunda otomatik olarak çağrılır.
+// /
+// / ## Parametreler
+// / Yok (alıcı: *Panel)
+// /
+// / ## Dönüş Değeri
+// / - `error`: Plugin boot işlemi başarısızsa hata, aksi takdirde nil
+// /
+// / ## Davranış
+// / 1. Global registry'den tüm plugin'leri alır
+// / 2. Her plugin'i RegisterPlugin ile kaydeder
+// / 3. BootPlugins ile tüm plugin'leri boot eder
+// /
+// / ## Önemli Notlar
+// / - Bu metod New() fonksiyonunda otomatik olarak çağrılır
+// / - Plugin'ler init() fonksiyonunda global registry'ye kaydedilmelidir
 func (p *Panel) bootPluginsFromRegistry() error {
 	// Global registry'den tüm plugin'leri al
 	plugins := plugin.All()
@@ -1730,6 +1680,19 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 		Group string `json:"group"`
 		Type  string `json:"type"`  // "resource" or "page"
 		Order int    `json:"order"` // Internal use for sorting
+		URL   string `json:"url"`   // Full URL with language prefix
+	}
+
+	// Dil bilgisini al
+	lang := i18n.GetLocale(c.Ctx)
+	defaultLang := p.Config.I18n.DefaultLanguage.String()
+
+	// URL prefix'ini hesapla
+	urlPrefix := ""
+	if p.Config.I18n.Enabled && p.Config.I18n.UseURLPrefix {
+		if !p.Config.I18n.URLPrefixOptional || lang != defaultLang {
+			urlPrefix = "/" + lang
+		}
 	}
 
 	items := []NavItem{}
@@ -1739,11 +1702,12 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 		}
 		items = append(items, NavItem{
 			Slug:  slug,
-			Title: res.Title(),
+			Title: res.TitleWithContext(c.Ctx),
 			Icon:  res.Icon(),
-			Group: res.Group(),
+			Group: res.GroupWithContext(c.Ctx),
 			Type:  "resource",
 			Order: res.NavigationOrder(),
+			URL:   urlPrefix + "/resource/" + slug,
 		})
 	}
 
@@ -1758,6 +1722,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 			Group: pg.Group(),
 			Type:  "page",
 			Order: pg.NavigationOrder(),
+			URL:   urlPrefix + "/page/" + slug,
 		})
 	}
 
@@ -1826,6 +1791,52 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 // / - Bu endpoint kimlik doğrulama gerektirmez
 // / - Hassas bilgiler döndürülmemelidir
 // / - Ayarlar veritabanından yüklenir (varsa)
+// / # getLanguageName Fonksiyonu
+// /
+// / Dil kodundan (language.Tag) dil adını döndürür.
+// / i18n desteklenen diller listesi için kullanılır.
+// /
+// / ## Parametreler
+// / - `lang`: Dil kodu (language.Tag)
+// /
+// / ## Dönüş Değeri
+// / - `string`: Dil adı (örn: "Türkçe", "English")
+// /
+// / ## Davranış
+// / 1. Dil kodunu string'e çevirir
+// / 2. Bilinen diller haritasında arar
+// / 3. Bulunursa dil adını döndürür
+// / 4. Bulunamazsa dil kodunu döndürür (fallback)
+// /
+// / ## Desteklenen Diller
+// / - tr: Türkçe
+// / - en: English
+// / - de: Deutsch
+// / - fr: Français
+// / - es: Español
+// / - ar: العربية
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / name := getLanguageName(language.Turkish)
+// / // Çıktı: "Türkçe"
+// / ```
+func getLanguageName(lang language.Tag) string {
+	names := map[string]string{
+		"tr": "Türkçe",
+		"en": "English",
+		"de": "Deutsch",
+		"fr": "Français",
+		"es": "Español",
+		"ar": "العربية",
+	}
+
+	if name, ok := names[lang.String()]; ok {
+		return name
+	}
+	return lang.String()
+}
+
 func (p *Panel) handleInit(c *context.Context) error {
 	fmt.Printf("DEBUG: handleInit called. Config: %+v\n", p.Config)
 	fmt.Printf("DEBUG: SettingsValues: %+v\n", p.Config.SettingsValues)
@@ -1863,6 +1874,27 @@ func (p *Panel) handleInit(c *context.Context) error {
 	// Get i18n and theme data
 	injectionData := GetHTMLInjectionData(c.Ctx, p.Config)
 
+	// i18n bilgisini hazırla
+	i18nData := fiber.Map{
+		"lang":      injectionData.Lang,
+		"direction": injectionData.Dir,
+	}
+
+	// Desteklenen diller listesini ekle
+	if p.Config.I18n.Enabled {
+		supportedLangs := []fiber.Map{}
+		for _, lang := range p.Config.I18n.AcceptLanguages {
+			supportedLangs = append(supportedLangs, fiber.Map{
+				"code": lang.String(),
+				"name": getLanguageName(lang),
+			})
+		}
+		i18nData["supported_languages"] = supportedLangs
+		i18nData["default_language"] = p.Config.I18n.DefaultLanguage.String()
+		i18nData["use_url_prefix"] = p.Config.I18n.UseURLPrefix
+		i18nData["url_prefix_optional"] = p.Config.I18n.URLPrefixOptional
+	}
+
 	return c.JSON(fiber.Map{
 		"features": fiber.Map{
 			"register":        registerEnabled,
@@ -1871,10 +1903,7 @@ func (p *Panel) handleInit(c *context.Context) error {
 		"oauth": fiber.Map{
 			"google": p.Config.OAuth.Google.Enabled(),
 		},
-		"i18n": fiber.Map{
-			"lang":      injectionData.Lang,
-			"direction": injectionData.Dir,
-		},
+		"i18n":     i18nData,
 		"theme":    injectionData.Theme,
 		"version":  "1.0.0",
 		"settings": p.Config.SettingsValues.Values,
@@ -1950,9 +1979,9 @@ func (p *Panel) handleResolve(c *context.Context) error {
 			"type": "resource",
 			"slug": path,
 			"meta": fiber.Map{
-				"title": res.Title(),
+				"title": res.TitleWithContext(c.Ctx),
 				"icon":  res.Icon(),
-				"group": res.Group(),
+				"group": res.GroupWithContext(c.Ctx),
 			},
 		})
 	}
@@ -1964,31 +1993,31 @@ func (p *Panel) handleResolve(c *context.Context) error {
 	})
 }
 
-/// # RegisterPlugin Metodu
-///
-/// Plugin'i Panel'e kaydeder ve plugin'in Register() metodunu çağırır.
-///
-/// ## Parametreler
-/// - `p`: Kaydedilecek plugin
-///
-/// ## Dönüş Değeri
-/// - `error`: Plugin kaydı başarısızsa hata, aksi takdirde nil
-///
-/// ## Davranış
-/// 1. Plugin'in Register() metodunu çağırır
-/// 2. Plugin'i plugins listesine ekler
-///
-/// ## Kullanım Örneği
-/// ```go
-/// p := panel.New(config)
-/// if err := p.RegisterPlugin(&MyPlugin{}); err != nil {
-///     log.Fatal(err)
-/// }
-/// ```
-///
-/// ## Önemli Notlar
-/// - Bu metod Start() çağrılmadan önce çağrılmalıdır
-/// - Plugin'in Register() metodu hata döndürürse kayıt yapılmaz
+// / # RegisterPlugin Metodu
+// /
+// / Plugin'i Panel'e kaydeder ve plugin'in Register() metodunu çağırır.
+// /
+// / ## Parametreler
+// / - `p`: Kaydedilecek plugin
+// /
+// / ## Dönüş Değeri
+// / - `error`: Plugin kaydı başarısızsa hata, aksi takdirde nil
+// /
+// / ## Davranış
+// / 1. Plugin'in Register() metodunu çağırır
+// / 2. Plugin'i plugins listesine ekler
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / p := panel.New(config)
+// / if err := p.RegisterPlugin(&MyPlugin{}); err != nil {
+// /     log.Fatal(err)
+// / }
+// / ```
+// /
+// / ## Önemli Notlar
+// / - Bu metod Start() çağrılmadan önce çağrılmalıdır
+// / - Plugin'in Register() metodu hata döndürürse kayıt yapılmaz
 func (p *Panel) RegisterPlugin(plugin interface{}) error {
 	// Type assertion: Plugin interface'ini kontrol et
 	if pluginImpl, ok := plugin.(interface {
@@ -2003,35 +2032,35 @@ func (p *Panel) RegisterPlugin(plugin interface{}) error {
 	return fmt.Errorf("plugin does not implement Register method")
 }
 
-/// # BootPlugins Metodu
-///
-/// Tüm kayıtlı plugin'leri boot eder. Plugin'lerin Boot() metodunu çağırır.
-///
-/// ## Parametreler
-/// Yok (alıcı: *Panel)
-///
-/// ## Dönüş Değeri
-/// - `error`: Plugin boot işlemi başarısızsa hata, aksi takdirde nil
-///
-/// ## Davranış
-/// 1. Tüm kayıtlı plugin'leri dolaşır
-/// 2. Her plugin'in Boot() metodunu çağırır
-/// 3. Plugin'lerin resource, page, middleware vb. eklemelerini yapar
-///
-/// ## Kullanım Örneği
-/// ```go
-/// p := panel.New(config)
-/// p.RegisterPlugin(&MyPlugin{})
-/// if err := p.BootPlugins(); err != nil {
-///     log.Fatal(err)
-/// }
-/// p.Start()
-/// ```
-///
-/// ## Önemli Notlar
-/// - Bu metod Start() çağrılmadan önce çağrılmalıdır
-/// - Plugin'lerin Boot() metodu hata döndürürse boot işlemi durur
-/// - Plugin'ler sırayla boot edilir
+// / # BootPlugins Metodu
+// /
+// / Tüm kayıtlı plugin'leri boot eder. Plugin'lerin Boot() metodunu çağırır.
+// /
+// / ## Parametreler
+// / Yok (alıcı: *Panel)
+// /
+// / ## Dönüş Değeri
+// / - `error`: Plugin boot işlemi başarısızsa hata, aksi takdirde nil
+// /
+// / ## Davranış
+// / 1. Tüm kayıtlı plugin'leri dolaşır
+// / 2. Her plugin'in Boot() metodunu çağırır
+// / 3. Plugin'lerin resource, page, middleware vb. eklemelerini yapar
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / p := panel.New(config)
+// / p.RegisterPlugin(&MyPlugin{})
+// / if err := p.BootPlugins(); err != nil {
+// /     log.Fatal(err)
+// / }
+// / p.Start()
+// / ```
+// /
+// / ## Önemli Notlar
+// / - Bu metod Start() çağrılmadan önce çağrılmalıdır
+// / - Plugin'lerin Boot() metodu hata döndürürse boot işlemi durur
+// / - Plugin'ler sırayla boot edilir
 func (p *Panel) BootPlugins() error {
 	for _, plugin := range p.plugins {
 		// Type assertion: Plugin interface'ini kontrol et
@@ -2112,4 +2141,3 @@ func (p *Panel) BootPlugins() error {
 	}
 	return nil
 }
-

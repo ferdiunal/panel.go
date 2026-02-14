@@ -2,7 +2,9 @@ package {{.PackageName}}
 
 import (
 	"gorm.io/gorm"
-
+{{if ne .ModelPkg .PackageName}}
+	"{{.ModelImportPath}}"
+{{end}}
 	"github.com/ferdiunal/panel.go/pkg/data"
 )
 
@@ -13,7 +15,7 @@ type {{.ResourceName}}Repository struct {
 
 func New{{.ResourceName}}Repository(db *gorm.DB) *{{.ResourceName}}Repository {
 	return &{{.ResourceName}}Repository{
-		GormDataProvider: data.NewGormDataProvider(db, &{{.ModelName}}{}),
+		GormDataProvider: data.NewGormDataProvider(db, &{{.ModelPkg}}.{{.ModelName}}{}),
 		db:               db,
 	}
 }

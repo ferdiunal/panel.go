@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ferdiunal/panel.go/pkg/core"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/iancoleman/strcase"
@@ -133,6 +134,9 @@ type Schema struct {
 
 	// GORM Veritabanı Yapılandırması (Kategori 10)
 	GormConfiguration *GormConfig `json:"-"`
+
+	// Context for i18n (Kategori 11)
+	FiberCtx *fiber.Ctx `json:"-"`
 }
 
 // Derleme zamanı kontrolü: Schema'nın core.Element interface'ini implement ettiğinden emin olur
@@ -145,6 +149,11 @@ var _ core.Element = (*Schema)(nil)
 //   - Alanın benzersiz tanımlayıcısı (key)
 func (s *Schema) GetKey() string {
 	return s.Key
+}
+
+// SetContextForI18n, i18n çevirileri için fiber context'ini ayarlar.
+func (s *Schema) SetContextForI18n(c *fiber.Ctx) {
+	s.FiberCtx = c
 }
 
 // GetView, alanın görünüm tipini döndürür.
@@ -344,9 +353,9 @@ func (s *Schema) JsonSerialize() map[string]interface{} {
 		"data":        s.Data,
 		"props":       s.Props,
 		"context":     s.Context,
-		"placeholder": s.PlaceholderText,
-		"label":       s.LabelText,
-		"help_text":   s.HelpTextContent,
+		"placeholder": i18n.Trans(s.FiberCtx, s.PlaceholderText),
+		"label":       i18n.Trans(s.FiberCtx, s.LabelText),
+		"help_text":   i18n.Trans(s.FiberCtx, s.HelpTextContent),
 		"read_only":   s.IsReadOnly,
 		"disabled":    s.IsDisabled,
 		"required":    s.IsRequired,

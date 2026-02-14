@@ -4,15 +4,37 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 )
 
 type {{.ResourceName}}FieldResolver struct{}
 
+// trans, güvenli i18n çevirisi yapar. ctx veya ctx.Ctx nil ise fallback değeri döner.
+func (r *{{.ResourceName}}FieldResolver) trans(ctx *context.Context, key string, fallback string) string {
+	if ctx == nil || ctx.Ctx == nil {
+		return fallback
+	}
+	return i18n.Trans(ctx.Ctx, key)
+}
+
 func (r *{{.ResourceName}}FieldResolver) ResolveFields(ctx *context.Context) []core.Element {
 	return []core.Element{
 		fields.ID().ReadOnly().OnlyOnDetail(),
-		fields.Text("name").Required().Searchable(),
-		fields.DateTime("created_at").ReadOnly().OnlyOnDetail(),
-		fields.DateTime("updated_at").ReadOnly().OnlyOnDetail(),
+
+		fields.Text("name").
+			Label(r.trans(ctx, "fields.name", "Name")).
+			Placeholder(r.trans(ctx, "fields.name_placeholder", "Enter name")).
+			Required().
+			Searchable(),
+
+		fields.DateTime("created_at").
+			Label(r.trans(ctx, "fields.created_at", "Created At")).
+			ReadOnly().
+			OnlyOnDetail(),
+
+		fields.DateTime("updated_at").
+			Label(r.trans(ctx, "fields.updated_at", "Updated At")).
+			ReadOnly().
+			OnlyOnDetail(),
 	}
 }

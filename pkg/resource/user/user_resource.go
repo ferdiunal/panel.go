@@ -71,14 +71,7 @@ type UserResourceWrapper struct {
 // Bu fonksiyon, UserRepository yapısını başlatır ve GORM bağlantısını ayarlar.
 //
 // Döndürür: - Yapılandırılmış UserRepository veri sağlayıcısı pointer'ı
-func (r UserResourceWrapper) Repository(client interface{}) data.DataProvider {
-	// Type assertion to get Ent client
-	db, ok := client.(*gorm.DB)
-	if !ok {
-		// TODO: Add GORM support
-		return nil
-	}
-
+func (r UserResourceWrapper) Repository(db *gorm.DB) data.DataProvider {
 	return data.NewGormDataProvider(db, &user.User{})
 }
 

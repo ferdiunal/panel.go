@@ -3,6 +3,8 @@
 package i18n
 
 import (
+	"fmt"
+
 	"github.com/gofiber/contrib/fiberi18n/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -34,18 +36,29 @@ import (
 //	})
 //	// Çıktı: "5 ürün, toplam: 150.50 TL"
 func Trans(c *fiber.Ctx, messageID string, templateData ...map[string]interface{}) string {
-	// Nil context kontrolü - resource initialization sırasında context olmayabilir
+	fmt.Printf("messageID: %s\ntemplateData: %v\n, HasContext: %t\n", messageID, templateData, c != nil)
 	if c == nil {
-		return messageID // Fallback: messageID'yi döndür
+		return messageID
 	}
 
+	var result string
+	var err error
+
+	fmt.Printf("messageID: %s\ntemplateData: %v\n", messageID, templateData)
 	if len(templateData) > 0 && templateData[0] != nil {
-		return fiberi18n.MustLocalize(c, &i18n.LocalizeConfig{
+		result, err = fiberi18n.Localize(c, &i18n.LocalizeConfig{
 			MessageID:    messageID,
 			TemplateData: templateData[0],
 		})
+	} else {
+		result, err = fiberi18n.Localize(c, messageID)
 	}
-	return fiberi18n.MustLocalize(c, messageID)
+
+	// Çeviri bulunamazsa messageID'yi döndür (fallback)
+	if err != nil {
+		return messageID
+	}
+	return result
 }
 
 // TransChoice, Laravel'deki trans_choice() helper'ına benzer şekilde çoğul çeviri yapar
@@ -84,11 +97,17 @@ func TransChoice(c *fiber.Ctx, messageID string, count int, templateData ...map[
 		}
 	}
 
-	return fiberi18n.MustLocalize(c, &i18n.LocalizeConfig{
+	result, err := fiberi18n.Localize(c, &i18n.LocalizeConfig{
 		MessageID:    messageID,
 		TemplateData: data,
 		PluralCount:  count,
 	})
+
+	// Çeviri bulunamazsa messageID'yi döndür (fallback)
+	if err != nil {
+		return messageID
+	}
+	return result
 }
 
 // GetLocale, mevcut dili döndürür

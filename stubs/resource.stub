@@ -20,7 +20,7 @@ func (r {{.ResourceName}}ResourceWrapper) Repository(db *gorm.DB) data.DataProvi
 func Get{{.ResourceName}}Resource() resource.Resource {
 	return {{.ResourceName}}ResourceWrapper{
 		Base: resource.Base{
-			DataModel:  &{{.ModelName}}{},
+			DataModel:  &{{.ModelPkg}}.{{.ModelName}}{},
 			Label:      "{{.Label}}",
 			Identifier: "{{.Identifier}}",
 			IconName:   "{{.Icon}}",

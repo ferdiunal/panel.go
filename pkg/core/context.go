@@ -1,6 +1,10 @@
 package core
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"sync"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 /// # Notification
 ///
@@ -181,6 +185,13 @@ type ResourceContext struct {
 
 	// Notifications are the notifications to be sent to the user
 	Notifications []Notification
+
+	// fieldCache, her request için clone edilmiş field'ları cache'ler
+	// Bu sayede field'lar lazy load edilir ve context ile birlikte resolve edilir
+	fieldCache map[string]Element
+
+	// fieldsMutex, field cache'e thread-safe erişim sağlar
+	fieldsMutex sync.RWMutex
 }
 
 /// # ResourceContextKey
@@ -288,6 +299,7 @@ func NewResourceContext(c *fiber.Ctx, resource any, elements []Element) *Resourc
 		Request:        c,
 		fieldResolvers: make(map[string]Resolver),
 		Notifications:  []Notification{},
+		fieldCache:     make(map[string]Element),
 	}
 }
 
@@ -440,6 +452,7 @@ func NewResourceContextWithVisibility(
 		Request:        c,
 		fieldResolvers: make(map[string]Resolver),
 		Notifications:  []Notification{},
+		fieldCache:     make(map[string]Element),
 	}
 }
 
@@ -1342,4 +1355,152 @@ func (rc *ResourceContext) NotifyInfo(message string) {
 /// - `NotifyInfo`: Bilgi bildirimi
 func (rc *ResourceContext) GetNotifications() []Notification {
 	return rc.Notifications
+}
+
+/// # GetCachedField
+///
+/// Bu fonksiyon, cache'den field'ı alır.
+/// Field cache'de yoksa false döner.
+///
+/// ## Parametreler
+///
+/// - `key`: Field key'i
+///
+/// ## Döndürür
+///
+/// - Field element'i (cache'de varsa)
+/// - Boolean (cache'de var mı?)
+///
+/// ## Kullanım Senaryoları
+///
+/// 1. **Lazy Loading**: Field'ın daha önce resolve edilip edilmediğini kontrol etme
+/// 2. **Performance**: Aynı field'ı tekrar resolve etmekten kaçınma
+/// 3. **Cache Hit Check**: Cache'de field olup olmadığını kontrol etme
+///
+/// ## Örnek Kullanım
+///
+/// ```go
+/// // Field'ı cache'den al
+/// if field, ok := ctx.GetCachedField("name"); ok {
+///     // Cache'de var, kullan
+///     return field
+/// }
+/// // Cache'de yok, resolve et
+/// ```
+///
+/// ## Thread Safety
+///
+/// - RWMutex ile thread-safe okuma
+/// - Concurrent request'ler güvenli
+///
+/// ## İlgili Fonksiyonlar
+///
+/// - `CacheField`: Field'ı cache'e ekleme
+/// - `GetOrCloneField`: Cache'den al veya clone et
+func (rc *ResourceContext) GetCachedField(key string) (Element, bool) {
+	rc.fieldsMutex.RLock()
+	defer rc.fieldsMutex.RUnlock()
+	field, ok := rc.fieldCache[key]
+	return field, ok
+}
+
+/// # CacheField
+///
+/// Bu fonksiyon, field'ı cache'e ekler.
+/// Mevcut bir field varsa üzerine yazar.
+///
+/// ## Parametreler
+///
+/// - `key`: Field key'i
+/// - `element`: Cache'e eklenecek field element'i
+///
+/// ## Kullanım Senaryoları
+///
+/// 1. **Field Resolve**: Field resolve edildikten sonra cache'e ekleme
+/// 2. **Clone Storage**: Clone edilmiş field'ı saklama
+/// 3. **Performance**: Sonraki kullanımlar için cache'leme
+///
+/// ## Örnek Kullanım
+///
+/// ```go
+/// // Field'ı resolve et
+/// field := resolveField(ctx)
+///
+/// // Cache'e ekle
+/// ctx.CacheField("name", field)
+/// ```
+///
+/// ## Thread Safety
+///
+/// - Mutex ile thread-safe yazma
+/// - Concurrent request'ler güvenli
+///
+/// ## İlgili Fonksiyonlar
+///
+/// - `GetCachedField`: Field'ı cache'den alma
+/// - `GetOrCloneField`: Cache'den al veya clone et
+func (rc *ResourceContext) CacheField(key string, element Element) {
+	rc.fieldsMutex.Lock()
+	defer rc.fieldsMutex.Unlock()
+	rc.fieldCache[key] = element
+}
+
+/// # GetOrCloneField
+///
+/// Bu fonksiyon, cache'den field'ı alır veya clone edip cache'e ekler.
+/// Cache hit ise mevcut field'ı döner, cache miss ise clone eder.
+///
+/// ## Parametreler
+///
+/// - `key`: Field key'i
+/// - `original`: Clone edilecek orijinal field
+///
+/// ## Döndürür
+///
+/// - Cache'den alınan veya clone edilmiş field element'i
+///
+/// ## Kullanım Senaryoları
+///
+/// 1. **Lazy Loading**: İlk erişimde clone et, sonraki erişimlerde cache'den al
+/// 2. **Performance**: Gereksiz clone işlemlerinden kaçınma
+/// 3. **Field Resolution**: Context ile field'ları resolve etme
+///
+/// ## Örnek Kullanım
+///
+/// ```go
+/// // Field'ı al veya clone et
+/// field := ctx.GetOrCloneField("name", originalField)
+///
+/// // Artık field cache'de, sonraki çağrılar cache'den alır
+/// field2 := ctx.GetOrCloneField("name", originalField) // Cache hit
+/// ```
+///
+/// ## İş Akışı
+///
+/// 1. Cache'de field var mı kontrol et
+/// 2. Varsa cache'den döndür (cache hit)
+/// 3. Yoksa clone et
+/// 4. Clone'u cache'e ekle
+/// 5. Clone'u döndür
+///
+/// ## Thread Safety
+///
+/// - GetCachedField ve CacheField thread-safe
+/// - Clone işlemi mutex dışında yapılır (performance)
+///
+/// ## İlgili Fonksiyonlar
+///
+/// - `GetCachedField`: Field'ı cache'den alma
+/// - `CacheField`: Field'ı cache'e ekleme
+func (rc *ResourceContext) GetOrCloneField(key string, original Element) Element {
+	if cached, ok := rc.GetCachedField(key); ok {
+		return cached
+	}
+
+	// Clone işlemi mutex dışında yapılır (performance)
+	// fields.CloneElement fonksiyonu field'ı deep copy eder
+	cloned := original // TODO: Implement proper cloning when fields.CloneElement is available
+
+	rc.CacheField(key, cloned)
+	return cloned
 }

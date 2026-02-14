@@ -235,8 +235,7 @@ type CORSConfig struct {
 // / - Storage: Dosya depolama ayarları
 // / - Permissions: İzin yönetimi yapılandırması
 // / - SettingsValues: Veritabanından gelen dinamik ayarlar
-// / - SettingsPage: Ayarlar sayfası yapılandırması
-// / - DashboardPage: Dashboard sayfası yapılandırması
+// / - Pages: Özel sayfalar (Dashboard, Settings, Account vb.)
 // / - UserResource: Kullanıcı resource'u
 // / - Resources: Ek resource'lar
 // / - CORS: CORS yapılandırması
@@ -273,7 +272,7 @@ type CORSConfig struct {
 // / - Config yapısı thread-safe değildir, başlangıçta ayarlanmalıdır
 // / - Veritabanı bağlantısı Instance alanında saklanır
 // / - Resources dinamik olarak eklenebilir
-// / - SettingsPage ve DashboardPage nil olabilir
+// / - Pages nil olabilir (varsayılan sayfalar otomatik oluşturulur)
 // /
 // / ## Güvenlik Uyarıları
 // / - Kimlik bilgilerini kaynak kodunda saklamayın
@@ -305,15 +304,18 @@ type Config struct {
 	/// SettingsValues, veritabanından gelen dinamik ayarları tutar
 	SettingsValues SettingsConfig
 
-	/// SettingsPage, ayarlar sayfasının yapılandırmasını tutar (opsiyonel)
-	SettingsPage *page.Settings
-
-	/// DashboardPage, dashboard sayfasının yapılandırmasını tutar (opsiyonel)
-	DashboardPage *page.Dashboard
-
-	/// AccountPage, hesap ayarları sayfasının yapılandırmasını tutar (opsiyonel)
-	/// Kullanıcıların kendi hesap ayarlarını yönetmek için kullanılır
-	AccountPage *page.Account
+	/// Pages, panele eklenen özel sayfaları tutar (Dashboard, Settings, Account vb.)
+	/// Eğer boş ise varsayılan Dashboard, Settings ve Account sayfaları otomatik oluşturulur.
+	/// Kullanıcı kendi sayfalarını ekleyerek varsayılan sayfaları geçersiz kılabilir.
+	/// Aynı slug'a sahip kullanıcı sayfası, varsayılan sayfanın yerine geçer.
+	///
+	/// Örnek:
+	///   Pages: []page.Page{
+	///       pages.NewDashboard(),    // Özel dashboard
+	///       pages.NewSettings(),     // Özel settings
+	///       pages.NewReportsPage(),  // Yeni özel sayfa
+	///   }
+	Pages []page.Page
 
 	/// UserResource, kullanıcı resource'unu tutar
 	UserResource resource.Resource
@@ -795,7 +797,7 @@ type CircuitBreakerConfig struct {
 // /
 // / ## Dil Dosyası Yapısı
 // / ```yaml
-// / # locales/tr/messages.yaml
+// / # locales/tr.yaml
 // / welcome:
 // /   other: "Hoş geldiniz"
 // / welcomeWithName:
@@ -821,7 +823,7 @@ type CircuitBreakerConfig struct {
 // / - FormatBundleFile: Dil dosyası formatı (yaml, json, toml)
 // /
 // / ## Best Practices
-// / - Dil dosyalarını organize edin (locales/tr/, locales/en/)
+// / - Dil dosyalarını organize edin (locales/tr.yaml, locales/en.yaml)
 // / - Fallback dil her zaman tanımlayın
 // / - Template değişkenlerini kullanın ({{.Name}})
 // / - Çeviri anahtarlarını anlamlı isimlendirin
@@ -832,7 +834,7 @@ type I18nConfig struct {
 
 	/// RootPath, dil dosyalarının bulunduğu dizini belirtir
 	/// Varsayılan: "./locales"
-	/// Örnek: "./locales" -> locales/tr/messages.yaml, locales/en/messages.yaml
+	/// Örnek: "./locales" -> locales/tr.yaml, locales/en.yaml
 	RootPath string
 
 	/// AcceptLanguages, desteklenen dillerin listesidir
@@ -849,6 +851,19 @@ type I18nConfig struct {
 	/// Varsayılan: "yaml"
 	/// Değerler: "yaml", "json", "toml"
 	FormatBundleFile string
+
+	/// UseURLPrefix, URL'lerde dil prefix'i kullanılıp kullanılmayacağını belirtir
+	/// true: URL'ler dil prefix'i içerir (örn: /api/en/resource/users)
+	/// false: URL'ler dil prefix'i içermez (örn: /api/resource/users)
+	/// Varsayılan: false
+	UseURLPrefix bool
+
+	/// URLPrefixOptional, varsayılan dil için URL prefix'inin opsiyonel olup olmadığını belirtir
+	/// true: Varsayılan dil için prefix yok (örn: /api/resource/users), diğer diller için var (örn: /api/en/resource/users)
+	/// false: Tüm diller için prefix var (örn: /api/tr/resource/users, /api/en/resource/users)
+	/// Varsayılan: true
+	/// Not: Bu ayar sadece UseURLPrefix=true olduğunda etkilidir
+	URLPrefixOptional bool
 }
 
 // / # PluginConfig - Plugin Sistemi Yapılandırması

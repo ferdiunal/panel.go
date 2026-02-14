@@ -240,7 +240,7 @@ func HandleResourceUpdate(h *FieldHandler, c *context.Context) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"data":          h.resolveResourceFields(c.Ctx, c.Resource(), result, h.Elements),
+		"data":          h.resolveResourceFields(c.Ctx, c.Resource(), result, h.getElements(c)),
 		"notifications": notificationsResponse,
 	})
 }

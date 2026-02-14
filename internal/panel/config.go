@@ -40,8 +40,7 @@ type Config struct {
 	OAuth          OAuthConfig
 	Storage        StorageConfig
 	SettingsValues SettingsConfig
-	SettingsPage   *page.Settings
-	DashboardPage  *page.Dashboard
+	Pages          []page.Page
 	UserResource   resource.Resource
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/ferdiunal/panel.go/internal/resource"
 	resourceUser "github.com/ferdiunal/panel.go/internal/resource/user"
 	"github.com/ferdiunal/panel.go/internal/service/auth"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -120,11 +121,8 @@ func New(config Config) *Panel {
 	}
 
 	// Register Pages from Config
-	if p.Config.DashboardPage != nil {
-		p.RegisterPage(p.Config.DashboardPage)
-	}
-	if p.Config.SettingsPage != nil {
-		p.RegisterPage(p.Config.SettingsPage)
+	for _, pg := range p.Config.Pages {
+		p.RegisterPage(pg)
 	}
 
 	// Register Dynamic Routes
@@ -364,7 +362,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 		}
 		items = append(items, NavItem{
 			Slug:  slug,
-			Title: res.Title(),
+			Title: i18n.Trans(c.Ctx, res.Title()),
 			Icon:  res.Icon(),
 			Group: res.Group(),
 			Type:  "resource",
@@ -378,7 +376,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 		}
 		items = append(items, NavItem{
 			Slug:  slug,
-			Title: pg.Title(),
+			Title: i18n.Trans(c.Ctx, pg.Title()),
 			Icon:  pg.Icon(),
 			Group: pg.Group(),
 			Type:  "page",

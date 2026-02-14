@@ -255,82 +255,17 @@ func (h *FieldHandler) SetElements(elements []fields.Element) {
 // / - `NewLensHandler`: Filtrelenmiş görünüm için handler oluşturma
 func NewResourceHandler(client interface{}, res resource.Resource, storagePath, storageURL string) *FieldHandler {
 	var provider data.DataProvider
-	if repo := res.Repository(client); repo != nil {
+
+	// Type assertion for GORM DB
+	db, ok := client.(*gorm.DB)
+	if !ok {
+		panic("client must be *gorm.DB")
+	}
+
+	if repo := res.Repository(db); repo != nil {
 		provider = repo
 	} else {
-		// Type assertion for Ent client
-		entClient, ok := client.(*gorm.DB)
-		if !ok {
-			// TODO: Add GORM support
-			panic("client must be *ent.Client for default provider")
-		}
-		provider = data.NewGormDataProvider(entClient, res.Model())
-	}
-
-	cards := res.Cards()
-
-	var searchCols []string
-	for _, field := range res.Fields() {
-		if field.IsSearchable() {
-			searchCols = append(searchCols, field.GetKey())
-		}
-	}
-	provider.SetSearchColumns(searchCols)
-
-	var withRels []string
-	withRels = append(withRels, res.With()...)
-
-	// Relationship field'larını topla
-	var relationshipFields []fields.RelationshipField
-
-	fmt.Printf("[DEBUG] NewResourceHandler - Scanning %d fields\n", len(res.Fields()))
-
-	for _, element := range res.Fields() {
-		fmt.Printf("[DEBUG] NewResourceHandler - Field: %s, Type: %T\n", element.GetKey(), element)
-
-		if relField, ok := fields.IsRelationshipField(element); ok {
-			// relField nil olabilir (IsRelationshipField view'a göre true döndürebilir ama nil relField ile)
-			if relField == nil {
-				continue
-			}
-
-			// Relationship field'ı listeye ekle
-			relationshipFields = append(relationshipFields, relField)
-			fmt.Printf("[DEBUG] NewResourceHandler - Found relationship field: %s (type: %s)\n", relField.GetKey(), relField.GetRelationshipType())
-
-			if relField.GetLoadingStrategy() == fields.EAGER_LOADING {
-				// GORM Preload için ilişki adını kullan (struct field adı ile eşleşmeli).
-				// GetRelationshipName() ilişkinin struct field adını döndürür (ör. "Product").
-				// GetKey() ise foreign key sütun adını döndürür (ör. "product_id").
-				// strcase.ToCamel("product_id") = "ProductId" — bu GORM'un beklediği
-				// ilişki adı değil, bu yüzden GetRelationshipName() kullanılmalı.
-				key := relField.GetRelationshipName()
-
-				// Check if already exists to avoid duplicates
-				exists := false
-				for _, existing := range withRels {
-					if existing == key {
-						exists = true
-						break
-					}
-				}
-				if !exists {
-					withRels = append(withRels, key)
-				}
-			}
-		}
-	}
-
-	fmt.Printf("[DEBUG] NewResourceHandler - Total relationship fields: %d\n", len(relationshipFields))
-	fmt.Printf("[DEBUG] NewResourceHandler - WithRels: %v\n", withRels)
-
-	provider.SetWith(withRels)
-	provider.SetRelationshipFields(relationshipFields)
-
-	// Validate relationship fields
-	// Bu validation, BelongsTo field'larının model struct'ında ilişki field'larına sahip olup olmadığını kontrol eder
-	if err := data.ValidateRelationshipFields(res.Model(), res.Fields()); err != nil {
-		panic(err) // Resource yüklenirken hata varsa panic at
+		provider = data.NewGormDataProvider(db, res.Model())
 	}
 
 	// Initialize notification service with provider
@@ -338,12 +273,12 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 
 	return &FieldHandler{
 		Provider:            provider,
-		Elements:            res.Fields(),
+		Elements:            nil, // Lazy load edilecek
 		Policy:              res.Policy(),
 		Resource:            res,
 		StoragePath:         storagePath,
 		StorageURL:          storageURL,
-		Cards:               cards,
+		Cards:               res.Cards(),
 		Title:               res.Title(),
 		DialogType:          res.GetDialogType(),
 		NotificationService: notificationService,
@@ -449,21 +384,50 @@ func NewLensHandler(client interface{}, res resource.Resource, lens resource.Len
 	}
 	provider := data.NewGormDataProvider(entClient, res.Model())
 
-	var searchCols []string
-	for _, field := range lens.Fields() {
-		if field.IsSearchable() {
-			searchCols = append(searchCols, field.GetKey())
-		}
-	}
-	provider.SetSearchColumns(searchCols)
-	// Lens query likely encapsulates necessary preloads, but we could also add them if Lens interface had With()
-
 	return &FieldHandler{
 		Provider: provider,
-		Elements: lens.Fields(),
+		Elements: nil, // Lazy load edilecek
 		Title:    lens.Name(),
 		Resource: res,
 	}
+}
+
+// / getElements, context ile field'ları lazy load eder.
+// /
+// / Bu metod, handler initialization sırasında field'ları resolve etmek yerine,
+// / ilk request geldiğinde context ile birlikte lazy load eder. Bu sayede
+// / i18n translation'lar doğru context ile çalışır.
+// /
+// / # Parametreler
+// /
+// / - `ctx`: İstek context'i (nil olabilir)
+// /
+// / # Döndürür
+// /
+// / - Field listesi
+// /
+// / # İş Akışı
+// /
+// / 1. Context nil ise eski davranışa fallback (Resource.Fields() çağır)
+// / 2. Context'ten cache'lenmiş field'ları kontrol et
+// / 3. Cache'de varsa cache'den döndür
+// / 4. Cache'de yoksa GetFieldsWithContext ile resolve et ve cache'e ekle
+// / 5. GetFieldsWithContext yoksa fallback (Resource.Fields() çağır)
+func (h *FieldHandler) getElements(ctx *context.Context) []fields.Element {
+	if ctx == nil {
+		// Fallback: context yoksa eski davranış
+		return h.Resource.Fields()
+	}
+
+	// Field'ları resolve et
+	if optimized, ok := h.Resource.(interface {
+		GetFieldsWithContext(*context.Context) []fields.Element
+	}); ok {
+		return optimized.GetFieldsWithContext(ctx)
+	}
+
+	// Fallback: eski davranış
+	return h.Resource.Fields()
 }
 
 // / Bu metod, kaynak listesi (index) endpoint'ini işler.

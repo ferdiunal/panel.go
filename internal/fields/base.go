@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ferdiunal/panel.go/pkg/i18n"
+	"github.com/gofiber/fiber/v2"
 	"github.com/iancoleman/strcase"
 )
 
@@ -36,10 +38,15 @@ type Schema struct {
 	VisibilityCallback VisibilityFunc                      `json:"-"`
 	StorageCallback    StorageCallbackFunc                 `json:"-"`
 	ModifyCallback     func(value interface{}) interface{} `json:"-"`
+	FiberCtx           *fiber.Ctx                          `json:"-"`
 }
 
 func (s *Schema) GetKey() string {
 	return s.Key
+}
+
+func (s *Schema) SetContextForI18n(c *fiber.Ctx) {
+	s.FiberCtx = c
 }
 
 func (s *Schema) GetView() string {
@@ -102,9 +109,9 @@ func (s *Schema) JsonSerialize() map[string]interface{} {
 		"data":        s.Data,
 		"props":       s.Props,
 		"context":     s.Context,
-		"placeholder": s.PlaceholderText,
-		"label":       s.LabelText,
-		"help_text":   s.HelpTextContent,
+		"placeholder": i18n.Trans(s.FiberCtx, s.PlaceholderText),
+		"label":       i18n.Trans(s.FiberCtx, s.LabelText),
+		"help_text":   i18n.Trans(s.FiberCtx, s.HelpTextContent),
 		"read_only":   s.IsReadOnly,
 		"disabled":    s.IsDisabled,
 		"required":    s.IsRequired,

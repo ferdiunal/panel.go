@@ -1,0 +1,87 @@
+# Türkçe Dil Dosyası
+# Panel.go için çeviri mesajları
+
+# Genel Mesajlar
+welcome: "Hoş geldiniz"
+welcomeWithName: "Hoş geldiniz, {{.Name}}"
+
+# Hata Mesajları
+error:
+  notFound: "Kayıt bulunamadı"
+  unauthorized: "Bu işlem için yetkiniz yok"
+  serverError: "Sunucu hatası oluştu"
+  validationError: "Doğrulama hatası"
+  serviceUnavailable: "Servis şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin."
+
+# Circuit Breaker Mesajları
+circuitBreaker:
+  open: "Servis geçici olarak kullanılamıyor. Lütfen birkaç dakika sonra tekrar deneyin."
+  halfOpen: "Servis kurtarılıyor. Lütfen bekleyin."
+  tooManyRequests: "Çok fazla istek gönderildi. Lütfen bekleyin."
+
+# Başarı Mesajları
+success:
+  created: "Kayıt başarıyla oluşturuldu"
+  updated: "Kayıt başarıyla güncellendi"
+  deleted: "Kayıt başarıyla silindi"
+
+# Form Mesajları
+form:
+  required: "Bu alan zorunludur"
+  invalid: "Geçersiz değer"
+  tooShort: "Çok kısa"
+  tooLong: "Çok uzun"
+
+# Navigasyon
+navigation:
+  dashboard: "Kontrol Paneli"
+  settings: "Ayarlar"
+  account: "Hesap"
+  users: "Kullanıcılar"
+  logout: "Çıkış"
+
+# Sayfalar
+pages:
+  dashboard:
+    description: "Sistem özeti ve istatistikleri"
+  settings:
+    description: "Sistem ayarlarını yönetin"
+  account:
+    description: "Hesap ayarlarınızı yönetin"
+
+# Butonlar
+button:
+  save: "Kaydet"
+  cancel: "İptal"
+  delete: "Sil"
+  edit: "Düzenle"
+  create: "Oluştur"
+  back: "Geri"
+  submit: "Gönder"
+  createAndContinue: "Oluştur ve Devam Et"
+
+# Onay Mesajları
+confirm:
+  delete: "Bu kaydı silmek istediğinizden emin misiniz?"
+  unsavedChanges: "Kaydedilmemiş değişiklikler var. Çıkmak istediğinizden emin misiniz?"
+
+# Resource Grupları
+resources:
+  groups:
+    system: "Sistem"
+    content: "İçerik"
+    settings: "Ayarlar"
+
+  # User Resource
+  users:
+    title: "Kullanıcılar"
+    fields:
+      image: "Profil Resmi"
+      name: "Ad"
+      name_placeholder: "Adınızı girin"
+      email: "E-posta"
+      email_placeholder: "E-posta adresinizi girin"
+      role: "Rol"
+      role_placeholder: "Bir rol seçin"
+      password: "Şifre"
+      password_placeholder: "Şifrenizi girin"

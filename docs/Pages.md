@@ -42,18 +42,24 @@ func (d *Dashboard) Cards() []widget.Card {
 
 ## Sayfa Kaydetme (Registration)
 
-Sayfaları `main.go` içerisinde yapılandırabilirsiniz:
+Sayfaları `main.go` içerisinde `Config.Pages` ile yapılandırabilirsiniz:
 
 ```go
 func main() {
     cfg := panel.Config{
-        // Varsayılan Dashboard sayfasını değiştirme
-        DashboardPage: &Dashboard{},
-        
-        // Settings sayfasına özel alanlar ekleme
-        SettingsPage: &page.Settings{
-            Elements: []fields.Element{
-                 fields.Text("Support Email", "support_email"),
+        // Sayfaları Pages dizisi ile kaydedin
+        Pages: []page.Page{
+            &Dashboard{},
+            &page.Settings{
+                Elements: []fields.Element{
+                     fields.Text("Support Email", "support_email"),
+                },
+            },
+            &page.Account{
+                Elements: []fields.Element{
+                    fields.Text("Name", "name").Required(),
+                    fields.Email("Email", "email").Required(),
+                },
             },
         },
     }
@@ -66,6 +72,9 @@ func main() {
     app.Start()
 }
 ```
+
+> **Not:** SDK varsayılan sayfalar oluşturmaz. `panel init` komutu çalıştırıldığında
+> `internal/pages/` dizininde Dashboard, Settings ve Account dosyaları otomatik oluşturulur.
 
 ## API Kullanımı
 

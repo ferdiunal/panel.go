@@ -8,6 +8,8 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 /// # Action Interface
@@ -892,6 +894,32 @@ type Resource interface {
 	/// - Büyük harfle başlamalıdır
 	Title() string
 
+	/// TitleWithContext, kaynağın kullanıcı arayüzünde görünecek Türkçe başlığını döner.
+	///
+	/// Bu metod, SetTitleFunc ile ayarlanan dinamik başlık fonksiyonunu kullanır.
+	/// Eğer titleFunc ayarlanmamışsa, Title() metodunu fallback olarak kullanır.
+	///
+	/// ## Parametreler
+	/// - `ctx`: Fiber context (i18n için gerekli)
+	///
+	/// ## Döndürür
+	/// - `string`: Kullanıcı dostu başlık (örn: "Kullanıcılar", "Blog Yazıları", "Ürünler")
+	///
+	/// ## Örnek
+	/// ```go
+	/// func NewUserResource() *UserResource {
+	///     r := &UserResource{}
+	///     r.SetTitleFunc(func(c *fiber.Ctx) string {
+	///         return i18n.Trans(c, "resources.users.title")
+	///     })
+	///     return r
+	/// }
+	///
+	/// // Handler'da kullanım
+	/// title := res.TitleWithContext(c.Ctx)
+	/// ```
+	TitleWithContext(ctx *fiber.Ctx) string
+
 	/// Icon, kaynağın menüde gösterilecek ikon adını döner.
 	///
 	/// İkon, Lucide icon set'inden seçilmelidir. Menü ve navigasyonda
@@ -992,6 +1020,33 @@ type Resource interface {
 	/// - Grup adları Türkçe olabilir
 	/// - Tutarlı gruplama kullanıcı deneyimini iyileştirir
 	Group() string
+
+	/// GroupWithContext, kaynağın menüde hangi grup altında listeleneceğini belirler.
+	///
+	/// Bu metod, SetGroupFunc ile ayarlanan dinamik grup fonksiyonunu kullanır.
+	/// Eğer groupFunc ayarlanmamışsa, Group() metodunu fallback olarak kullanır.
+	///
+	/// ## Parametreler
+	/// - `ctx`: Fiber context (i18n için gerekli)
+	///
+	/// ## Döndürür
+	/// - `string`: Grup adı (örn: "İçerik Yönetimi", "E-Ticaret", "Sistem")
+	///
+	/// ## Örnek
+	/// ```go
+	/// func NewUserResource() *UserResource {
+	///     r := &UserResource{}
+	///     r.SetGroupFunc(func(c *fiber.Ctx) string {
+	///         return i18n.Trans(c, "resources.groups.user")
+	///     })
+	///     return r
+	/// }
+	///
+	/// // Handler'da kullanım
+	/// group := res.GroupWithContext(c.Ctx)
+	/// ```
+	GroupWithContext(ctx *fiber.Ctx) string
+
 	/// Policy, kaynak üzerindeki yetkilendirme (CRUD) kurallarını tanımlayan policy nesnesini döner.
 	///
 	/// Policy, kullanıcıların kaynak üzerinde hangi işlemleri yapabileceğini kontrol eder.
@@ -1272,7 +1327,7 @@ type Resource interface {
 	/// - OptimizedBase varsayılan GormDataProvider kullanır
 	/// - Özel repository thread-safe olmalıdır
 	/// - Transaction desteği sağlanmalıdır
-	Repository(client interface{}) data.DataProvider
+	Repository(db *gorm.DB) data.DataProvider
 
 	/// Cards, kaynak dashboard'unda gösterilecek widget/card'ları döner.
 	///

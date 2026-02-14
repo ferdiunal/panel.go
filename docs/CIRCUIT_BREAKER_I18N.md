@@ -134,13 +134,11 @@ config := panel.Config{
 **Dizin Yapısı:**
 ```
 locales/
-├── tr/
-│   └── messages.yaml
-└── en/
-    └── messages.yaml
+├── tr.yaml
+└── en.yaml
 ```
 
-**Örnek Dil Dosyası (locales/tr/messages.yaml):**
+**Örnek Dil Dosyası (locales/tr.yaml):**
 ```yaml
 # Genel Mesajlar
 welcome:
@@ -548,6 +546,7 @@ func MyHandler(c *fiber.Ctx) error {
 
 ## Kaynaklar
 
+- [i18n Helper Fonksiyonları Kullanım Kılavuzu](I18N_HELPERS.md)
 - [Fiber Circuit Breaker Dokümantasyonu](https://docs.gofiber.io/contrib/circuitbreaker/)
 - [Fiber i18n Dokümantasyonu](https://docs.gofiber.io/contrib/fiberi18n/)
 - [go-i18n Kütüphanesi](https://github.com/nicksnyder/go-i18n)

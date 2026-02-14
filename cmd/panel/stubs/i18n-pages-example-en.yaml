@@ -1,0 +1,71 @@
+# ============================================================================
+# i18n LANGUAGE FILE EXAMPLE - Page Translations (English)
+# ============================================================================
+#
+# English: locales/en.yaml
+#
+# NOTE: fiberi18n treats "description" as a reserved key.
+# We use dot-notation instead of nested structures to avoid conflicts.
+# ============================================================================
+
+# NAVIGATION - Menu Titles
+navigation.dashboard: "Dashboard"
+navigation.settings: "Settings"
+navigation.account: "My Account"
+navigation.users: "Users"
+navigation.products: "Products"
+
+# PAGES - Page Descriptions
+pages.dashboard.description: "View system statistics and important metrics"
+pages.dashboard.welcome: "Welcome, {{.Name}}"
+pages.settings.description: "Manage application settings"
+pages.settings.saved: "Settings saved successfully"
+pages.settings.error: "Error saving settings"
+pages.account.description: "Edit your account information"
+pages.account.profile_updated: "Your profile has been updated"
+pages.account.password_changed: "Your password has been changed successfully"
+
+# WIDGETS - Widget Titles
+widgets.total_users: "Total Users"
+widgets.active_sessions: "Active Sessions"
+widgets.monthly_revenue: "Monthly Revenue"
+widgets.pending_orders: "Pending Orders"
+
+# FORM FIELDS - Form Field Labels
+fields.name: "Name"
+fields.email: "Email"
+fields.password: "Password"
+fields.new_password: "New Password"
+fields.confirm_password: "Confirm Password"
+fields.phone: "Phone"
+fields.bio: "Bio"
+fields.site_name: "Site Name"
+fields.admin_email: "Admin Email"
+
+# PLACEHOLDERS - Form Field Placeholders
+placeholders.enter_name: "Enter your name"
+placeholders.enter_email: "Enter your email address"
+placeholders.enter_password: "Enter your password"
+placeholders.leave_blank: "Leave blank to keep current password"
+
+# VALIDATION - Validation Messages
+validation.required: "This field is required"
+validation.invalid_email: "Invalid email address"
+validation.password_min_length: "Password must be at least {{.Min}} characters"
+validation.password_mismatch: "Passwords do not match"
+
+# ACTIONS - Button and Action Texts
+actions.save: "Save"
+actions.cancel: "Cancel"
+actions.delete: "Delete"
+actions.edit: "Edit"
+actions.create: "Create"
+actions.update: "Update"
+actions.back: "Back"
+
+# MESSAGES - General Messages
+messages.success: "Operation completed successfully"
+messages.error: "An error occurred"
+messages.loading: "Loading..."
+messages.no_data: "No data found"
+messages.confirm_delete: "Are you sure you want to delete?"

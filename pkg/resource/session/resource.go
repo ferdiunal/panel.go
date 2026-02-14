@@ -146,17 +146,14 @@ func NewSessionResource() *SessionResource {
 // - GORM bağlantısı nil olmamalıdır
 // - DataProvider, veritabanı işlemlerini optimize eder
 // - Lazy loading yerine eager loading tercih edilir (With() metodu ile)
-func (r *SessionResource) Repository(client interface{}) data.DataProvider {
-	// Type assertion to get Ent client
-	db, ok := client.(*gorm.DB)
-	if !ok {
-		// TODO: Add GORM support
+func (r *SessionResource) Repository(client *gorm.DB) data.DataProvider {
+	if client == nil {
 		return nil
 	}
 
 	// Ent veri sağlayıcısını oluştur ve döndür
 	// Bu sağlayıcı Session entity'si için tüm veritabanı işlemlerini yönetir
-	return data.NewGormDataProvider(db, &domainSession.Session{})
+	return data.NewGormDataProvider(client, &domainSession.Session{})
 }
 
 // Bu metod, eager loading yapılacak ilişkileri belirtir.

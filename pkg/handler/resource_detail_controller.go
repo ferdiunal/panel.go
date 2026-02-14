@@ -147,7 +147,8 @@ func HandleResourceDetail(h *FieldHandler, c *context.Context) error {
 
 	// Filter for Detail
 	var detailElements []fields.Element
-	for _, element := range h.Elements {
+	elements := h.getElements(c)
+	for _, element := range elements {
 		if !element.IsVisible(c.Resource()) {
 			continue
 		}

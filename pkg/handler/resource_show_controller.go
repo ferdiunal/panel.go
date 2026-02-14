@@ -199,7 +199,7 @@ func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 	if ctx != nil && len(ctx.Elements) > 0 {
 		elements = ctx.Elements
 	} else {
-		elements = h.Elements
+		elements = h.getElements(c)
 	}
 
 	// Extract relationship fields from elements and set to provider
@@ -233,7 +233,7 @@ func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 	return c.JSON(fiber.Map{
 		"data": h.resolveResourceFields(c.Ctx, c.Resource(), item, elements),
 		"meta": fiber.Map{
-			"title": h.Resource.Title(),
+			"title": h.Resource.TitleWithContext(c.Ctx),
 			"policy": fiber.Map{
 				"view":   h.Policy == nil || h.Policy.View(c, item),
 				"update": h.Policy == nil || h.Policy.Update(c, item),

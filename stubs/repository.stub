@@ -12,8 +12,9 @@ type {{.ResourceName}}Repository struct {
 	*data.GormDataProvider
 }
 
+func New{{.ResourceName}}Repository(db *gorm.DB) *{{.ResourceName}}Repository {
 	return &{{.ResourceName}}Repository{
-		GormDataProvider: data.NewGormDataProvider(db, &{{.ModelName}}{}),
+		GormDataProvider: data.NewGormDataProvider(db, &{{.ModelPkg}}.{{.ModelName}}{}),
 	}
 }
 

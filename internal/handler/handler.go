@@ -76,6 +76,15 @@ func NewResourceHandler(db *gorm.DB, res resource.Resource, storagePath, storage
 	}
 }
 
+// Helper to inject context
+func (h *FieldHandler) injectContext(elements []fields.Element, c *fiber.Ctx) {
+	for _, el := range elements {
+		if setter, ok := el.(interface{ SetContextForI18n(*fiber.Ctx) }); ok {
+			setter.SetContextForI18n(c)
+		}
+	}
+}
+
 // NewLensHandler creates a FieldHandler from a Resource and Lens definition
 func NewLensHandler(db *gorm.DB, res resource.Resource, lens resource.Lens) *FieldHandler {
 	lensElements := fields.CloneElements(lens.Fields())
@@ -117,6 +126,8 @@ func (h *FieldHandler) Index(c *context.Context) error {
 	} else {
 		elements = h.Elements
 	}
+
+	h.injectContext(elements, c.Ctx)
 
 	if len(elements) == 0 {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -294,6 +305,8 @@ func (h *FieldHandler) Show(c *context.Context) error {
 		elements = h.Elements
 	}
 
+	h.injectContext(elements, c.Ctx)
+
 	return c.JSON(fiber.Map{
 		"data": h.resolveResourceFields(c.Context(), item, elements),
 		"meta": fiber.Map{
@@ -320,6 +333,7 @@ func (h *FieldHandler) Edit(c *context.Context) error {
 
 	// Filter for Update
 	var updateElements []fields.Element
+	h.injectContext(h.Elements, c.Ctx)
 	for _, element := range h.Elements {
 		if !element.IsVisible(c.Context()) {
 			continue
@@ -375,6 +389,7 @@ func (h *FieldHandler) Detail(c *context.Context) error {
 
 	// Filter for Detail
 	var detailElements []fields.Element
+	h.injectContext(h.Elements, c.Ctx)
 	for _, element := range h.Elements {
 		if !element.IsVisible(c.Context()) {
 			continue
@@ -645,6 +660,7 @@ func (h *FieldHandler) List(c *context.Context) error {
 
 	response := make([]map[string]interface{}, 0)
 
+	h.injectContext(ctx.Elements, c.Ctx)
 	for _, element := range fields.CloneElements(ctx.Elements) {
 		// Resolve value if resource is present
 		if ctx.Resource != nil {

@@ -32,23 +32,23 @@ type {Name}Policy struct{}
 var _ auth.Policy = (*{Name}Policy)(nil)
 
 func (p *{Name}Policy) ViewAny(ctx *context.Context) bool {
-    return ctx.User().HasPermission("{resource}.view_any")
+    return ctx.HasPermission("{resource}.view_any")
 }
 
 func (p *{Name}Policy) View(ctx *context.Context, model interface{}) bool {
-    return ctx.User().HasPermission("{resource}.view")
+    return ctx.HasPermission("{resource}.view")
 }
 
 func (p *{Name}Policy) Create(ctx *context.Context) bool {
-    return ctx.User().HasPermission("{resource}.create")
+    return ctx.HasPermission("{resource}.create")
 }
 
 func (p *{Name}Policy) Update(ctx *context.Context, model interface{}) bool {
-    return ctx.User().HasPermission("{resource}.update")
+    return ctx.HasPermission("{resource}.update")
 }
 
 func (p *{Name}Policy) Delete(ctx *context.Context, model interface{}) bool {
-    return ctx.User().HasPermission("{resource}.delete")
+    return ctx.HasPermission("{resource}.delete")
 }
 ```
 
@@ -57,7 +57,7 @@ func (p *{Name}Policy) Delete(ctx *context.Context, model interface{}) bool {
 ```go
 func (p *PostPolicy) Update(ctx *context.Context, model interface{}) bool {
     // Check base permission
-    if !ctx.User().HasPermission("posts.update") {
+    if !ctx.HasPermission("posts.update") {
         return false
     }
 
@@ -80,7 +80,7 @@ func (p *UserPolicy) Delete(ctx *context.Context, model interface{}) bool {
         return false
     }
 
-    if !ctx.User().HasPermission("users.delete") {
+    if !ctx.HasPermission("users.delete") {
         return false
     }
 

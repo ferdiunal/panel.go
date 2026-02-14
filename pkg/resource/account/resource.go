@@ -143,16 +143,13 @@ func NewAccountResource() *AccountResource {
 // - Döndürülen provider, GORM ORM'nin tüm özelliklerini kullanır
 // - Veritabanı bağlantısı (db) geçerli ve açık olmalıdır
 // - Provider, transaction desteği sağlar
-func (r *AccountResource) Repository(client interface{}) data.DataProvider {
-	// Type assertion to get Ent client
-	db, ok := client.(*gorm.DB)
-	if !ok {
-		// TODO: Add GORM support
+func (r *AccountResource) Repository(client *gorm.DB) data.DataProvider {
+	if client == nil {
 		return nil
 	}
 
 	// Ent provider'ı oluştur ve Account modeli ile başlat
-	return data.NewGormDataProvider(db, &domainAccount.Account{})
+	return data.NewGormDataProvider(client, &domainAccount.Account{})
 }
 
 // Bu metod, Account verilerini yüklerken eager loading yapılacak ilişkileri belirtir.

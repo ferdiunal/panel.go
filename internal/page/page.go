@@ -1,3 +1,6 @@
+// Deprecated: Bu paket artık kullanılmamaktadır.
+// Lütfen "github.com/ferdiunal/panel.go/pkg/page" paketini kullanın.
+// Bu paket, geriye dönük uyumluluk için tutulmaktadır ve gelecekte kaldırılacaktır.
 package page
 
 import (
@@ -13,6 +16,8 @@ type Page interface {
 	Slug() string
 	// Title, menüde ve sayfada görünecek başlık.
 	Title() string
+	// Description, sayfa açıklaması.
+	Description() string
 	// Cards returns the cards/widgets for the resource dashboard
 	Cards() []widget.Card
 	// Fields, sayfada gösterilecek form alanlarını döner.
@@ -39,6 +44,10 @@ func (b Base) Slug() string {
 }
 
 func (b Base) Title() string {
+	return ""
+}
+
+func (b Base) Description() string {
 	return ""
 }
 

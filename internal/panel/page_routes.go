@@ -2,6 +2,7 @@ package panel
 
 import (
 	"github.com/ferdiunal/panel.go/internal/context"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -17,7 +18,7 @@ func (p *Panel) handlePages(c *context.Context) error {
 	for slug, pg := range p.pages {
 		items = append(items, PageItem{
 			Slug:  slug,
-			Title: pg.Title(),
+			Title: i18n.Trans(c.Ctx, pg.Title()),
 		})
 	}
 
@@ -48,6 +49,11 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 	// Prepare fields
 	var fieldsList []map[string]interface{}
 	for _, f := range pg.Fields() {
+		// Inject Context for i18n
+		if setter, ok := f.(interface{ SetContextForI18n(*fiber.Ctx) }); ok {
+			setter.SetContextForI18n(c.Ctx)
+		}
+
 		serialized := f.JsonSerialize()
 
 		// Inject value for Settings Page
@@ -74,8 +80,9 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"slug":  pg.Slug(),
-		"title": pg.Title(),
+		"slug":        pg.Slug(),
+		"title":       i18n.Trans(c.Ctx, pg.Title()),
+		"description": i18n.Trans(c.Ctx, pg.Description()),
 		"meta": fiber.Map{
 			"cards":  cards,
 			"fields": fieldsList,

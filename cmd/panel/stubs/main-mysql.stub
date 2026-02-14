@@ -4,12 +4,16 @@ import (
 	"log"
 	"os"
 
+	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/panel"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/joho/godotenv"
+	"golang.org/x/text/language"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"{{.ModulePath}}/internal/pages"
 )
 
 func main() {
@@ -50,21 +54,31 @@ func main() {
 		Permissions: panel.PermissionConfig{
 			Path: "permissions.toml",
 		},
+		I18n: panel.I18nConfig{
+			Enabled:          true,
+			RootPath:         "./locales",
+			AcceptLanguages:  []language.Tag{language.Turkish, language.English},
+			DefaultLanguage:  language.Turkish,
+			FormatBundleFile: "yaml",
+		},
 		Resources: []resource.Resource{
 			// Resource'larınızı buraya ekleyin
 			// Örnek: blog.NewBlogResource(),
 		},
+		Pages: []page.Page{
+			pages.NewDashboard(),
+			pages.NewSettings(),
+			pages.NewAccount(),
+			// Ek sayfalarınızı buraya ekleyin
+		},
 	}
 
 	// Panel'i başlat
-	app, err := panel.New(cfg)
-	if err != nil {
-		log.Fatal("Failed to create panel:", err)
-	}
+	app := panel.New(cfg)
 
 	// Sunucuyu başlat
 	log.Printf("🚀 Panel.go starting on http://%s:%s\n", cfg.Server.Host, cfg.Server.Port)
-	if err := app.Listen(cfg.Server.Host + ":" + cfg.Server.Port); err != nil {
+	if err := app.Start(); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

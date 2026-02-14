@@ -53,6 +53,7 @@ func makeResource(name string) {
 		"PackageName":  packageName,
 		"ResourceName": resourceName,
 		"ModelName":    modelName,
+		"ModelPkg":     strings.ToLower(modelName),
 		"Slug":         identifier,
 		"Title":        label,
 		"Label":        label,

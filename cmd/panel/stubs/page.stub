@@ -1,46 +1,107 @@
 package {{.PackageName}}
 
 import (
+	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/page"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"gorm.io/gorm"
 )
 
+// {{.PageName}}, özel bir sayfa implementasyonudur.
+// OptimizedBase kullanarak gelişmiş özelliklerden yararlanır.
 type {{.PageName}} struct {
-	page.Base
+	page.OptimizedBase
 }
 
-func (p *{{.PageName}}) Slug() string {
-	return "{{.Slug}}"
+// New{{.PageName}}, yeni bir {{.PageName}} instance'ı oluşturur.
+func New{{.PageName}}() *{{.PageName}} {
+	p := &{{.PageName}}{}
+
+	// Temel ayarlar
+	p.SetSlug("{{.Slug}}")
+	p.SetIcon("{{.Icon}}")
+	p.SetNavigationOrder(99)
+	p.SetVisible(true)
+
+	// ============================================================================
+	// i18n KULLANIMI - İki Yöntem
+	// ============================================================================
+
+	// Yöntem 1: Doğrudan metin (tek dil)
+	// p.SetTitle("{{.Title}}")
+	// p.SetDescription("Sayfa açıklaması")
+
+	// Yöntem 2: i18n key kullanımı (çok dilli) - ÖNERİLEN
+	// locales/tr.yaml: navigation.{{.Slug}}: "{{.Title}}"
+	// locales/en.yaml: navigation.{{.Slug}}: "{{.Title}}"
+	p.SetTitleKey("navigation.{{.Slug}}")
+	p.SetDescriptionKey("pages.{{.Slug}}.description")
+
+	// Widget'lar için CardResolver kullan (opsiyonel)
+	// p.SetCardResolver(&{{.PageName}}CardResolver{})
+
+	// Form alanları için FieldResolver kullan (opsiyonel)
+	// p.SetFieldResolver(&{{.PageName}}FieldResolver{})
+
+	return p
 }
 
-func (p *{{.PageName}}) Title() string {
-	return "{{.Title}}"
-}
+// ============================================================================
+// CARD RESOLVER (Opsiyonel) - Widget'ları dinamik olarak yönetir
+// ============================================================================
 
-func (p *{{.PageName}}) Group() string {
-	return "{{.Group}}"
-}
+// {{.PageName}}CardResolver, sayfa widget'larını dinamik olarak oluşturur.
+type {{.PageName}}CardResolver struct{}
 
-func (p *{{.PageName}}) Icon() string {
-	return "{{.Icon}}"
-}
-
-func (p *{{.PageName}}) NavigationOrder() int {
-	return 99
-}
-
-func (p *{{.PageName}}) Visible() bool {
-	return true
-}
-
-func (p *{{.PageName}}) Widgets() []widget.Widget {
-	return []widget.Widget{}
-}
-
-func (p *{{.PageName}}) Fields() []fields.Element {
-	return []fields.Element{
-		// Add fields here
-		// fields.Text("Title", "title"),
+// ResolveCards, sayfada gösterilecek widget'ları döndürür.
+func (r *{{.PageName}}CardResolver) ResolveCards(ctx *context.Context) []widget.Card {
+	return []widget.Card{
+		// Örnek widget'lar:
+		// widget.NewCountWidget("Total Items", &YourModel{}),
+		// widget.NewChartWidget("Statistics", chartData),
 	}
+}
+
+// ============================================================================
+// FIELD RESOLVER (Opsiyonel) - Form alanlarını dinamik olarak yönetir
+// ============================================================================
+
+// {{.PageName}}FieldResolver, form alanlarını dinamik olarak oluşturur.
+type {{.PageName}}FieldResolver struct{}
+
+// ResolveFields, sayfada gösterilecek form alanlarını döndürür.
+func (r *{{.PageName}}FieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	return []fields.Element{
+		// Örnek form alanları:
+		// fields.Text("Title", "title").SetRequired(true),
+		// fields.Email("Email", "email").SetRequired(true),
+		// fields.Textarea("Description", "description"),
+	}
+}
+
+// ============================================================================
+// SAVE METODU (Opsiyonel) - Form verilerini işler
+// ============================================================================
+
+// Save, form verilerini işler ve kaydeder.
+// Form alanları tanımladıysanız bu metodu implement edin.
+func (p *{{.PageName}}) Save(ctx *context.Context, db *gorm.DB, data map[string]any) error {
+	// Örnek: Form verilerini işle
+	// if title, ok := data["title"].(string); ok {
+	//     // Veritabanına kaydet
+	// }
+
+	return nil
+}
+
+// ============================================================================
+// ERİŞİM KONTROLÜ (Opsiyonel) - Sayfa erişimini kontrol eder
+// ============================================================================
+
+// CanAccess, kullanıcının sayfaya erişip erişemeyeceğini belirler.
+// Varsayılan: true (tüm kullanıcılar erişebilir)
+// Admin kontrolü için: return ctx.User != nil && ctx.User.IsAdmin
+func (p *{{.PageName}}) CanAccess(ctx *context.Context) bool {
+	return true
 }

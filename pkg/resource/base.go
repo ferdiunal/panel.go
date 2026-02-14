@@ -15,6 +15,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/widget"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 /// # Base Yapısı
@@ -292,6 +293,28 @@ func (r Base) Title() string {
 	return r.Label
 }
 
+/// TitleWithContext, kaynağın kullanıcı arayüzünde görünecek başlığını döner.
+///
+/// Bu metod, SetTitleFunc ile ayarlanan dinamik başlık fonksiyonunu kullanır.
+/// Eğer titleFunc ayarlanmamışsa, Title() metodunu fallback olarak kullanır.
+///
+/// ## Parametreler
+/// - `ctx`: Fiber context (i18n için gerekli)
+///
+/// ## Döndürür
+/// - `string`: Kullanıcı dostu başlık
+///
+/// ## Örnek
+/// ```go
+/// title := resource.TitleWithContext(c.Ctx)
+/// ```
+func (r Base) TitleWithContext(ctx *fiber.Ctx) string {
+	if r.titleFunc != nil && ctx != nil {
+		return r.titleFunc(ctx)
+	}
+	return r.Title()
+}
+
 /// # Icon Metodu
 ///
 /// Bu fonksiyon, resource'ın menüde gösterilecek ikon adını döndürür.
@@ -374,6 +397,28 @@ func (r Base) Icon() string {
 /// - Grup adları tutarlı olmalıdır
 func (r Base) Group() string {
 	return r.GroupName
+}
+
+/// GroupWithContext, kaynağın menüde hangi grup altında listeleneceğini belirler.
+///
+/// Bu metod, SetGroupFunc ile ayarlanan dinamik grup fonksiyonunu kullanır.
+/// Eğer groupFunc ayarlanmamışsa, Group() metodunu fallback olarak kullanır.
+///
+/// ## Parametreler
+/// - `ctx`: Fiber context (i18n için gerekli)
+///
+/// ## Döndürür
+/// - `string`: Grup adı
+///
+/// ## Örnek
+/// ```go
+/// group := resource.GroupWithContext(c.Ctx)
+/// ```
+func (r Base) GroupWithContext(ctx *fiber.Ctx) string {
+	if r.groupFunc != nil && ctx != nil {
+		return r.groupFunc(ctx)
+	}
+	return r.Group()
 }
 
 /// # Fields Metodu
@@ -918,7 +963,7 @@ func (b *Base) SetOpenAPIEnabled(enabled bool) Resource {
 /// - nil döndürülürse varsayılan GORM provider kullanılır
 /// - Repository thread-safe olmalıdır
 /// - Context timeout'larına dikkat edilmelidir
-func (r Base) Repository(client interface{}) data.DataProvider {
+func (r Base) Repository(client *gorm.DB) data.DataProvider {
 	return nil
 }
 

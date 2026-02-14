@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/rtl"
 	"github.com/gofiber/fiber/v2"
 )
@@ -42,10 +43,20 @@ type HTMLInjectionData struct {
 //   - HTMLInjectionData: Injection data
 func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 	// Dil bilgisini al
+	// Öncelik sırası: 1) Middleware'den locale, 2) Config'den default language, 3) "en"
 	lang := "en"
 
-	// Config'deki default language'i kullan
-	if config.I18n.Enabled && config.I18n.DefaultLanguage.String() != "" {
+	// i18n middleware'i etkinse, middleware'den locale'i al
+	if config.I18n.Enabled {
+		// Middleware'den locale'i al (cookie > header > query > default)
+		lang = i18n.GetLocale(c)
+
+		// Eğer locale boşsa veya "en" ise, config'den default language'i kullan
+		if lang == "" || (lang == "en" && config.I18n.DefaultLanguage.String() != "" && config.I18n.DefaultLanguage.String() != "en") {
+			lang = config.I18n.DefaultLanguage.String()
+		}
+	} else if config.I18n.DefaultLanguage.String() != "" {
+		// i18n devre dışıysa, config'den default language'i kullan
 		lang = config.I18n.DefaultLanguage.String()
 	}
 

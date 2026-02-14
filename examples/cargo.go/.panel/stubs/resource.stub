@@ -13,13 +13,13 @@ type {{.ResourceName}}Resource struct {
 
 func New{{.ResourceName}}Resource() *{{.ResourceName}}Resource {
 	r := &{{.ResourceName}}Resource{}
-	r.Model = &{{.ModelName}}{}
-	r.Slug = "{{.Identifier}}"
-	r.Title = "{{.Label}}"
-	r.Icon = "{{.Icon}}"
-	r.Group = "{{.Group}}"
-	r.NavigationOrder = 1
-	r.Visible = true
+	r.SetModel(&{{.ModelPkg}}.{{.ModelName}}{})
+	r.SetSlug("{{.Identifier}}")
+	r.SetTitle("{{.Label}}")
+	r.SetIcon("{{.Icon}}")
+	r.SetGroup("{{.Group}}")
+	r.SetNavigationOrder(1)
+	r.SetVisible(true)
 	r.SetPolicy(&{{.ResourceName}}Policy{})
 	r.SetFieldResolver(&{{.ResourceName}}FieldResolver{})
 	r.SetCardResolver(&{{.ResourceName}}CardResolver{})

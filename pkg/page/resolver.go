@@ -31,7 +31,9 @@ package page
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"gorm.io/gorm"
 )
 
 // FieldResolver, sayfanın form alanlarını dinamik olarak çözen (resolve) interface'i.
@@ -749,9 +751,11 @@ func (n *Navigable) IsVisible() bool {
 type OptimizedBase struct {
 	Resolvable
 	Navigable
-	slug        string
-	title       string
-	description string
+	slug           string
+	title          string
+	description    string
+	titleKey       string // i18n key for title
+	descriptionKey string // i18n key for description
 }
 
 // SetSlug, sayfanın URL slug'ını ayarlar.
@@ -998,6 +1002,46 @@ func (b *OptimizedBase) Fields() []fields.Element {
 	return b.ResolveFields(nil)
 }
 
+// GetFieldsWithContext, context ile field'ları resolve eder ve cache'ler.
+//
+// # Açıklama
+//
+// Bu metod, lazy loading yaklaşımı kullanarak field'ları context ile birlikte
+// resolve eder ve her request için cache'ler. Bu sayede i18n translation'lar
+// doğru context ile çalışır.
+//
+// # Parametreler
+//
+// - ctx: İstek context'i (nil olabilir)
+//
+// # Dönüş Değeri
+//
+// Cache'lenmiş field listesi
+//
+// # Örnek
+//
+// ```go
+// fields := base.GetFieldsWithContext(ctx)
+// // Field'lar context ile resolve edilir ve cache'lenir
+// ```
+//
+// # İş Akışı
+//
+// 1. Context nil ise eski davranışa fallback (Fields() çağır)
+// 2. ResolveFields ile field'ları context ile resolve et
+// 3. Her field'ı clone edip context cache'ine ekle
+// 4. Cache'lenmiş field'ları döndür
+func (b *OptimizedBase) GetFieldsWithContext(ctx *context.Context) []fields.Element {
+	if ctx == nil {
+		return b.Fields()
+	}
+
+	resolvedFields := b.ResolveFields(ctx)
+
+	// Field'ları doğrudan döndür (cache olmadan)
+	return resolvedFields
+}
+
 // Cards, sayfanın dashboard kartlarını döner.
 //
 // # Açıklama
@@ -1159,4 +1203,335 @@ func (b *OptimizedBase) NavigationOrder() int {
 // - Görünmez sayfalar yine de erişilebilir olabilir
 func (b *OptimizedBase) Visible() bool {
 	return b.IsVisible()
+}
+
+// SetTitleKey, sayfanın başlığı için i18n key'ini ayarlar.
+//
+// # Açıklama
+//
+// Bu metod, sayfanın başlığı için kullanılacak i18n çeviri key'ini belirler.
+// Key ayarlandığında, GetTitleWithContext() metodu context ile çeviri yapar.
+//
+// # Parametreler
+//
+// - `key`: i18n çeviri key'i (örn: "navigation.dashboard", "pages.users.title")
+//
+// # Dönüş Değeri
+//
+// Yok (void)
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// base.SetTitleKey("navigation.dashboard")
+// // GetTitleWithContext(ctx) -> i18n.Trans(ctx.Ctx, "navigation.dashboard")
+// ```
+//
+// # Kullanım Senaryoları
+//
+// - Çok dilli sayfa başlıkları
+// - Dinamik başlık çevirisi
+// - Kullanıcı diline göre başlık gösterimi
+//
+// # Önemli Notlar
+//
+// - Key boş string olabilir (çeviri yapılmaz)
+// - Key ayarlandığında title field'ı fallback olarak kullanılır
+// - Context nil ise veya çeviri bulunamazsa fallback değer döndürülür
+func (b *OptimizedBase) SetTitleKey(key string) {
+	b.titleKey = key
+}
+
+// GetTitleKey, sayfanın başlığı için ayarlanmış i18n key'ini döner.
+//
+// # Açıklama
+//
+// Bu metod, SetTitleKey ile ayarlanmış i18n çeviri key'ini döner.
+//
+// # Parametreler
+//
+// Yok
+//
+// # Dönüş Değeri
+//
+// i18n çeviri key'i. Ayarlanmamışsa boş string.
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// base.SetTitleKey("navigation.dashboard")
+// key := base.GetTitleKey() // "navigation.dashboard"
+// ```
+func (b *OptimizedBase) GetTitleKey() string {
+	return b.titleKey
+}
+
+// SetDescriptionKey, sayfanın açıklaması için i18n key'ini ayarlar.
+//
+// # Açıklama
+//
+// Bu metod, sayfanın açıklaması için kullanılacak i18n çeviri key'ini belirler.
+// Key ayarlandığında, GetDescriptionWithContext() metodu context ile çeviri yapar.
+//
+// # Parametreler
+//
+// - `key`: i18n çeviri key'i (örn: "pages.dashboard.description")
+//
+// # Dönüş Değeri
+//
+// Yok (void)
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// base.SetDescriptionKey("pages.dashboard.description")
+// // GetDescriptionWithContext(ctx) -> i18n.Trans(ctx.Ctx, "pages.dashboard.description")
+// ```
+//
+// # Kullanım Senaryoları
+//
+// - Çok dilli sayfa açıklamaları
+// - Dinamik açıklama çevirisi
+// - Kullanıcı diline göre açıklama gösterimi
+//
+// # Önemli Notlar
+//
+// - Key boş string olabilir (çeviri yapılmaz)
+// - Key ayarlandığında description field'ı fallback olarak kullanılır
+// - Context nil ise veya çeviri bulunamazsa fallback değer döndürülür
+func (b *OptimizedBase) SetDescriptionKey(key string) {
+	b.descriptionKey = key
+}
+
+// GetDescriptionKey, sayfanın açıklaması için ayarlanmış i18n key'ini döner.
+//
+// # Açıklama
+//
+// Bu metod, SetDescriptionKey ile ayarlanmış i18n çeviri key'ini döner.
+//
+// # Parametreler
+//
+// Yok
+//
+// # Dönüş Değeri
+//
+// i18n çeviri key'i. Ayarlanmamışsa boş string.
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// base.SetDescriptionKey("pages.dashboard.description")
+// key := base.GetDescriptionKey() // "pages.dashboard.description"
+// ```
+func (b *OptimizedBase) GetDescriptionKey() string {
+	return b.descriptionKey
+}
+
+// GetTitleWithContext, context ile başlığı çevirir ve döner.
+//
+// # Açıklama
+//
+// Bu metod, ayarlanmış titleKey varsa context ile i18n çevirisi yapar.
+// Key yoksa veya çeviri başarısız olursa title field'ını fallback olarak döner.
+//
+// # Parametreler
+//
+// - `ctx`: İstek context'i (i18n çevirisi için gerekli)
+//
+// # Dönüş Değeri
+//
+// Çevrilmiş başlık veya fallback değer.
+//
+// # Çeviri Önceliği
+//
+// 1. titleKey varsa ve context geçerliyse: i18n.Trans(ctx.Ctx, titleKey)
+// 2. title field'ı doluysa: title
+// 3. Hiçbiri yoksa: titleKey (fallback)
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// base.SetTitleKey("navigation.dashboard")
+// base.SetTitle("Dashboard") // fallback
+//
+// // Context ile çeviri
+// title := base.GetTitleWithContext(ctx)
+// // Çıktı: "Dashboard" (İngilizce) veya "Kontrol Paneli" (Türkçe)
+//
+// // Context nil ise
+// title := base.GetTitleWithContext(nil)
+// // Çıktı: "Dashboard" (fallback)
+// ```
+//
+// # Önemli Notlar
+//
+// - Context nil olabilir (fallback değer döndürülür)
+// - i18n çevirisi başarısız olursa fallback değer döndürülür
+// - titleKey ve title boşsa titleKey döndürülür (boş string olabilir)
+func (b *OptimizedBase) GetTitleWithContext(ctx *context.Context) string {
+	if b.titleKey != "" && ctx != nil && ctx.Ctx != nil {
+		translated := i18n.Trans(ctx.Ctx, b.titleKey)
+		if translated != b.titleKey { // Çeviri başarılı
+			return translated
+		}
+	}
+	if b.title != "" {
+		return b.title
+	}
+	return b.titleKey // fallback
+}
+
+// GetDescriptionWithContext, context ile açıklamayı çevirir ve döner.
+//
+// # Açıklama
+//
+// Bu metod, ayarlanmış descriptionKey varsa context ile i18n çevirisi yapar.
+// Key yoksa veya çeviri başarısız olursa description field'ını fallback olarak döner.
+//
+// # Parametreler
+//
+// - `ctx`: İstek context'i (i18n çevirisi için gerekli)
+//
+// # Dönüş Değeri
+//
+// Çevrilmiş açıklama veya fallback değer.
+//
+// # Çeviri Önceliği
+//
+// 1. descriptionKey varsa ve context geçerliyse: i18n.Trans(ctx.Ctx, descriptionKey)
+// 2. description field'ı doluysa: description
+// 3. Hiçbiri yoksa: descriptionKey (fallback)
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// base.SetDescriptionKey("pages.dashboard.description")
+// base.SetDescription("System overview") // fallback
+//
+// // Context ile çeviri
+// desc := base.GetDescriptionWithContext(ctx)
+// // Çıktı: "System overview" (İngilizce) veya "Sistem özeti" (Türkçe)
+//
+// // Context nil ise
+// desc := base.GetDescriptionWithContext(nil)
+// // Çıktı: "System overview" (fallback)
+// ```
+//
+// # Önemli Notlar
+//
+// - Context nil olabilir (fallback değer döndürülür)
+// - i18n çevirisi başarısız olursa fallback değer döndürülür
+// - descriptionKey ve description boşsa descriptionKey döndürülür (boş string olabilir)
+func (b *OptimizedBase) GetDescriptionWithContext(ctx *context.Context) string {
+	if b.descriptionKey != "" && ctx != nil && ctx.Ctx != nil {
+		translated := i18n.Trans(ctx.Ctx, b.descriptionKey)
+		if translated != b.descriptionKey { // Çeviri başarılı
+			return translated
+		}
+	}
+	if b.description != "" {
+		return b.description
+	}
+	return b.descriptionKey // fallback
+}
+
+// CanAccess, sayfaya erişim kontrolü yapar.
+//
+// # Açıklama
+//
+// Bu metod, kullanıcının sayfaya erişip erişemeyeceğini kontrol eder.
+// Varsayılan implementasyon her zaman true döndürür (herkes erişebilir).
+// Özel sayfalar bu metodu override ederek kendi erişim kontrollerini yapabilir.
+//
+// # Parametreler
+//
+// - `ctx`: İstek context'i (kullanıcı bilgisi, izinler vb. için)
+//
+// # Dönüş Değeri
+//
+// true ise kullanıcı sayfaya erişebilir, false ise erişemez.
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// canAccess := base.CanAccess(ctx) // true (varsayılan)
+// ```
+//
+// # Override Örneği
+//
+// ```go
+// type AdminPage struct {
+//     page.OptimizedBase
+// }
+//
+// func (p *AdminPage) CanAccess(ctx *context.Context) bool {
+//     return ctx.User.IsAdmin
+// }
+// ```
+//
+// # Önemli Notlar
+//
+// - Varsayılan implementasyon her zaman true döndürür
+// - Özel sayfalar bu metodu override edebilir
+// - Context nil olabilir (varsayılan true döndürülür)
+func (b *OptimizedBase) CanAccess(ctx *context.Context) bool {
+	return true
+}
+
+// Save, sayfa formundan gelen verileri işler.
+//
+// # Açıklama
+//
+// Bu metod, sayfa formundan gelen verileri işlemek için kullanılır.
+// Varsayılan implementasyon hiçbir şey yapmaz ve nil döndürür.
+// Özel sayfalar bu metodu override ederek kendi kaydetme mantıklarını yapabilir.
+//
+// # Parametreler
+//
+// - `ctx`: İstek context'i (kullanıcı bilgisi, izinler vb. için)
+// - `db`: GORM veritabanı bağlantısı
+// - `data`: Form verilerini içeren map
+//
+// # Dönüş Değeri
+//
+// Hata varsa error, yoksa nil
+//
+// # Örnek
+//
+// ```go
+// base := &page.OptimizedBase{}
+// err := base.Save(ctx, db, data) // nil (varsayılan)
+// ```
+//
+// # Override Örneği
+//
+// ```go
+// type SettingsPage struct {
+//     page.OptimizedBase
+// }
+//
+// func (p *SettingsPage) Save(ctx *context.Context, db *gorm.DB, data map[string]interface{}) error {
+//     // Ayarları kaydet
+//     setting := &Setting{
+//         Key:   data["key"].(string),
+//         Value: data["value"].(string),
+//     }
+//     return db.Create(setting).Error
+// }
+// ```
+//
+// # Önemli Notlar
+//
+// - Varsayılan implementasyon hiçbir şey yapmaz
+// - Özel sayfalar bu metodu override edebilir
+// - Context, db veya data nil olabilir (kontrol edilmeli)
+func (b *OptimizedBase) Save(ctx *context.Context, db *gorm.DB, data map[string]interface{}) error {
+	return nil
 }

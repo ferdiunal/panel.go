@@ -169,7 +169,7 @@ func HandleResourceCreate(h *FieldHandler, c *context.Context) error {
 
 	// Adım 3: Tüm Alanları Döngüyle İşle
 	// Handler'da tanımlı tüm alanları tek tek kontrol et ve filtrele
-	for _, element := range h.Elements {
+	for _, element := range h.getElements(c) {
 		// Adım 3.1: Görünürlük Kontrolü
 		// Alan, mevcut kaynak için görünür değilse atla
 		// IsVisible, kullanıcı rolü, kaynak durumu gibi koşullara göre karar verir

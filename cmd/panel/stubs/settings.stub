@@ -1,0 +1,83 @@
+package {{.PackageName}}
+
+import (
+	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/domain/setting"
+	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/page"
+	"gorm.io/gorm"
+)
+
+// Settings, uygulama ayarları sayfasıdır.
+// Form alanları ve kaydetme işlemlerini özelleştirin.
+type Settings struct {
+	page.OptimizedBase
+}
+
+// NewSettings, yeni bir Settings instance'ı oluşturur.
+func NewSettings() *Settings {
+	s := &Settings{}
+
+	// Temel ayarlar
+	s.SetSlug("settings")
+	s.SetIcon("settings")
+	s.SetNavigationOrder(98) // Menünün sonuna yakın
+	s.SetVisible(true)
+
+	// i18n desteği
+	// locales/tr.yaml: navigation.settings: "Ayarlar"
+	// locales/en.yaml: navigation.settings: "Settings"
+	s.SetTitle("navigation.settings")
+	s.SetDescription("pages.settings.description")
+
+	// Form alanlarını dinamik olarak yönetmek için FieldResolver kullan
+	s.SetFieldResolver(&SettingsFieldResolver{})
+
+	return s
+}
+
+// CanAccess, Settings sayfasına erişim kontrolü yapar.
+// Tüm oturum açmış kullanıcılar erişebilir.
+func (s *Settings) CanAccess(ctx *context.Context) bool {
+	return true
+}
+
+// SettingsFieldResolver, Settings form alanlarını dinamik olarak oluşturur.
+type SettingsFieldResolver struct{}
+
+// ResolveFields, Settings sayfasında gösterilecek form alanlarını döndürür.
+func (r *SettingsFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	return []fields.Element{
+		// Örnek: Site adı alanı
+		fields.Text("Site Name", "site_name").
+			Required().
+			Placeholder("Enter site name"),
+
+		// Örnek: E-posta alanı
+		fields.Email("Admin Email", "admin_email").
+			Required().
+			Placeholder("admin@example.com"),
+
+		// Daha fazla alan ekleyebilirsiniz:
+		// fields.Switch("Enable Registration", "enable_registration"),
+		// fields.Textarea("Welcome Message", "welcome_message"),
+	}
+}
+
+// Save, form verilerini işler ve kaydeder.
+// Veri doğrulaması ve veritabanı işlemleri burada yapılır.
+func (s *Settings) Save(ctx *context.Context, db *gorm.DB, data map[string]any) error {
+	// Örnek: Site adını kaydet
+	if siteName, ok := data["site_name"].(string); ok {
+		// Veritabanına kaydet
+		// db.Model(&setting.Setting{}).Where("key = ?", "site_name").Update("value", siteName)
+	}
+
+	// Örnek: Admin e-postasını kaydet
+	if adminEmail, ok := data["admin_email"].(string); ok {
+		// Veritabanına kaydet
+		// db.Model(&setting.Setting{}).Where("key = ?", "admin_email").Update("value", adminEmail)
+	}
+
+	return nil
+}

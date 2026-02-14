@@ -1405,6 +1405,27 @@ func (b *OptimizedBase) Title() string {
 	return b.title
 }
 
+// TitleWithContext, kaynağın kullanıcı arayüzünde görünecek başlığını döner.
+//
+// Bu metod, SetTitleFunc ile ayarlanan dinamik başlık fonksiyonunu kullanır.
+// Eğer titleFunc ayarlanmamışsa, Title() metodunu fallback olarak kullanır.
+//
+// Parametreler:
+// - ctx: Fiber context (i18n için gerekli)
+//
+// Döndürür:
+// - string: Kullanıcı dostu başlık
+//
+// Örnek:
+//
+//	title := resource.TitleWithContext(c.Ctx)
+func (b *OptimizedBase) TitleWithContext(ctx *fiber.Ctx) string {
+	if b.titleFunc != nil && ctx != nil {
+		return b.titleFunc(ctx)
+	}
+	return b.Title()
+}
+
 // / SetRepository, resource'un veri erişim katmanını ayarlar.
 // /
 // / Repository, veritabanı işlemlerini (CRUD, query, pagination) yönetir.
@@ -1441,15 +1462,13 @@ func (b *OptimizedBase) SetRepository(r data.DataProvider) {
 // /   items, err := repo.List(ctx, query)
 // /
 // / Detaylı ilişki örnekleri için bkz: [Relationships.md](../../docs/Relationships.md)
-func (b *OptimizedBase) Repository(client interface{}) data.DataProvider {
-	// Type assertion to get GORM DB
-	db, ok := client.(*gorm.DB)
-	if !ok {
+func (b *OptimizedBase) Repository(client *gorm.DB) data.DataProvider {
+	if client == nil {
 		return nil
 	}
 
 	// Create new GormDataProvider instance
-	provider := data.NewGormDataProvider(db, b.Model())
+	provider := data.NewGormDataProvider(client, b.Model())
 
 	// Automatically configure eager loading from With() method
 	// This prevents N+1 query problems
@@ -1632,6 +1651,32 @@ func (b *OptimizedBase) Group() string {
 	return b.GetGroup()
 }
 
+// GroupWithContext, kaynağın menüde hangi grup altında listeleneceğini belirler.
+//
+// Bu metod, SetGroupFunc ile ayarlanan dinamik grup fonksiyonunu kullanır.
+// Eğer groupFunc ayarlanmamışsa, GetGroup() metodunu fallback olarak kullanır.
+//
+// Parametreler:
+// - ctx: Fiber context (i18n için gerekli)
+//
+// Döndürür:
+// - string: Grup adı
+//
+// Örnek:
+//
+//	group := resource.GroupWithContext(c.Ctx)
+func (b *OptimizedBase) GroupWithContext(ctx *fiber.Ctx) string {
+	fmt.Printf("[DEBUG] GroupWithContext called - groupFunc nil: %v, ctx nil: %v\n", b.groupFunc == nil, ctx == nil)
+	if b.groupFunc != nil && ctx != nil {
+		result := b.groupFunc(ctx)
+		fmt.Printf("[DEBUG] groupFunc returned: %s\n", result)
+		return result
+	}
+	fallback := b.GetGroup()
+	fmt.Printf("[DEBUG] Using fallback GetGroup(): %s\n", fallback)
+	return fallback
+}
+
 // / GetSortable, varsayılan sıralama ayarlarını döner.
 // /
 // / Bu metod, Navigable mixin'in sortable alanını döner.
@@ -1692,6 +1737,37 @@ func (b *OptimizedBase) SetDialogType(dt DialogType) Resource {
 // /
 // / Detaylı alan örnekleri için bkz: [Fields.md](../../docs/Fields.md)
 func (b *OptimizedBase) GetFields(ctx *context.Context) []fields.Element {
+	return b.ResolveFields(ctx)
+}
+
+// / GetFieldsWithContext, context ile field'ları resolve eder ve cache'ler.
+// /
+// / Bu metod, lazy loading yaklaşımı kullanarak field'ları context ile birlikte
+// / resolve eder ve her request için cache'ler. Bu sayede i18n translation'lar
+// / doğru context ile çalışır.
+// /
+// / Parametreler:
+// / - ctx: İstek context'i (nil olabilir)
+// /
+// / Döndürür:
+// / - Cache'lenmiş field listesi
+// /
+// / Örnek:
+// /   fields := r.GetFieldsWithContext(ctx)
+// /   // Field'lar context ile resolve edilir ve cache'lenir
+// /
+// / İş Akışı:
+// / 1. Context nil ise eski davranışa fallback (Fields() çağır)
+// / 2. ResolveFields ile field'ları context ile resolve et
+// / 3. Her field'ı clone edip context cache'ine ekle
+// / 4. Cache'lenmiş field'ları döndür
+func (b *OptimizedBase) GetFieldsWithContext(ctx *context.Context) []fields.Element {
+	if ctx == nil {
+		// Fallback to old behavior
+		return b.Fields()
+	}
+
+	// ResolveFields ile field'ları al (context ile)
 	return b.ResolveFields(ctx)
 }
 
