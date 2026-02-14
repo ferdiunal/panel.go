@@ -145,7 +145,8 @@ func BelongsToMany(name, key string, relatedResource interface{}) *BelongsToMany
 	if resourceInstance != nil {
 		b.WithProps("related_resource_instance", resourceInstance)
 	}
-	// BelongsToMany fields are now visible in both create and edit forms
+	// BelongsToMany relationship requires the parent record to exist first
+	b.HideOnCreate()
 	return b
 }
 
@@ -294,9 +295,10 @@ func (b *BelongsToManyField) GetTypes() map[string]string {
 // 1. Schema.Extract ile ilişki verilerini alır
 // 2. Data nil ise boş array döndürür
 // 3. RelatedResource varsa her kayıt için:
-//    - ID field'ını alır
-//    - RelatedResource.RecordTitle ile başlığı alır
-//    - {"id": ..., "title": ...} formatında ekler
+//   - ID field'ını alır
+//   - RelatedResource.RecordTitle ile başlığı alır
+//   - {"id": ..., "title": ...} formatında ekler
+//
 // 4. İlişki yüklenmemişse boş array döndürür
 //
 // # Önemli Notlar

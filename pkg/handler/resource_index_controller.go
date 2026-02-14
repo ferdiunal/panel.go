@@ -79,18 +79,23 @@ import (
 //   - Filtreler (filters)
 //
 // 4. **Sıralama Varsayılanları**: Eğer sıralama belirtilmemişse:
+//
 //   - Önce Resource'tan tanımlı varsayılan sıralamalar kullanılır
+//
 //   - Hiç sıralama yoksa `created_at DESC` kullanılır
 //
-//  5. **Veri Çekme**: Provider üzerinden veriler çekilir. Provider, veritabanı sorgusunu
+//     5. **Veri Çekme**: Provider üzerinden veriler çekilir. Provider, veritabanı sorgusunu
 //     gerçekleştirir ve sonuçları döndürür.
 //
 // 6. **Resource Mapping**: Her kayıt için:
+//
 //   - Alanlar (fields) resolve edilir ve değerleri çıkarılır
+//
 //   - Kayıt-bazlı policy kontrolleri yapılır (view, update, delete)
+//
 //   - Policy sonuçları her kaydın içine eklenir
 //
-//  7. **Header Oluşturma**: Frontend tablo görünümü için header bilgileri oluşturulur.
+//     7. **Header Oluşturma**: Frontend tablo görünümü için header bilgileri oluşturulur.
 //     Sadece liste görünümünde gösterilmesi gereken alanlar header'a eklenir.
 //
 // 8. **Response Dönme**: JSON formatında data ve meta bilgileri döndürülür.
@@ -345,10 +350,7 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
-	// Set relationship fields to provider if it's a GormDataProvider
-	if gormProvider, ok := h.Provider.(*data.GormDataProvider); ok {
-		gormProvider.SetRelationshipFields(relationshipFields)
-	}
+	h.Provider.SetRelationshipFields(relationshipFields)
 
 	// Fetch Data
 	result, err := h.Provider.Index(c, req)
@@ -383,6 +385,7 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 
 		ctxStr := element.GetContext()
 		serialized := element.JsonSerialize()
+		normalizeRelationshipCollectionData(element.GetView(), serialized)
 
 		// logic for headers (Index/List)
 		if ctxStr != fields.HIDE_ON_LIST &&

@@ -1,8 +1,21 @@
 package fields
 
 import (
+	"fmt"
 	"testing"
 )
+
+type hasManyRecordTitleResource struct {
+	slug string
+}
+
+func (r hasManyRecordTitleResource) Slug() string {
+	return r.slug
+}
+
+func (r hasManyRecordTitleResource) RecordTitle(record any) string {
+	return fmt.Sprintf("record-%v", record)
+}
 
 // TestHasManyCreation tests HasMany field creation
 func TestHasManyCreation(t *testing.T) {
@@ -268,5 +281,29 @@ func TestHasManyImplementsRelationshipField(t *testing.T) {
 
 	if field.GetRelationshipName() != "Posts" {
 		t.Errorf("Expected relationship name 'Posts', got '%s'", field.GetRelationshipName())
+	}
+}
+
+func TestHasManyLabelPlaceholderChainingKeepsConcreteType(t *testing.T) {
+	element := HasMany(
+		"ProductVariants",
+		"product_variants",
+		hasManyRecordTitleResource{slug: "product-variants"},
+	).
+		Label("Urun Varyantlari").
+		Placeholder("Urun varyanti secin").
+		Searchable()
+
+	hasManyField, ok := element.(*HasManyField)
+	if !ok {
+		t.Fatalf("expected chained element to remain *HasManyField, got %T", element)
+	}
+
+	if hasManyField.GetRelatedResourceSlug() != "product-variants" {
+		t.Fatalf("expected related resource slug to be preserved, got %s", hasManyField.GetRelatedResourceSlug())
+	}
+
+	if relField, ok := IsRelationshipField(element); !ok || relField == nil {
+		t.Fatalf("expected chained element to be detected as concrete relationship field")
 	}
 }

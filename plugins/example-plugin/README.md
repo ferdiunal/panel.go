@@ -31,10 +31,11 @@ func main() {
     }
 
     p := panel.New(config)
-    p.BootPlugins() // Plugin'leri boot et
     p.Start()
 }
 ```
+
+> Not: `panel.New(config)` plugin'i registry'den otomatik boot eder.
 
 ### Frontend
 
@@ -330,7 +331,7 @@ init: async () => {
 
 1. `init()` fonksiyonunun çağrıldığından emin olun
 2. Import path'in doğru olduğunu kontrol edin
-3. `BootPlugins()` metodunun çağrıldığından emin olun
+3. Plugin paketinin uygulamada blank import edildiğini doğrulayın
 
 ### Resource Görünmüyor
 

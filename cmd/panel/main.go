@@ -3,6 +3,8 @@
 // Panel, Go tabanlı bir kod oluşturma aracıdır (code generator) ve aşağıdaki
 // komutları destekler:
 //   - make:resource: Yeni bir resource (kaynak) oluşturur
+//   - make:lens: Resource için yeni bir lens oluşturur
+//   - make:action: Resource için yeni bir action oluşturur
 //   - make:page: Yeni bir sayfa oluşturur
 //   - make:model: Yeni bir model (veri modeli) oluşturur
 //   - plugin:create: Yeni plugin oluşturur
@@ -69,6 +71,8 @@ Resource, page ve model oluşturabilir, plugin'leri yönetebilir ve UI build ala
 func main() {
 	// Make komutları
 	rootCmd.AddCommand(newMakeResourceCommand())
+	rootCmd.AddCommand(newMakeLensCommand())
+	rootCmd.AddCommand(newMakeActionCommand())
 	rootCmd.AddCommand(newMakePageCommand())
 	rootCmd.AddCommand(newMakeModelCommand())
 
@@ -100,6 +104,46 @@ func newMakeResourceCommand() *cobra.Command {
 			makeResource(args[0])
 		},
 	}
+}
+
+// newMakeLensCommand, make:lens komutunu oluşturur.
+func newMakeLensCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "make:lens <name>",
+		Short: "Belirli bir resource için yeni bir lens oluşturur",
+		Long:  "Belirli bir resource package'i için lens dosyası oluşturur. Resource adı --resource flag'i ile verilir veya etkileşimli olarak sorulur.",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			resourceName, _ := cmd.Flags().GetString("resource")
+			if strings.TrimSpace(resourceName) == "" {
+				resourceName = promptRequiredInput("Resource name")
+			}
+			makeLens(args[0], resourceName)
+		},
+	}
+
+	cmd.Flags().StringP("resource", "r", "", "Hedef resource package adı (örn: blog)")
+	return cmd
+}
+
+// newMakeActionCommand, make:action komutunu oluşturur.
+func newMakeActionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "make:action <name>",
+		Short: "Belirli bir resource için yeni bir action oluşturur",
+		Long:  "Belirli bir resource package'i için action dosyası oluşturur. Resource adı --resource flag'i ile verilir veya etkileşimli olarak sorulur.",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			resourceName, _ := cmd.Flags().GetString("resource")
+			if strings.TrimSpace(resourceName) == "" {
+				resourceName = promptRequiredInput("Resource name")
+			}
+			makeAction(args[0], resourceName)
+		},
+	}
+
+	cmd.Flags().StringP("resource", "r", "", "Hedef resource package adı (örn: blog)")
+	return cmd
 }
 
 // newMakePageCommand, make:page komutunu oluşturur.
@@ -270,6 +314,90 @@ func makeResource(name string) {
 	// 3. main.go dosyasına import ekle
 	importPath := modulePath + "/internal/resource/" + packageName
 	addImportToMain("main.go", importPath)
+}
+
+func normalizeClassName(name string) string {
+	normalized := strings.NewReplacer("-", " ", "_", " ").Replace(strings.TrimSpace(name))
+	caser := cases.Title(language.English)
+	return strings.ReplaceAll(caser.String(normalized), " ", "")
+}
+
+func normalizeSlug(name string) string {
+	slug := strings.NewReplacer("_", "-", " ", "-").Replace(strings.ToLower(strings.TrimSpace(name)))
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+	return strings.Trim(slug, "-")
+}
+
+func normalizeFileName(name string) string {
+	file := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(strings.TrimSpace(name)))
+	for strings.Contains(file, "__") {
+		file = strings.ReplaceAll(file, "__", "_")
+	}
+	return strings.Trim(file, "_")
+}
+
+// makeLens, belirli bir resource için lens dosyası oluşturur.
+func makeLens(name, resourceName string) {
+	lensName := normalizeClassName(name)
+	resourcePkg := strings.ToLower(strings.TrimSpace(resourceName))
+	lensSlug := normalizeSlug(name)
+	fileBase := normalizeFileName(name)
+
+	if lensName == "" || resourcePkg == "" || fileBase == "" {
+		fmt.Println("Error: Invalid lens name or resource name")
+		return
+	}
+
+	dir := filepath.Join("internal", "resource", resourcePkg)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating resource directory: %v\n", err)
+		return
+	}
+
+	targetPath := filepath.Join(dir, fmt.Sprintf("%s_lens.go", fileBase))
+	data := map[string]string{
+		"PackageName":  resourcePkg,
+		"ResourceSlug": resourcePkg,
+		"LensName":     lensName,
+		"LensSlug":     lensSlug,
+	}
+
+	createFileFromStub("lens.stub", targetPath, data)
+	fmt.Printf("\n✅ Lens %s generated successfully for resource %s\n", lensName, resourcePkg)
+	fmt.Printf("   File: %s\n", targetPath)
+}
+
+// makeAction, belirli bir resource için action dosyası oluşturur.
+func makeAction(name, resourceName string) {
+	actionName := normalizeClassName(name)
+	resourcePkg := strings.ToLower(strings.TrimSpace(resourceName))
+	actionSlug := normalizeSlug(name)
+	fileBase := normalizeFileName(name)
+
+	if actionName == "" || resourcePkg == "" || fileBase == "" {
+		fmt.Println("Error: Invalid action name or resource name")
+		return
+	}
+
+	dir := filepath.Join("internal", "resource", resourcePkg)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("Error creating resource directory: %v\n", err)
+		return
+	}
+
+	targetPath := filepath.Join(dir, fmt.Sprintf("%s_action.go", fileBase))
+	data := map[string]string{
+		"PackageName":  resourcePkg,
+		"ResourceSlug": resourcePkg,
+		"ActionName":   actionName,
+		"ActionSlug":   actionSlug,
+	}
+
+	createFileFromStub("action.stub", targetPath, data)
+	fmt.Printf("\n✅ Action %s generated successfully for resource %s\n", actionName, resourcePkg)
+	fmt.Printf("   File: %s\n", targetPath)
 }
 
 // addImportToMain, main.go dosyasına anonymous import ekler.
@@ -487,6 +615,8 @@ func publishStubs() {
 		"model.stub",
 		"model_struct.stub",
 		"resource.stub",
+		"lens.stub",
+		"action.stub",
 		"policy.stub",
 		"repository.stub",
 		"page.stub",
@@ -518,6 +648,19 @@ func publishStubs() {
 
 	fmt.Println("\n✅ Stubs published successfully to .panel/stubs/")
 	fmt.Println("You can now customize these stubs for your project.")
+}
+
+func promptRequiredInput(label string) string {
+	for {
+		fmt.Printf("%s: ", label)
+		var value string
+		fmt.Scanln(&value)
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+		fmt.Printf("%s cannot be empty.\n", label)
+	}
 }
 
 // publishSkills, SDK'daki skill dosyalarını kullanıcının projesine kopyalar.

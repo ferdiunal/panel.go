@@ -17,6 +17,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/notification"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
@@ -108,6 +109,135 @@ func collectSearchableColumns(elements []fields.Element) []string {
 	}
 
 	return columns
+}
+
+func collectRelationshipPreloads(
+	db *gorm.DB,
+	model interface{},
+	explicit []string,
+	elements []fields.Element,
+) []string {
+	candidates := make([]string, 0, len(explicit)+len(elements)*2)
+	candidates = append(candidates, explicit...)
+
+	for _, element := range elements {
+		switch element.GetView() {
+		case "has-many-field", "has-one-field", "belongs-to-many-field", "belongs-to-field":
+			key := strings.TrimSpace(element.GetKey())
+			if key == "" {
+				continue
+			}
+
+			candidates = append(candidates, key)
+			if strings.HasSuffix(key, "_id") {
+				candidates = append(candidates, strings.TrimSuffix(key, "_id"))
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return []string{}
+	}
+
+	// If DB/schema is unavailable, return deduplicated candidates as-is.
+	if db == nil {
+		seen := make(map[string]struct{}, len(candidates))
+		preloads := make([]string, 0, len(candidates))
+		for _, candidate := range candidates {
+			candidate = strings.TrimSpace(candidate)
+			if candidate == "" {
+				continue
+			}
+			if _, ok := seen[candidate]; ok {
+				continue
+			}
+			seen[candidate] = struct{}{}
+			preloads = append(preloads, candidate)
+		}
+		return preloads
+	}
+
+	// Build relationship name index from model schema.
+	stmt := &gorm.Statement{DB: db}
+	if err := stmt.Parse(model); err != nil || stmt.Schema == nil {
+		seen := make(map[string]struct{}, len(candidates))
+		preloads := make([]string, 0, len(candidates))
+		for _, candidate := range candidates {
+			candidate = strings.TrimSpace(candidate)
+			if candidate == "" {
+				continue
+			}
+			if _, ok := seen[candidate]; ok {
+				continue
+			}
+			seen[candidate] = struct{}{}
+			preloads = append(preloads, candidate)
+		}
+		return preloads
+	}
+
+	relationshipIndex := make(map[string]string)
+	for relationName := range stmt.Schema.Relationships.Relations {
+		relationshipIndex[relationName] = relationName
+		relationshipIndex[strings.ToLower(relationName)] = relationName
+		relationshipIndex[strings.ToLower(strcase.ToSnake(relationName))] = relationName
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	preloads := make([]string, 0, len(candidates))
+	addPreload := func(value string) {
+		if value == "" {
+			return
+		}
+		if _, ok := seen[value]; ok {
+			return
+		}
+		seen[value] = struct{}{}
+		preloads = append(preloads, value)
+	}
+
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+
+		// Nested preload paths should remain intact.
+		if strings.Contains(candidate, ".") {
+			addPreload(candidate)
+			continue
+		}
+
+		tryKeys := []string{
+			candidate,
+			strings.ToLower(candidate),
+			strcase.ToCamel(candidate),
+			strings.ToLower(strcase.ToSnake(candidate)),
+		}
+
+		if strings.HasSuffix(candidate, "_id") {
+			base := strings.TrimSuffix(candidate, "_id")
+			tryKeys = append(tryKeys, base, strings.ToLower(base), strcase.ToCamel(base))
+		}
+
+		matched := ""
+		for _, key := range tryKeys {
+			if normalized, ok := relationshipIndex[key]; ok {
+				matched = normalized
+				break
+			}
+		}
+
+		if matched != "" {
+			addPreload(matched)
+			continue
+		}
+
+		// Ignore unresolved simple relations to avoid runtime GORM preload errors.
+		// Nested paths are handled above and preserved.
+	}
+
+	return preloads
 }
 
 // / Bu fonksiyon, özel bir veri sağlayıcı (DataProvider) ile yeni bir FieldHandler oluşturur.
@@ -296,10 +426,9 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 		provider = data.NewGormDataProvider(db, res.Model())
 	}
 
-	if gormProvider, ok := provider.(*data.GormDataProvider); ok {
-		gormProvider.SetWith(res.With())
-		gormProvider.SetSearchColumns(collectSearchableColumns(res.Fields()))
-	}
+	preloads := collectRelationshipPreloads(db, res.Model(), res.With(), res.Fields())
+	provider.SetWith(preloads)
+	provider.SetSearchColumns(collectSearchableColumns(res.Fields()))
 
 	// Initialize notification service with provider
 	notificationService := notification.NewService(provider)
@@ -412,7 +541,10 @@ func NewLensHandler(client interface{}, res resource.Resource, lens resource.Len
 		panic("client must be *gorm.DB for lens handler")
 	}
 	provider := data.NewGormDataProvider(db, res.Model())
-	provider.SetWith(res.With())
+	preloadElements := append([]fields.Element{}, res.Fields()...)
+	preloadElements = append(preloadElements, lens.Fields()...)
+	preloads := collectRelationshipPreloads(db, res.Model(), res.With(), preloadElements)
+	provider.SetWith(preloads)
 	provider.SetBaseQuery(lens.GetQuery())
 	provider.SetSearchColumns(collectSearchableColumns(lens.Fields()))
 
@@ -719,9 +851,18 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 				}
 			}
 		}
+		if relField, ok := element.(*fields.BelongsToManyField); ok {
+			if relField.RelatedResource == nil && relField.GetRelatedResourceSlug() != "" {
+				relatedResource := resource.Get(relField.GetRelatedResourceSlug())
+				if relatedResource != nil {
+					relField.RelatedResource = relatedResource
+				}
+			}
+		}
 
 		element.Extract(item)
 		serialized := element.JsonSerialize()
+		normalizeRelationshipCollectionData(element.GetView(), serialized)
 
 		// Resolve options
 		h.ResolveFieldOptions(element, serialized, item)
@@ -775,6 +916,25 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 		resourceData[serialized["key"].(string)] = serialized
 	}
 	return resourceData
+}
+
+func normalizeRelationshipCollectionData(view string, serialized map[string]interface{}) {
+	switch view {
+	case "has-many-field", "belongs-to-many-field", "morph-to-many-field":
+	default:
+		return
+	}
+
+	data, ok := serialized["data"]
+	if !ok || data == nil {
+		serialized["data"] = []interface{}{}
+		return
+	}
+
+	v := reflect.ValueOf(data)
+	if v.Kind() == reflect.Slice && v.IsNil() {
+		serialized["data"] = []interface{}{}
+	}
 }
 
 // / Bu metod, bir alan için dinamik seçenekleri (options) çözümler ve serileştirilmiş

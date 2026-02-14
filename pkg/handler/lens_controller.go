@@ -360,9 +360,7 @@ func HandleLens(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
-	if gormProvider, ok := h.Provider.(*data.GormDataProvider); ok {
-		gormProvider.SetRelationshipFields(relationshipFields)
-	}
+	h.Provider.SetRelationshipFields(relationshipFields)
 
 	result, err := h.Provider.Index(c, req)
 	if err != nil {
@@ -391,6 +389,7 @@ func HandleLens(h *FieldHandler, c *context.Context) error {
 
 		ctxStr := element.GetContext()
 		serialized := element.JsonSerialize()
+		normalizeRelationshipCollectionData(element.GetView(), serialized)
 
 		if ctxStr != fields.HIDE_ON_LIST &&
 			ctxStr != fields.ONLY_ON_CREATE &&

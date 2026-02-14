@@ -1,0 +1,42 @@
+package {{.PackageName}}
+
+import (
+	appContext "github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/resource"
+	"github.com/ferdiunal/panel.go/pkg/widget"
+	"gorm.io/gorm"
+)
+
+type {{.LensName}}Lens struct{}
+
+var _ resource.Lens = (*{{.LensName}}Lens)(nil)
+
+func New{{.LensName}}Lens() *{{.LensName}}Lens {
+	return &{{.LensName}}Lens{}
+}
+
+func (l *{{.LensName}}Lens) Name() string { return "{{.LensName}}" }
+func (l *{{.LensName}}Lens) Slug() string { return "{{.LensSlug}}" }
+
+func (l *{{.LensName}}Lens) Query(db *gorm.DB) *gorm.DB {
+	return db
+}
+
+func (l *{{.LensName}}Lens) Fields() []fields.Element {
+	return []fields.Element{
+		fields.ID("ID"),
+	}
+}
+
+func (l *{{.LensName}}Lens) GetName() string { return l.Name() }
+func (l *{{.LensName}}Lens) GetSlug() string { return l.Slug() }
+func (l *{{.LensName}}Lens) GetQuery() func(*gorm.DB) *gorm.DB { return l.Query }
+
+func (l *{{.LensName}}Lens) GetFields(ctx *appContext.Context) []fields.Element {
+	return l.Fields()
+}
+
+func (l *{{.LensName}}Lens) GetCards(ctx *appContext.Context) []widget.Card {
+	return []widget.Card{}
+}

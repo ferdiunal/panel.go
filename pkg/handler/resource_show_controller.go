@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
-	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
 )
@@ -215,10 +214,7 @@ func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
-	// Set relationship fields to provider if it's a GormDataProvider
-	if gormProvider, ok := h.Provider.(*data.GormDataProvider); ok {
-		gormProvider.SetRelationshipFields(relationshipFields)
-	}
+	h.Provider.SetRelationshipFields(relationshipFields)
 
 	// Fetch data
 	item, err := h.Provider.Show(c, id)

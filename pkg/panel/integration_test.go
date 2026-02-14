@@ -3,6 +3,7 @@ package panel
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ferdiunal/panel.go/pkg/action"
 	"github.com/ferdiunal/panel.go/pkg/auth"
 	appContext "github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data"
@@ -208,7 +210,16 @@ func (r *IntBlogResource) ResolveField(fieldName string, item interface{}) (inte
 }
 
 func (r *IntBlogResource) GetActions() []resource.Action {
-	return []resource.Action{}
+	return []resource.Action{
+		action.New("Mark Popular").
+			SetSlug("mark-popular").
+			SetIcon("star").
+			Confirm("Selected blog posts will be marked as popular.").
+			Handle(func(ctx *action.ActionContext) error {
+				// No-op test action for endpoint parity checks.
+				return nil
+			}),
+	}
 }
 
 func (r *IntBlogResource) GetFilters() []resource.Filter {
@@ -542,6 +553,60 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	popularBlog := lensData[0].(map[string]interface{})
 	if popularBlog["title"].(map[string]interface{})["data"] != "First Post" {
 		t.Errorf("Expected popular blog title 'First Post'")
+	}
+
+	// 9. Test API: Lens Actions List
+	reqLensActions := httptest.NewRequest("GET", "/api/resource/blogs/lens/most-popular/actions", nil)
+	if sessionCookie != nil {
+		reqLensActions.AddCookie(sessionCookie)
+	}
+	respLensActions, _ := p.Fiber.Test(reqLensActions)
+	if respLensActions.StatusCode != 200 {
+		t.Fatalf("Expected 200 for lens actions list, got %d", respLensActions.StatusCode)
+	}
+
+	bodyLensActions, _ := io.ReadAll(respLensActions.Body)
+	var lensActionsResponse map[string]interface{}
+	if err := json.Unmarshal(bodyLensActions, &lensActionsResponse); err != nil {
+		t.Fatalf("Failed to unmarshal lens actions response: %v", err)
+	}
+
+	actions, ok := lensActionsResponse["actions"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected actions array in lens actions response")
+	}
+	if len(actions) == 0 {
+		t.Fatalf("Expected at least one lens action")
+	}
+	firstAction := actions[0].(map[string]interface{})
+	if firstAction["slug"] != "mark-popular" {
+		t.Errorf("Expected lens action slug 'mark-popular', got %v", firstAction["slug"])
+	}
+
+	// 10. Test API: Lens Action Execute
+	idField, ok := popularBlog["id"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected id field on lens resource payload")
+	}
+	rawID := idField["data"]
+	idFloat, ok := rawID.(float64)
+	if !ok {
+		t.Fatalf("Expected numeric id value, got %T", rawID)
+	}
+
+	execBody, _ := json.Marshal(map[string]interface{}{
+		"ids":    []string{fmt.Sprintf("%.0f", idFloat)},
+		"fields": map[string]interface{}{},
+	})
+	reqLensActionExec := httptest.NewRequest("POST", "/api/resource/blogs/lens/most-popular/actions/mark-popular", bytes.NewReader(execBody))
+	reqLensActionExec.Header.Set("Content-Type", "application/json")
+	if sessionCookie != nil {
+		reqLensActionExec.AddCookie(sessionCookie)
+	}
+	respLensActionExec, _ := p.Fiber.Test(reqLensActionExec)
+	if respLensActionExec.StatusCode != 200 {
+		bodyExec, _ := io.ReadAll(respLensActionExec.Body)
+		t.Fatalf("Expected 200 for lens action execute, got %d body=%s", respLensActionExec.StatusCode, string(bodyExec))
 	}
 }
 

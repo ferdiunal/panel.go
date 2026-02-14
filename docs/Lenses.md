@@ -122,6 +122,31 @@ Not:
 }
 ```
 
+### Lens action listesi
+
+`GET /api/resource/:resource/lens/:lens/actions`
+
+Örnek yanıt:
+
+```json
+{
+  "actions": []
+}
+```
+
+### Lens action çalıştırma
+
+`POST /api/resource/:resource/lens/:lens/actions/:action`
+
+Body:
+
+```json
+{
+  "ids": ["1"],
+  "fields": {}
+}
+```
+
 ## Yetki
 
 Lens endpoint'leri `ViewAny` policy kontrolünden geçer. Policy false dönerse `403 Unauthorized` alınır.

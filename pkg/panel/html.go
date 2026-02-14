@@ -21,7 +21,6 @@ import (
 const (
 	PlaceholderLang    = "{{PANEL_LANG}}"
 	PlaceholderDir     = "{{PANEL_DIR}}"
-	PlaceholderTheme   = "{{PANEL_THEME}}"
 	PlaceholderTitle   = "{{PANEL_TITLE}}"
 	PlaceholderInit    = "{{PANEL_INIT}}"
 	PlaceholderFavicon = "{{PANEL_FAVICON}}"
@@ -31,7 +30,6 @@ const (
 type HTMLInjectionData struct {
 	Lang    string // Dil kodu (örn: "tr", "en", "ar")
 	Dir     string // Text direction ("ltr" veya "rtl")
-	Theme   string // Tema ("light" veya "dark")
 	Title   string // Site başlığı
 	Favicon string // Favicon URL (logo veya varsayılan)
 }
@@ -53,12 +51,6 @@ func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 	// Direction bilgisini al
 	dir := rtl.GetDirectionString(lang)
 
-	// Tema bilgisini al
-	theme := c.Query("theme", c.Cookies("theme", "light"))
-	if theme != "dark" && theme != "light" {
-		theme = "light"
-	}
-
 	// Site başlığını al
 	title := config.SettingsValues.SiteName
 	if title == "" {
@@ -78,7 +70,6 @@ func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 	return HTMLInjectionData{
 		Lang:    lang,
 		Dir:     dir,
-		Theme:   theme,
 		Title:   title,
 		Favicon: favicon,
 	}
@@ -177,7 +168,6 @@ func GetInitData(c *fiber.Ctx, config Config, injectionData HTMLInjectionData) f
 		},
 		"i18n":         i18nData,
 		"translations": translations,
-		"theme":        injectionData.Theme,
 		"version":      "1.0.0",
 		"settings":     config.SettingsValues.Values,
 	}
@@ -187,7 +177,6 @@ func GetInitData(c *fiber.Ctx, config Config, injectionData HTMLInjectionData) f
 func InjectHTML(html string, data HTMLInjectionData, initJSON string) string {
 	html = strings.ReplaceAll(html, PlaceholderLang, data.Lang)
 	html = strings.ReplaceAll(html, PlaceholderDir, data.Dir)
-	html = strings.ReplaceAll(html, PlaceholderTheme, data.Theme)
 	html = strings.ReplaceAll(html, PlaceholderTitle, data.Title)
 	html = strings.ReplaceAll(html, PlaceholderFavicon, data.Favicon)
 	html = strings.ReplaceAll(html, PlaceholderInit, initJSON)

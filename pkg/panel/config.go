@@ -889,7 +889,7 @@ type I18nConfig struct {
 // /    ```go
 // /    import _ "github.com/user/my-plugin"
 // /    ```
-// / 2. **Auto-discovery (Opsiyonel)**: Plugin'ler runtime'da keşfedilir
+// / 2. **Auto-discovery (Sınırlı/Opsiyonel)**: Sadece plugin descriptor'ları (plugin.yaml) keşfedilir
 // /    ```go
 // /    config.Plugins.AutoDiscover = true
 // /    config.Plugins.Path = "./plugins"
@@ -897,12 +897,12 @@ type I18nConfig struct {
 // /
 // / ## Avantajlar
 // / - Manuel import: Type-safe, compile-time kontrol
-// / - Auto-discovery: Dinamik plugin yükleme
+// / - Auto-discovery: Descriptor görünürlüğü ve keşif
 // /
 // / ## Önemli Notlar
 // / - AutoDiscover varsayılan olarak false'tur
 // / - Manuel import tercih edilir (type-safe)
-// / - Auto-discovery opsiyoneldir
+// / - Auto-discovery opsiyoneldir, runtime plugin package import/boot yapmaz
 type PluginConfig struct {
 	/// AutoDiscover, plugin'lerin otomatik keşfedilip keşfedilmeyeceğini belirtir
 	/// true: Plugin'ler otomatik keşfedilir, false: Manuel import gereklidir

@@ -18,12 +18,11 @@
 /// func main() {
 ///     config := panel.Config{...}
 ///     p := panel.New(config)
-///     p.BootPlugins()
 ///     p.Start()
 /// }
 /// ```
 
-package main
+package example_plugin
 
 import (
 	"fmt"

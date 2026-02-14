@@ -1,0 +1,14 @@
+package {{.PackageName}}
+
+import "github.com/ferdiunal/panel.go/pkg/action"
+
+func New{{.ActionName}}Action() *action.BaseAction {
+	return action.New("{{.ActionName}}").
+		SetSlug("{{.ActionSlug}}").
+		SetIcon("play").
+		Confirm("Are you sure you want to run {{.ActionName}} on selected {{.ResourceSlug}} records?").
+		Handle(func(ctx *action.ActionContext) error {
+			// TODO: implement action logic
+			return nil
+		})
+}

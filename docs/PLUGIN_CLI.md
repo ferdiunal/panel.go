@@ -169,7 +169,7 @@ panel plugin add https://github.com/user/logger --path ./custom-plugins
 Plugin geçerli olması için:
 - `plugin.yaml` dosyası olmalı
 - `plugin.go` dosyası olmalı
-- Metadata geçerli olmalı
+- Metadata doğrulaması bu adımda yapılmaz (dosya varlığı kontrol edilir)
 
 ### Çıktı
 
@@ -366,8 +366,8 @@ panel plugin build --watch
 3. Dependencies yüklenir: `pnpm install`
 4. Build alınır:
    - Production: `pnpm build`
-   - Development: `pnpm build --mode development`
-   - Watch: `pnpm dev`
+   - Development: `pnpm run build:dev`
+   - Watch: `pnpm run dev`
 5. Output kopyalanır: `web-ui/dist/` → `assets/ui/`
 
 ### Çıktı (Production)

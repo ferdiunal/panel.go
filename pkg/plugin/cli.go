@@ -5,12 +5,14 @@
 package plugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // NewPluginCommand, plugin komut grubunun root command'ını oluşturur.
@@ -362,8 +364,7 @@ func printPluginsTable(plugins []PluginInfo) error {
 
 // printPluginsJSON, plugin'leri JSON formatında yazdırır.
 func printPluginsJSON(plugins []PluginInfo) error {
-	// JSON marshal
-	data, err := os.ReadFile("/dev/null") // Placeholder
+	data, err := json.MarshalIndent(plugins, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -412,13 +413,13 @@ type BuildUIOptions struct {
 
 // PluginInfo, plugin metadata bilgisi.
 type PluginInfo struct {
-	Name        string
-	Version     string
-	Author      string
-	Description string
-	HasFrontend bool
-	Valid       bool
-	Path        string
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Author      string `json:"author"`
+	Description string `json:"description"`
+	HasFrontend bool   `json:"has_frontend"`
+	Valid       bool   `json:"valid"`
+	Path        string `json:"path"`
 }
 
 // CreatePlugin, yeni plugin oluşturur.
@@ -682,7 +683,86 @@ func validatePlugin(pluginDir string) error {
 
 // removeFromWorkspaceConfig, workspace config'den plugin'i kaldırır.
 func removeFromWorkspaceConfig(webUIPath, pluginName string) error {
-	// Şimdilik placeholder
-	// workspace.go'da implement edilecek
+	workspaceYAMLPath := filepath.Join(webUIPath, "pnpm-workspace.yaml")
+	if _, err := os.Stat(workspaceYAMLPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	data, err := os.ReadFile(workspaceYAMLPath)
+	if err != nil {
+		return fmt.Errorf("workspace config okunamadı: %w", err)
+	}
+
+	var workspaceConfig map[string]interface{}
+	if err := yaml.Unmarshal(data, &workspaceConfig); err != nil {
+		return fmt.Errorf("workspace config parse edilemedi: %w", err)
+	}
+
+	rawPackages, ok := workspaceConfig["packages"]
+	if !ok {
+		return nil
+	}
+
+	packages, ok := rawPackages.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	pluginsDir := filepath.Join(webUIPath, "plugins")
+	shouldKeepPluginWorkspacePath := false
+	if entries, err := os.ReadDir(pluginsDir); err == nil {
+		for _, entry := range entries {
+			name := strings.TrimSpace(entry.Name())
+			if name == "" || strings.HasPrefix(name, ".") || name == pluginName {
+				continue
+			}
+			shouldKeepPluginWorkspacePath = true
+			break
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("plugins dizini okunamadı: %w", err)
+	}
+
+	pluginWildcardPath := "../plugins/*/frontend"
+	pluginSpecificPath := fmt.Sprintf("../plugins/%s/frontend", pluginName)
+
+	filtered := make([]interface{}, 0, len(packages))
+	changed := false
+
+	for _, pkg := range packages {
+		pkgStr, ok := pkg.(string)
+		if !ok {
+			filtered = append(filtered, pkg)
+			continue
+		}
+
+		if pkgStr == pluginSpecificPath {
+			changed = true
+			continue
+		}
+
+		if pkgStr == pluginWildcardPath && !shouldKeepPluginWorkspacePath {
+			changed = true
+			continue
+		}
+
+		filtered = append(filtered, pkg)
+	}
+
+	if !changed {
+		return nil
+	}
+
+	workspaceConfig["packages"] = filtered
+
+	updatedData, err := yaml.Marshal(workspaceConfig)
+	if err != nil {
+		return fmt.Errorf("workspace config marshal edilemedi: %w", err)
+	}
+
+	if err := os.WriteFile(workspaceYAMLPath, updatedData, 0644); err != nil {
+		return fmt.Errorf("workspace config yazılamadı: %w", err)
+	}
+
 	return nil
 }

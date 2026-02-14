@@ -160,10 +160,12 @@ Başarılı yanıt:
 
 ## Lens Üzerinden Action
 
-Panel.go'da action çalıştırma endpoint'i resource action endpoint'i üzerinden yapılır.
-Lens görünümü kullanılsa bile çalıştırma URL'i değişmez:
+Lens görünümünde action endpoint'leri ayrı olarak da kullanılabilir:
 
-`POST /api/resource/:resource/actions/:action`
+- `GET /api/resource/:resource/lens/:lens/actions`
+- `POST /api/resource/:resource/lens/:lens/actions/:action`
+
+Bu endpoint'ler, Nova parity için lens route'u altında action erişimi sağlar.
 
 ## Yetki Akışı
 

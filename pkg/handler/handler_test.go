@@ -28,9 +28,34 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type HandlerTestCategory struct {
+	ID   uint   `gorm:"primaryKey" json:"id"`
+	Name string `json:"name"`
+}
+
+type HandlerTestVariant struct {
+	ID        uint   `gorm:"primaryKey" json:"id"`
+	ProductID uint   `json:"product_id"`
+	Name      string `json:"name"`
+}
+
+type HandlerTestProduct struct {
+	ID              uint                 `gorm:"primaryKey" json:"id"`
+	CategoryID      uint                 `json:"category_id"`
+	Category        HandlerTestCategory  `json:"category" gorm:"foreignKey:CategoryID"`
+	ProductVariants []HandlerTestVariant `json:"product_variants" gorm:"foreignKey:ProductID"`
+}
+
 type MockDataProvider struct {
 	Items []interface{}
 	Total int64
+}
+
+type TrackingDataProvider struct {
+	MockDataProvider
+	setWithCalled bool
+	with          []string
+	searchColumns []string
 }
 
 func (m *MockDataProvider) Index(ctx *appContext.Context, req data.QueryRequest) (*data.QueryResponse, error) {
@@ -61,6 +86,13 @@ func (m *MockDataProvider) Delete(ctx *appContext.Context, id string) error {
 func (m *MockDataProvider) SetSearchColumns(cols []string)                          {}
 func (m *MockDataProvider) SetWith(rels []string)                                   {}
 func (m *MockDataProvider) SetRelationshipFields(fields []fields.RelationshipField) {}
+func (m *TrackingDataProvider) SetSearchColumns(cols []string) {
+	m.searchColumns = append([]string{}, cols...)
+}
+func (m *TrackingDataProvider) SetWith(rels []string) {
+	m.setWithCalled = true
+	m.with = append([]string{}, rels...)
+}
 func (m *MockDataProvider) QueryTable(ctx *appContext.Context, table string, conditions map[string]interface{}) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
@@ -171,6 +203,76 @@ func TestFieldHandler_Index(t *testing.T) {
 	}
 }
 
+func TestFieldHandler_Index_NormalizesRelationshipHeaderData(t *testing.T) {
+	app := fiber.New()
+
+	items := []interface{}{
+		HandlerTestProduct{
+			ID:              1,
+			ProductVariants: nil,
+		},
+	}
+
+	mockProvider := &MockDataProvider{
+		Items: items,
+		Total: 1,
+	}
+
+	relationshipField := fields.NewField("Variants", "product_variants")
+	relationshipField.View = "has-many-field"
+	relationshipField.Type = fields.TYPE_RELATIONSHIP
+
+	fieldDefs := []fields.Element{
+		relationshipField,
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+
+	app.Get("/products", FieldContextMiddleware(nil, nil, core.ContextIndex, fieldDefs), appContext.Wrap(h.Index))
+
+	req := httptest.NewRequest("GET", "/products?page=1&per_page=10", nil)
+	resp, _ := app.Test(req)
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	meta, ok := response["meta"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected meta to be a map, got %T", response["meta"])
+	}
+
+	headers, ok := meta["headers"].([]interface{})
+	if !ok || len(headers) == 0 {
+		t.Fatalf("expected headers to be a non-empty slice, got %T", meta["headers"])
+	}
+
+	header, ok := headers[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected first header to be map, got %T", headers[0])
+	}
+
+	dataValue, exists := header["data"]
+	if !exists {
+		t.Fatalf("expected header to contain data key")
+	}
+
+	dataSlice, ok := dataValue.([]interface{})
+	if !ok {
+		t.Fatalf("expected relationship header data to be []interface{}, got %T", dataValue)
+	}
+	if len(dataSlice) != 0 {
+		t.Fatalf("expected relationship header data to be empty slice, got %v", dataSlice)
+	}
+}
+
 func TestFieldHandler_MapSupport(t *testing.T) {
 	app := fiber.New()
 
@@ -209,6 +311,11 @@ func TestFieldHandler_MapSupport(t *testing.T) {
 // Mock Resource Implementation
 type MockResource struct{}
 
+type MockResourceWithCustomRepository struct {
+	*MockResource
+	provider data.DataProvider
+}
+
 func (m *MockResource) Model() interface{} {
 	return &User{}
 }
@@ -242,6 +349,20 @@ func (m *MockResource) Repository(db *gorm.DB) data.DataProvider              { 
 func (m *MockResource) GetRecordTitleKey() string                             { return "full_name" }
 func (m *MockResource) SetRecordTitleKey(key string) resource.Resource        { return m }
 func (m *MockResource) OpenAPIEnabled() bool                                  { return false }
+
+func (m *MockResourceWithCustomRepository) Repository(db *gorm.DB) data.DataProvider {
+	return m.provider
+}
+
+func (m *MockResourceWithCustomRepository) With() []string {
+	return []string{"profile"}
+}
+
+func (m *MockResourceWithCustomRepository) Fields() []fields.Element {
+	return []fields.Element{
+		fields.Text("Full Name", "full_name").Searchable(),
+	}
+}
 
 func (m *MockResource) Cards() []widget.Card {
 	return []widget.Card{
@@ -331,5 +452,152 @@ func TestResourceHandler(t *testing.T) {
 	nameField := item1["full_name"].(map[string]interface{})
 	if nameField["data"] != "Resource User" {
 		t.Errorf("Mismatch in data: %v", nameField["data"])
+	}
+}
+
+func TestNewResourceHandler_ConfiguresCustomRepositoryProvider(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to db: %v", err)
+	}
+
+	provider := &TrackingDataProvider{}
+	res := &MockResourceWithCustomRepository{
+		MockResource: &MockResource{},
+		provider:     provider,
+	}
+
+	h := NewResourceHandler(db, res, "", "")
+	if h.Provider != provider {
+		t.Fatalf("expected handler provider to be custom provider")
+	}
+
+	if !provider.setWithCalled {
+		t.Fatalf("expected SetWith to be called")
+	}
+
+	if len(provider.with) != 0 {
+		t.Fatalf("expected unresolved explicit relations to be filtered out, got %v", provider.with)
+	}
+
+	if len(provider.searchColumns) != 1 || provider.searchColumns[0] != "full_name" {
+		t.Fatalf("expected SetSearchColumns to include searchable fields, got %v", provider.searchColumns)
+	}
+}
+
+func TestCollectRelationshipPreloads_NormalizesHasManySnakeCase(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to db: %v", err)
+	}
+
+	if err := db.AutoMigrate(&HandlerTestCategory{}, &HandlerTestProduct{}, &HandlerTestVariant{}); err != nil {
+		t.Fatalf("Failed to migrate test models: %v", err)
+	}
+
+	elements := []fields.Element{
+		fields.BelongsTo("Kategori", "category_id", "categories"),
+		fields.HasMany("Ürün Varyantları", "product_variants", "product-variants"),
+	}
+
+	preloads := collectRelationshipPreloads(db, &HandlerTestProduct{}, []string{}, elements)
+
+	hasCategory := false
+	hasProductVariants := false
+	for _, preload := range preloads {
+		if preload == "Category" {
+			hasCategory = true
+		}
+		if preload == "ProductVariants" {
+			hasProductVariants = true
+		}
+	}
+
+	if !hasCategory {
+		t.Fatalf("expected normalized preload to include Category, got %v", preloads)
+	}
+	if !hasProductVariants {
+		t.Fatalf("expected normalized preload to include ProductVariants, got %v", preloads)
+	}
+}
+
+func TestCollectRelationshipPreloads_NormalizesExplicitSnakeCase(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to db: %v", err)
+	}
+
+	if err := db.AutoMigrate(&HandlerTestProduct{}, &HandlerTestVariant{}); err != nil {
+		t.Fatalf("Failed to migrate test models: %v", err)
+	}
+
+	preloads := collectRelationshipPreloads(
+		db,
+		&HandlerTestProduct{},
+		[]string{"product_variants"},
+		nil,
+	)
+
+	if len(preloads) != 1 || preloads[0] != "ProductVariants" {
+		t.Fatalf("expected explicit snake_case preload to normalize to ProductVariants, got %v", preloads)
+	}
+}
+
+func TestCollectRelationshipPreloads_DropsUnresolvedExplicitRelations(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to db: %v", err)
+	}
+
+	if err := db.AutoMigrate(&HandlerTestProduct{}, &HandlerTestVariant{}); err != nil {
+		t.Fatalf("Failed to migrate test models: %v", err)
+	}
+
+	preloads := collectRelationshipPreloads(
+		db,
+		&HandlerTestProduct{},
+		[]string{"ProductVariant"},
+		nil,
+	)
+
+	if len(preloads) != 0 {
+		t.Fatalf("expected unresolved explicit relations to be dropped, got %v", preloads)
+	}
+}
+
+func TestResolveResourceFields_NormalizesNilRelationshipCollectionData(t *testing.T) {
+	h := &FieldHandler{}
+	item := &HandlerTestProduct{
+		ID:              1,
+		ProductVariants: nil, // explicit nil slice to simulate non-loaded relationship
+	}
+
+	relationshipField := fields.NewField("Variants", "product_variants")
+	relationshipField.View = "has-many-field"
+	relationshipField.Type = fields.TYPE_RELATIONSHIP
+
+	resolved := h.resolveResourceFields(
+		nil,
+		&core.ResourceContext{},
+		item,
+		[]fields.Element{relationshipField},
+	)
+
+	fieldData, ok := resolved["product_variants"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected resolved field to be a map, got %T", resolved["product_variants"])
+	}
+
+	dataValue, exists := fieldData["data"]
+	if !exists {
+		t.Fatalf("expected serialized field to contain data key")
+	}
+
+	dataSlice, ok := dataValue.([]interface{})
+	if !ok {
+		t.Fatalf("expected relationship data to be []interface{}, got %T", dataValue)
+	}
+	if len(dataSlice) != 0 {
+		t.Fatalf("expected empty relationship collection, got %v", dataSlice)
 	}
 }

@@ -38,63 +38,71 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-/// # PluginDescriptor Struct
-///
-/// plugin.yaml dosyasının yapısı.
-///
-/// ## Alanlar
-/// - `Metadata`: Plugin meta bilgileri
-/// - `Entry`: Plugin entry point (örn: "plugin.so", "main.go")
-/// - `Enabled`: Plugin etkin mi?
-///
-/// ## Kullanım Örneği
-/// ```yaml
-/// name: my-plugin
-/// version: 1.0.0
-/// author: Author Name
-/// description: Plugin description
-/// entry: plugin.so
-/// enabled: true
-/// ```
+// / # PluginDescriptor Struct
+// /
+// / plugin.yaml dosyasının yapısı.
+// /
+// / ## Alanlar
+// / - `Metadata`: Plugin meta bilgileri
+// / - `Entry`: Plugin entry point (örn: "plugin.so", "main.go")
+// / - `Enabled`: Plugin etkin mi?
+// /
+// / ## Kullanım Örneği
+// / ```yaml
+// / name: my-plugin
+// / version: 1.0.0
+// / author: Author Name
+// / description: Plugin description
+// / entry: plugin.so
+// / enabled: true
+// / ```
 type PluginDescriptor struct {
 	Metadata `yaml:",inline"`
 	Entry    string `json:"entry" yaml:"entry"`
-	Enabled  bool   `json:"enabled" yaml:"enabled"`
+	Enabled  *bool  `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
-/// # Discover Fonksiyonu
-///
-/// Verilen klasörde plugin.yaml dosyalarını arar ve plugin'leri keşfeder.
-///
-/// ## Parametreler
-/// - `path`: Plugin klasörü yolu
-///
-/// ## Dönüş Değeri
-/// - `[]PluginDescriptor`: Keşfedilen plugin descriptor'ları
-/// - `error`: Hata varsa hata, yoksa nil
-///
-/// ## Davranış
-/// 1. Verilen klasörü tarar
-/// 2. Her alt klasörde plugin.yaml arar
-/// 3. plugin.yaml dosyalarını parse eder
-/// 4. Descriptor listesi döndürür
-///
-/// ## Kullanım Örneği
-/// ```go
-/// descriptors, err := plugin.Discover("./plugins")
-/// if err != nil {
-///     log.Fatal(err)
-/// }
-///
-/// for _, desc := range descriptors {
-///     fmt.Println(desc.Name, desc.Version)
-/// }
-/// ```
-///
-/// ## Önemli Notlar
-/// - Bu fonksiyon plugin'leri yüklemez, sadece keşfeder
-/// - Plugin yükleme manuel olarak yapılmalıdır
-/// - Production ortamında dikkatli kullanılmalıdır
+// IsEnabled, plugin descriptor'da enabled alanı yoksa true döner.
+func (d PluginDescriptor) IsEnabled() bool {
+	if d.Enabled == nil {
+		return true
+	}
+	return *d.Enabled
+}
+
+// / # Discover Fonksiyonu
+// /
+// / Verilen klasörde plugin.yaml dosyalarını arar ve plugin'leri keşfeder.
+// /
+// / ## Parametreler
+// / - `path`: Plugin klasörü yolu
+// /
+// / ## Dönüş Değeri
+// / - `[]PluginDescriptor`: Keşfedilen plugin descriptor'ları
+// / - `error`: Hata varsa hata, yoksa nil
+// /
+// / ## Davranış
+// / 1. Verilen klasörü tarar
+// / 2. Her alt klasörde plugin.yaml arar
+// / 3. plugin.yaml dosyalarını parse eder
+// / 4. Descriptor listesi döndürür
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / descriptors, err := plugin.Discover("./plugins")
+// / if err != nil {
+// /     log.Fatal(err)
+// / }
+// /
+// / for _, desc := range descriptors {
+// /     fmt.Println(desc.Name, desc.Version)
+// / }
+// / ```
+// /
+// / ## Önemli Notlar
+// / - Bu fonksiyon plugin'leri yüklemez, sadece keşfeder
+// / - Plugin yükleme manuel olarak yapılmalıdır
+// / - Production ortamında dikkatli kullanılmalıdır
 func Discover(path string) ([]PluginDescriptor, error) {
 	var descriptors []PluginDescriptor
 
@@ -134,24 +142,24 @@ func Discover(path string) ([]PluginDescriptor, error) {
 	return descriptors, nil
 }
 
-/// # loadPluginDescriptor Fonksiyonu
-///
-/// plugin.yaml dosyasını okur ve parse eder.
-///
-/// ## Parametreler
-/// - `path`: plugin.yaml dosyasının yolu
-///
-/// ## Dönüş Değeri
-/// - `PluginDescriptor`: Parse edilmiş descriptor
-/// - `error`: Hata varsa hata, yoksa nil
-///
-/// ## Kullanım Örneği
-/// ```go
-/// descriptor, err := loadPluginDescriptor("./plugins/my-plugin/plugin.yaml")
-/// if err != nil {
-///     log.Fatal(err)
-/// }
-/// ```
+// / # loadPluginDescriptor Fonksiyonu
+// /
+// / plugin.yaml dosyasını okur ve parse eder.
+// /
+// / ## Parametreler
+// / - `path`: plugin.yaml dosyasının yolu
+// /
+// / ## Dönüş Değeri
+// / - `PluginDescriptor`: Parse edilmiş descriptor
+// / - `error`: Hata varsa hata, yoksa nil
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / descriptor, err := loadPluginDescriptor("./plugins/my-plugin/plugin.yaml")
+// / if err != nil {
+// /     log.Fatal(err)
+// / }
+// / ```
 func loadPluginDescriptor(path string) (PluginDescriptor, error) {
 	var descriptor PluginDescriptor
 
@@ -171,37 +179,32 @@ func loadPluginDescriptor(path string) (PluginDescriptor, error) {
 		return descriptor, fmt.Errorf("invalid plugin descriptor: %w", err)
 	}
 
-	// Enabled varsayılan değeri true
-	if descriptor.Enabled == false && descriptor.Entry == "" {
-		descriptor.Enabled = true
-	}
-
 	return descriptor, nil
 }
 
-/// # DiscoverAndList Fonksiyonu
-///
-/// Plugin'leri keşfeder ve metadata listesi döndürür.
-/// Sadece etkin plugin'leri listeler.
-///
-/// ## Parametreler
-/// - `path`: Plugin klasörü yolu
-///
-/// ## Dönüş Değeri
-/// - `[]Metadata`: Etkin plugin'lerin metadata listesi
-/// - `error`: Hata varsa hata, yoksa nil
-///
-/// ## Kullanım Örneği
-/// ```go
-/// metadataList, err := plugin.DiscoverAndList("./plugins")
-/// if err != nil {
-///     log.Fatal(err)
-/// }
-///
-/// for _, m := range metadataList {
-///     fmt.Println(m.String())
-/// }
-/// ```
+// / # DiscoverAndList Fonksiyonu
+// /
+// / Plugin'leri keşfeder ve metadata listesi döndürür.
+// / Sadece etkin plugin'leri listeler.
+// /
+// / ## Parametreler
+// / - `path`: Plugin klasörü yolu
+// /
+// / ## Dönüş Değeri
+// / - `[]Metadata`: Etkin plugin'lerin metadata listesi
+// / - `error`: Hata varsa hata, yoksa nil
+// /
+// / ## Kullanım Örneği
+// / ```go
+// / metadataList, err := plugin.DiscoverAndList("./plugins")
+// / if err != nil {
+// /     log.Fatal(err)
+// / }
+// /
+// / for _, m := range metadataList {
+// /     fmt.Println(m.String())
+// / }
+// / ```
 func DiscoverAndList(path string) ([]Metadata, error) {
 	descriptors, err := Discover(path)
 	if err != nil {
@@ -210,7 +213,7 @@ func DiscoverAndList(path string) ([]Metadata, error) {
 
 	var metadataList []Metadata
 	for _, desc := range descriptors {
-		if desc.Enabled {
+		if desc.IsEnabled() {
 			metadataList = append(metadataList, desc.Metadata)
 		}
 	}

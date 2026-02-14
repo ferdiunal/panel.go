@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -60,6 +62,7 @@ func generateBackendFiles(pluginDir, name string, withExample bool) error {
 
 	// Basit template kullan (mevcut kod)
 	// plugin.go oluştur
+	packageName := strings.ReplaceAll(name, "-", "_")
 	pluginGoPath := filepath.Join(pluginDir, "plugin.go")
 	pluginGoContent := fmt.Sprintf(`package %s
 
@@ -100,7 +103,7 @@ func (p *Plugin) Boot(panel interface{}) error {
 	// Örnek: Database migration, event listener ekle
 	return nil
 }
-`, name, name, name)
+	`, packageName, name, name)
 
 	if err := os.WriteFile(pluginGoPath, []byte(pluginGoContent), 0644); err != nil {
 		return fmt.Errorf("plugin.go oluşturulamadı: %w", err)
@@ -371,32 +374,23 @@ func readPluginMetadata(pluginDir string) (*PluginMetadata, error) {
 // ## Dönüş Değeri
 //   - string: PascalCase string
 func toPascalCase(s string) string {
-	// kebab-case veya snake_case'i split et
-	parts := []string{}
-	current := ""
-	for _, c := range s {
-		if c == '-' || c == '_' {
-			if current != "" {
-				parts = append(parts, current)
-				current = ""
-			}
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		parts = append(parts, current)
-	}
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '-' || r == '_' || unicode.IsSpace(r)
+	})
 
-	// Her part'ın ilk harfini büyük yap
-	result := ""
+	result := strings.Builder{}
 	for _, part := range parts {
 		if len(part) > 0 {
-			result += string(part[0]-32) + part[1:]
+			r, size := utf8.DecodeRuneInString(part)
+			if r == utf8.RuneError && size == 0 {
+				continue
+			}
+			result.WriteRune(unicode.ToUpper(r))
+			result.WriteString(part[size:])
 		}
 	}
 
-	return result
+	return result.String()
 }
 
 // generateEntityFile, entity/entity.go dosyasını oluşturur.
@@ -420,13 +414,13 @@ func generateResourceFiles(pluginDir, name string) error {
 
 	// Her entity için resource dosyası oluştur
 	resources := map[string]string{
-		"organization":  organizationResourceTemplate,
-		"billing_info":  billingInfoResourceTemplate,
-		"address":       addressResourceTemplate,
-		"product":       productResourceTemplate,
-		"category":      categoryResourceTemplate,
-		"shipment":      shipmentResourceTemplate,
-		"shipment_row":  shipmentRowResourceTemplate,
+		"organization": organizationResourceTemplate,
+		"billing_info": billingInfoResourceTemplate,
+		"address":      addressResourceTemplate,
+		"product":      productResourceTemplate,
+		"category":     categoryResourceTemplate,
+		"shipment":     shipmentResourceTemplate,
+		"shipment_row": shipmentRowResourceTemplate,
 		// comment ve tag resource'ları kaldırıldı (MorphTo/MorphToMany field'ları henüz implement edilmemiş)
 	}
 
@@ -459,8 +453,33 @@ func generateExampleMainFile(pluginDir, name string) error {
 	mainPath := filepath.Join(pluginDir, "plugin.go")
 	// Package adını sanitize et (tire'leri underscore'a çevir)
 	packageName := strings.ReplaceAll(name, "-", "_")
-	mainContent := fmt.Sprintf(exampleMainTemplate, packageName, name)
+	importBase := name
+	if modulePath, err := detectModulePath(); err == nil {
+		if relPath, err := filepath.Rel(".", pluginDir); err == nil && !strings.HasPrefix(relPath, "..") {
+			importBase = filepath.ToSlash(filepath.Join(modulePath, relPath))
+		}
+	}
+	mainContent := fmt.Sprintf(exampleMainTemplate, packageName, importBase, name)
 	return os.WriteFile(mainPath, []byte(mainContent), 0644)
+}
+
+func detectModulePath() (string, error) {
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		return "", fmt.Errorf("go.mod okunamadı: %w", err)
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			modulePath := strings.TrimSpace(strings.TrimPrefix(line, "module"))
+			if modulePath != "" {
+				return modulePath, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("go.mod içinde module satırı bulunamadı")
 }
 
 // Template constant'ları
@@ -633,7 +652,6 @@ func GetOrPanic(slug string) resource.Resource {
 	return r
 }
 `
-
 
 const organizationResourceTemplate = `package organization
 
@@ -981,7 +999,6 @@ func (r *CategoryResource) With() []string {
 }
 `
 
-
 const shipmentResourceTemplate = `package shipment
 
 import (
@@ -1267,7 +1284,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/plugin"
 )
 
-// Plugin, %[2]s plugin'i.
+// Plugin, %[3]s plugin'i.
 type Plugin struct {
 	plugin.BasePlugin
 }
@@ -1279,7 +1296,7 @@ func init() {
 
 // Name, plugin adını döndürür.
 func (p *Plugin) Name() string {
-	return "%[2]s"
+	return "%[3]s"
 }
 
 // Version, plugin versiyonunu döndürür.

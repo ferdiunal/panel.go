@@ -139,7 +139,10 @@ func HasMany(name, key string, relatedResource interface{}) *HasManyField {
 	if resourceInstance != nil {
 		h.WithProps("related_resource_instance", resourceInstance)
 	}
-	// HasMany fields are now visible in both create and edit forms
+
+	// HasMany relationship requires the parent record to exist first
+	h.HideOnCreate()
+
 	return h
 }
 
@@ -223,7 +226,6 @@ func (h *HasManyField) GetRelationshipType() string {
 	return "hasMany"
 }
 
-
 // GetRelationshipName returns the relationship name
 func (h *HasManyField) GetRelationshipName() string {
 	return h.Name
@@ -271,6 +273,18 @@ func (h *HasManyField) GetLoadingStrategy() LoadingStrategy {
 		return EAGER_LOADING
 	}
 	return h.LoadingStrategy
+}
+
+// Label sets the field label while preserving HasMany concrete type in fluent chains.
+func (h *HasManyField) Label(label string) Element {
+	h.Schema.LabelText = label
+	return h
+}
+
+// Placeholder sets the field placeholder while preserving HasMany concrete type in fluent chains.
+func (h *HasManyField) Placeholder(placeholder string) Element {
+	h.Schema.PlaceholderText = placeholder
+	return h
 }
 
 // Searchable marks the element as searchable (implements Element interface)
@@ -530,12 +544,12 @@ func (h *HasManyField) GetRelatedResource() interface{} {
 //
 // # İşleyiş
 //
-// 1. Schema'nın Extract metodunu çağırır (mevcut davranışı korumak için)
-// 2. Eğer Data nil ise, boş array olarak ayarlar
-// 3. Eğer Data bir slice ise:
-//    a. Her kayıt için JSON marshaling yapar (JSON tag'ler otomatik kullanılır)
-//    b. JSON'dan map[string]interface{}'e unmarshal eder
-//    c. Bu map'leri data array'ine ekler
+//  1. Schema'nın Extract metodunu çağırır (mevcut davranışı korumak için)
+//  2. Eğer Data nil ise, boş array olarak ayarlar
+//  3. Eğer Data bir slice ise:
+//     a. Her kayıt için JSON marshaling yapar (JSON tag'ler otomatik kullanılır)
+//     b. JSON'dan map[string]interface{}'e unmarshal eder
+//     c. Bu map'leri data array'ine ekler
 //
 // # JSON Tag Kullanımı
 //

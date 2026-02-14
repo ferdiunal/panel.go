@@ -735,6 +735,8 @@ func New(config Config) *Panel {
 		apiGroup.Get("/resource/:resource/lenses", context.Wrap(p.handleResourceLenses))                  // List available lenses
 		apiGroup.Get("/resource/:resource/lens/:lens/cards", context.Wrap(p.handleResourceLensCards))     // Lens cards
 		apiGroup.Get("/resource/:resource/lens/:lens", context.Wrap(p.handleResourceLens))                // Lens data
+		apiGroup.Get("/resource/:resource/lens/:lens/actions", context.Wrap(p.handleResourceLensActions)) // Lens actions
+		apiGroup.Post("/resource/:resource/lens/:lens/actions/:action", context.Wrap(p.handleResourceLensActionExecute))
 		apiGroup.Get("/resource/:resource/morphable/:field", context.Wrap(p.handleMorphable))             // MorphTo field options
 		apiGroup.Get("/resource/:resource/actions", context.Wrap(p.handleResourceActions))                // List available actions
 		apiGroup.Post("/resource/:resource/actions/:action", context.Wrap(p.handleResourceActionExecute)) // Execute action
@@ -1554,6 +1556,12 @@ func (p *Panel) handleResourceLenses(c *context.Context) error {
 // / GET /api/resource/users/lens/active-users
 // / ```
 func (p *Panel) handleResourceLens(c *context.Context) error {
+	return p.withLensHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleLens(h, c)
+	})
+}
+
+func (p *Panel) withLensHandler(c *context.Context, fn func(*handler.FieldHandler) error) error {
 	slug := c.Params("resource")
 	lensSlug := c.Params("lens")
 
@@ -1582,38 +1590,28 @@ func (p *Panel) handleResourceLens(c *context.Context) error {
 	// Create Handler for Lens
 	h := handler.NewLensHandler(p.Db, res, targetLens)
 
-	// Use the lens controller
-	return handler.HandleLens(h, c)
+	return fn(h)
 }
 
 // handleResourceLensCards returns cards for the selected lens.
 func (p *Panel) handleResourceLensCards(c *context.Context) error {
-	slug := c.Params("resource")
-	lensSlug := c.Params("lens")
+	return p.withLensHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleLensCards(h, c)
+	})
+}
 
-	res, ok := p.resources[slug]
-	if !ok {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Resource not found",
-		})
-	}
+// handleResourceLensActions lists available actions for the selected lens.
+func (p *Panel) handleResourceLensActions(c *context.Context) error {
+	return p.withLensHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleActionList(h, c)
+	})
+}
 
-	var targetLens resource.Lens
-	for _, l := range res.GetLenses() {
-		if l.Slug() == lensSlug {
-			targetLens = l
-			break
-		}
-	}
-
-	if targetLens == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Lens not found",
-		})
-	}
-
-	h := handler.NewLensHandler(p.Db, res, targetLens)
-	return handler.HandleLensCards(h, c)
+// handleResourceLensActionExecute executes an action in lens context.
+func (p *Panel) handleResourceLensActionExecute(c *context.Context) error {
+	return p.withLensHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleActionExecute(h, c)
+	})
 }
 
 // / # handleMorphable Metodu
@@ -2063,6 +2061,39 @@ func (p *Panel) RegisterPlugin(plugin interface{}) error {
 	return fmt.Errorf("plugin does not implement Register method")
 }
 
+type pluginPageAdapter struct {
+	page.Base
+	src plugin.Page
+}
+
+func newPluginPageAdapter(src plugin.Page) page.Page {
+	return &pluginPageAdapter{src: src}
+}
+
+func (a *pluginPageAdapter) Slug() string {
+	return a.src.Slug()
+}
+
+func (a *pluginPageAdapter) Title() string {
+	return a.src.Title()
+}
+
+func (a *pluginPageAdapter) Icon() string {
+	return a.src.Icon()
+}
+
+func (a *pluginPageAdapter) Group() string {
+	return a.src.Group()
+}
+
+func (a *pluginPageAdapter) Visible() bool {
+	return a.src.Visible()
+}
+
+func (a *pluginPageAdapter) NavigationOrder() int {
+	return a.src.NavigationOrder()
+}
+
 // / # BootPlugins Metodu
 // /
 // / Tüm kayıtlı plugin'leri boot eder. Plugin'lerin Boot() metodunu çağırır.
@@ -2093,9 +2124,9 @@ func (p *Panel) RegisterPlugin(plugin interface{}) error {
 // / - Plugin'lerin Boot() metodu hata döndürürse boot işlemi durur
 // / - Plugin'ler sırayla boot edilir
 func (p *Panel) BootPlugins() error {
-	for _, plugin := range p.plugins {
+	for _, plg := range p.plugins {
 		// Type assertion: Plugin interface'ini kontrol et
-		if pluginImpl, ok := plugin.(interface {
+		if pluginImpl, ok := plg.(interface {
 			Boot(panel interface{}) error
 			Name() string
 		}); ok {
@@ -2104,7 +2135,7 @@ func (p *Panel) BootPlugins() error {
 			}
 
 			// Plugin'in resource'larını kaydet
-			if resourceProvider, ok := plugin.(interface {
+			if resourceProvider, ok := plg.(interface {
 				Resources() []resource.Resource
 			}); ok {
 				if resources := resourceProvider.Resources(); resources != nil {
@@ -2115,28 +2146,27 @@ func (p *Panel) BootPlugins() error {
 			}
 
 			// Plugin'in page'lerini kaydet
-			if pageProvider, ok := plugin.(interface {
-				Pages() []interface {
-					Slug() string
-					Title() string
-					Icon() string
-					Group() string
-					Visible() bool
-					NavigationOrder() int
-				}
+			if pageProvider, ok := plg.(interface {
+				Pages() []plugin.Page
 			}); ok {
-				if pages := pageProvider.Pages(); pages != nil {
-					for _, pg := range pages {
-						// Type assertion: page.Page interface'ini kontrol et
-						if pagePage, ok := pg.(page.Page); ok {
-							p.RegisterPage(pagePage)
+				if pluginPages := pageProvider.Pages(); pluginPages != nil {
+					for _, pg := range pluginPages {
+						if pg == nil {
+							continue
 						}
+						// Full page.Page implementasyonu varsa doğrudan kaydet.
+						if fullPage, ok := pg.(page.Page); ok {
+							p.RegisterPage(fullPage)
+							continue
+						}
+						// Plugin page alt kümesini page.Page'e adapt et.
+						p.RegisterPage(newPluginPageAdapter(pg))
 					}
 				}
 			}
 
 			// Plugin'in middleware'lerini kaydet
-			if middlewareProvider, ok := plugin.(interface {
+			if middlewareProvider, ok := plg.(interface {
 				Middleware() []fiber.Handler
 			}); ok {
 				if middlewares := middlewareProvider.Middleware(); middlewares != nil {
@@ -2147,21 +2177,21 @@ func (p *Panel) BootPlugins() error {
 			}
 
 			// Plugin'in route'larını kaydet
-			if routeProvider, ok := plugin.(interface {
+			if routeProvider, ok := plg.(interface {
 				Routes(router fiber.Router)
 			}); ok {
 				routeProvider.Routes(p.Fiber)
 			}
 
 			// Plugin'in migration'larını çalıştır
-			if migrationProvider, ok := plugin.(interface {
-				Migrations() []interface {
-					Name() string
-					Up(db interface{}) error
-				}
+			if migrationProvider, ok := plg.(interface {
+				Migrations() []plugin.Migration
 			}); ok {
 				if migrations := migrationProvider.Migrations(); migrations != nil {
 					for _, migration := range migrations {
+						if migration == nil {
+							continue
+						}
 						if err := migration.Up(p.Db); err != nil {
 							return fmt.Errorf("plugin '%s' migration '%s' failed: %w", pluginImpl.Name(), migration.Name(), err)
 						}

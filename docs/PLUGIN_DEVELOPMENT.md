@@ -445,19 +445,21 @@ import (
 func main() {
     config := panel.Config{...}
     p := panel.New(config)
-    p.BootPlugins()
     p.Start()
 }
 ```
+
+> Not: `panel.New(config)` plugin registry'deki plugin'leri otomatik register+boot eder.
 
 **Avantajlar:**
 - Type-safe
 - Compile-time kontrol
 - Performanslı
 
-### 2. Auto-discovery (Opsiyonel)
+### 2. Auto-discovery (Sınırlı)
 
-Runtime'da plugin'leri keşfedin:
+`AutoDiscover`, şu an sadece `plugin.yaml` descriptor keşfini etkinleştirir.
+Runtime'da plugin paketini otomatik import edip boot etmez; plugin yine compile-time import edilmelidir.
 
 ```go
 config := panel.Config{
@@ -469,12 +471,12 @@ config := panel.Config{
 ```
 
 **Avantajlar:**
-- Dinamik plugin yükleme
-- Yeniden compile gerektirmez
+- Plugin klasörlerini descriptor bazlı tarama
+- Geçersiz descriptor'ları erken görme
 
 **Dezavantajlar:**
-- Type-safety yok
-- Runtime overhead
+- Runtime plugin package yükleme yok
+- Üretimde yine manuel import gerekir
 
 ## Best Practices
 
@@ -590,7 +592,6 @@ import _ "github.com/ferdiunal/panel.go/plugins/example-plugin"
 func main() {
     config := panel.Config{...}
     p := panel.New(config)
-    p.BootPlugins()
     p.Start()
 }
 ```
@@ -616,7 +617,7 @@ pluginRegistry.register(ExamplePlugin);
 
 1. `Resources()` metodunun nil döndürmediğini kontrol edin
 2. Resource'un `Visible()` metodunun true döndürdüğünü kontrol edin
-3. `BootPlugins()` metodunun çağrıldığından emin olun
+3. Plugin paketinin `main.go` içinde blank import ile eklendiğini kontrol edin
 
 ### Custom Field Çalışmıyor
 

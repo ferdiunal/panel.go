@@ -160,6 +160,8 @@ var assetsFS embed.FS
 
 ### Plugin Lifecycle
 
+`panel.New(config)` sırasında plugin registry okunur ve aşağıdaki sıra uygulanır:
+
 ```
 1. Register (init)
    ↓
@@ -167,9 +169,9 @@ var assetsFS embed.FS
    ↓
 3. Resources/Pages/Middleware eklenir
    ↓
-4. Migrations çalıştırılır
+4. Routes kaydedilir
    ↓
-5. Routes kaydedilir
+5. Migrations çalıştırılır
 ```
 
 **Backend Plugin Interface:**
@@ -177,8 +179,17 @@ var assetsFS embed.FS
 type Plugin interface {
     Name() string
     Version() string
+    Author() string
+    Description() string
+
     Register(panel interface{}) error
     Boot(panel interface{}) error
+
+    Resources() []resource.Resource
+    Pages() []plugin.Page
+    Middleware() []fiber.Handler
+    Routes(router fiber.Router)
+    Migrations() []plugin.Migration
 }
 ```
 
