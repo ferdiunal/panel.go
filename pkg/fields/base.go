@@ -1787,6 +1787,7 @@ func (s *Schema) URL() core.Element {
 //
 //	field := Number("age", "Yaş").Min(18).Max(100)
 func (s *Schema) Min(min interface{}) core.Element {
+	s.WithProps("min", min)
 	return s.AddValidationRule(Min(min))
 }
 
@@ -1814,6 +1815,7 @@ func (s *Schema) Min(min interface{}) core.Element {
 //
 //	field := Number("quantity", "Miktar").Min(1).Max(1000)
 func (s *Schema) Max(max interface{}) core.Element {
+	s.WithProps("max", max)
 	return s.AddValidationRule(Max(max))
 }
 
@@ -1840,6 +1842,7 @@ func (s *Schema) Max(max interface{}) core.Element {
 //
 //	field := Password("password", "Şifre").MinLength(8).MaxLength(128)
 func (s *Schema) MinLength(length int) core.Element {
+	s.WithProps("minlength", length)
 	return s.AddValidationRule(MinLength(length))
 }
 
@@ -1866,6 +1869,7 @@ func (s *Schema) MinLength(length int) core.Element {
 //
 //	field := Text("title", "Başlık").MaxLength(255)
 func (s *Schema) MaxLength(length int) core.Element {
+	s.WithProps("maxlength", length)
 	return s.AddValidationRule(MaxLength(length))
 }
 

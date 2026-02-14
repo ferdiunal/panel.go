@@ -37,7 +37,7 @@ func TestHandleFieldResolve_Success(t *testing.T) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 
-	req := httptest.NewRequest("POST", "/resources/users/1/fields/name/resolve", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("POST", "/resources/users/1/fields/full_name/resolve", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := app.Test(req)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestHandleFieldResolve_ResourceNotFound(t *testing.T) {
 		return HandleFieldResolve(h, c)
 	}))
 
-	req := httptest.NewRequest("POST", "/resources/users/999/fields/name/resolve", nil)
+	req := httptest.NewRequest("POST", "/resources/users/999/fields/full_name/resolve", nil)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := app.Test(req)
 	if err != nil {

@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // / # HandleCardDetail
@@ -143,22 +144,20 @@ func HandleCardDetail(h *FieldHandler, c *context.Context) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Card not found"})
 	}
 
-	// w := h.Cards[index] // TODO: Card kullanılmıyor şimdilik
+	w := h.Cards[index]
 
-	// TODO: Card.Resolve() şimdilik kullanılmayacak
-	// Resolve data - Get GORM DB from provider
-	// db, ok := h.Provider.GetClient().(*gorm.DB)
-	// if !ok {
-	// 	return c.Status(500).JSON(fiber.Map{"error": "Database client not available"})
-	// }
-	//
-	// data, err := w.Resolve(c, db)
-	// if err != nil {
-	// 	return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	// }
+	// Resolve data. If provider/db is unavailable, card receives a nil db.
+	var db *gorm.DB
+	if h.Provider != nil {
+		if client, ok := h.Provider.GetClient().(*gorm.DB); ok {
+			db = client
+		}
+	}
 
-	// Geçici olarak boş data döndür (Card.Resolve() kullanılmayacak)
-	data := map[string]interface{}{}
+	data, err := w.Resolve(c, db)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
 
 	return c.JSON(fiber.Map{
 		"data": data,

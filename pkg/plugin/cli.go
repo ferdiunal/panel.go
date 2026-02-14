@@ -82,7 +82,7 @@ func newCreateCommand() *cobra.Command {
 				Path:        pluginPath,
 				NoFrontend:  noFrontend,
 				NoBuild:     noBuild,
-			WithExample: withExample,
+				WithExample: withExample,
 			}
 
 			if err := CreatePlugin(opts); err != nil {
@@ -144,10 +144,10 @@ func newAddCommand() *cobra.Command {
 
 			// Plugin ekle
 			opts := AddPluginOptions{
-				GitURL:     gitURL,
-				Path:       pluginPath,
-				Branch:     branch,
-				NoBuild:    noBuild,
+				GitURL:  gitURL,
+				Path:    pluginPath,
+				Branch:  branch,
+				NoBuild: noBuild,
 			}
 
 			pluginName, err := AddPlugin(opts)
@@ -205,10 +205,10 @@ func newRemoveCommand() *cobra.Command {
 
 			// Plugin sil
 			opts := RemovePluginOptions{
-				Name:       pluginName,
-				Path:       pluginPath,
-				KeepFiles:  keepFiles,
-				NoBuild:    noBuild,
+				Name:      pluginName,
+				Path:      pluginPath,
+				KeepFiles: keepFiles,
+				NoBuild:   noBuild,
 			}
 
 			if err := RemovePlugin(opts); err != nil {
@@ -301,7 +301,8 @@ func newBuildCommand() *cobra.Command {
 		Short: "UI build alır",
 		Long:  "web-ui'yi build eder ve output'u assets/ui/'ye kopyalar.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("🔨 UI build alınıyor...\n")
+			fmt.Println("🔨 UI build alınıyor...")
+			fmt.Println()
 
 			// Build UI
 			opts := BuildUIOptions{
@@ -330,7 +331,8 @@ func newBuildCommand() *cobra.Command {
 
 // printPluginsTable, plugin'leri tablo formatında yazdırır.
 func printPluginsTable(plugins []PluginInfo) error {
-	fmt.Println("Yüklü Plugin'ler:\n")
+	fmt.Println("Yüklü Plugin'ler:")
+	fmt.Println()
 	fmt.Printf("%-20s %-10s %-20s %-10s %-10s\n", "NAME", "VERSION", "AUTHOR", "FRONTEND", "STATUS")
 	fmt.Println(strings.Repeat("-", 80))
 

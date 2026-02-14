@@ -19,6 +19,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/widget"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -63,8 +64,10 @@ func (u *UserResource) Lenses() []resource.Lens {
 }
 
 func (u *UserResource) Title() string                                         { return "Users" }
+func (u *UserResource) TitleWithContext(c *fiber.Ctx) string                  { return u.Title() }
 func (u *UserResource) Icon() string                                          { return "users" }
 func (u *UserResource) Group() string                                         { return "System" }
+func (u *UserResource) GroupWithContext(c *fiber.Ctx) string                  { return u.Group() }
 func (u *UserResource) Policy() auth.Policy                                   { return nil }
 func (r *UserResource) GetSortable() []resource.Sortable                      { return nil }
 func (u *UserResource) Slug() string                                          { return "users" }
@@ -116,6 +119,28 @@ func (u *UserResource) GetActions() []resource.Action {
 
 func (u *UserResource) GetFilters() []resource.Filter {
 	return []resource.Filter{}
+}
+
+func (u *UserResource) OpenAPIEnabled() bool {
+	return true
+}
+
+func (u *UserResource) RecordTitle(record any) string {
+	if v, ok := record.(*User); ok {
+		return v.Name
+	}
+	if v, ok := record.(User); ok {
+		return v.Name
+	}
+	return ""
+}
+
+func (u *UserResource) GetRecordTitleKey() string {
+	return "name"
+}
+
+func (u *UserResource) SetRecordTitleKey(key string) resource.Resource {
+	return u
 }
 
 func TestPanel_DynamicRouting(t *testing.T) {

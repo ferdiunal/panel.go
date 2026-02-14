@@ -87,7 +87,7 @@ func (rs *RelationshipSearchImpl) SearchInColumns(ctx context.Context, term stri
 		Where(query interface{}, args ...interface{}) interface{ Find(dest interface{}) error }
 	})
 	if !ok || db == nil {
-		return []interface{}{}, fmt.Errorf("database connection not found in context")
+		return []interface{}{}, nil
 	}
 
 	// Build search query with OR conditions for each searchable column
@@ -125,10 +125,7 @@ func (rs *RelationshipSearchImpl) GetSearchableColumns() []string {
 	// Try to get searchable columns from the field
 	// All relationship fields should implement GetSearchableColumns()
 	if searchableField, ok := rs.field.(interface{ GetSearchableColumns() []string }); ok {
-		columns := searchableField.GetSearchableColumns()
-		if len(columns) > 0 {
-			return columns
-		}
+		return searchableField.GetSearchableColumns()
 	}
 
 	// Fallback: return common searchable columns

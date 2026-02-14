@@ -1,6 +1,7 @@
 package rtl
 
 import (
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -110,15 +111,13 @@ func TestGetDirectionFromContext(t *testing.T) {
 	})
 
 	// Test query parameter with RTL language
-	req := fiber.AcquireRequest()
-	req.SetRequestURI("/test-query?lang=ar")
+	req := httptest.NewRequest("GET", "/test-query?lang=ar", nil)
 	resp, err := app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 
 	// Test query parameter with LTR language
-	req = fiber.AcquireRequest()
-	req.SetRequestURI("/test-query?lang=en")
+	req = httptest.NewRequest("GET", "/test-query?lang=en", nil)
 	resp, err = app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -133,18 +132,16 @@ func TestMiddleware(t *testing.T) {
 	})
 
 	// Test with RTL language
-	req := fiber.AcquireRequest()
-	req.SetRequestURI("/test?lang=ar")
+	req := httptest.NewRequest("GET", "/test?lang=ar", nil)
 	resp, err := app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, "rtl", string(resp.Header.Peek("X-Text-Direction")))
+	assert.Equal(t, "rtl", resp.Header.Get("X-Text-Direction"))
 
 	// Test with LTR language
-	req = fiber.AcquireRequest()
-	req.SetRequestURI("/test?lang=en")
+	req = httptest.NewRequest("GET", "/test?lang=en", nil)
 	resp, err = app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, "ltr", string(resp.Header.Peek("X-Text-Direction")))
+	assert.Equal(t, "ltr", resp.Header.Get("X-Text-Direction"))
 }

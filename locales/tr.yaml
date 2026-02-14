@@ -38,7 +38,7 @@ navigation:
   settings: "Ayarlar"
   account: "Hesap"
   users: "Kullanıcılar"
-  logout: "Çıkış"
+  logout: "Çıkış Yap"
 
 # Sayfalar
 pages:
@@ -85,3 +85,53 @@ resources:
       role_placeholder: "Bir rol seçin"
       password: "Şifre"
       password_placeholder: "Şifrenizi girin"
+
+# Auth Sayfaları
+auth:
+  login:
+    title: "Giriş Yap"
+    description: "Panele erişmek için bilgilerinizi girin"
+    email: "E-posta"
+    emailPlaceholder: "m@example.com"
+    password: "Şifre"
+    passwordPlaceholder: "Şifrenizi girin"
+    submit: "Giriş Yap"
+    submitting: "Giriş yapılıyor..."
+    forgotPassword: "Şifremi Unuttum"
+    noAccount: "Hesabınız yok mu?"
+    register: "Kayıt Ol"
+    fillAllFields: "Lütfen tüm alanları doldurun"
+    loginFailed: "Giriş başarısız"
+  register:
+    title: "Kayıt Ol"
+    description: "Hesap oluşturmak için bilgilerinizi girin"
+    name: "Ad Soyad"
+    namePlaceholder: "John Doe"
+    nameMinLength: "İsim en az 2 karakter olmalı"
+    email: "E-posta"
+    emailPlaceholder: "m@example.com"
+    emailInvalid: "Geçerli bir e-posta adresi girin"
+    password: "Şifre"
+    passwordMinLength: "Şifre en az 6 karakter olmalı"
+    submit: "Hesap Oluştur"
+    success: "Hesap oluşturuldu! Giriş yapabilirsiniz."
+    failed: "Kayıt başarısız"
+    hasAccount: "Zaten hesabınız var mı?"
+    login: "Giriş Yap"
+  forgotPassword:
+    title: "Şifremi Unuttum"
+    description: "Şifrenizi sıfırlamak için e-posta adresinizi girin"
+    email: "E-posta"
+    emailPlaceholder: "m@example.com"
+    emailInvalid: "Geçerli bir e-posta adresi giriniz."
+    submit: "Sıfırlama Bağlantısı Gönder"
+    success: "Sıfırlama bağlantısı e-posta adresinize gönderildi."
+    failed: "İşlem başarısız"
+    backToLogin: "Giriş ekranına dön"
+  terms: "Devam ederek {termsLink} ve {privacyLink} kabul etmiş olursunuz."
+  termsOfService: "Hizmet Koşullarımızı"
+  privacyPolicy: "Gizlilik Politikamızı"
+
+# Sidebar
+sidebar:
+  poweredBy: "Panel.go by Ferdi Unal"

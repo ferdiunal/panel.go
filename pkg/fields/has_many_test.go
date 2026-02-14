@@ -109,10 +109,10 @@ func TestHasManyGetRelationshipType(t *testing.T) {
 	}
 }
 
-// TestHasManyGetRelatedResource tests GetRelatedResource method
+// TestHasManyGetRelatedResource tests GetRelatedResourceSlug method
 func TestHasManyGetRelatedResource(t *testing.T) {
 	field := HasMany("Posts", "posts", "posts")
-	resource := field.GetRelatedResource()
+	resource := field.GetRelatedResourceSlug()
 
 	if resource != "posts" {
 		t.Errorf("Expected related resource 'posts', got '%s'", resource)
@@ -262,8 +262,8 @@ func TestHasManyImplementsRelationshipField(t *testing.T) {
 		t.Errorf("Expected relationship type 'hasMany', got '%s'", field.GetRelationshipType())
 	}
 
-	if field.GetRelatedResource() != "posts" {
-		t.Errorf("Expected related resource 'posts', got '%s'", field.GetRelatedResource())
+	if field.GetRelatedResourceSlug() != "posts" {
+		t.Errorf("Expected related resource 'posts', got '%s'", field.GetRelatedResourceSlug())
 	}
 
 	if field.GetRelationshipName() != "Posts" {

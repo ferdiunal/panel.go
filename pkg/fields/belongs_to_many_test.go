@@ -123,10 +123,10 @@ func TestBelongsToManyGetRelationshipType(t *testing.T) {
 	}
 }
 
-// TestBelongsToManyGetRelatedResource tests GetRelatedResource method
+// TestBelongsToManyGetRelatedResource tests GetRelatedResourceSlug method
 func TestBelongsToManyGetRelatedResource(t *testing.T) {
 	field := BelongsToMany("Tags", "tags", "tags")
-	resource := field.GetRelatedResource()
+	resource := field.GetRelatedResourceSlug()
 
 	if resource != "tags" {
 		t.Errorf("Expected related resource 'tags', got '%s'", resource)
@@ -281,8 +281,8 @@ func TestBelongsToManyImplementsRelationshipField(t *testing.T) {
 		t.Errorf("Expected relationship type 'belongsToMany', got '%s'", field.GetRelationshipType())
 	}
 
-	if field.GetRelatedResource() != "tags" {
-		t.Errorf("Expected related resource 'tags', got '%s'", field.GetRelatedResource())
+	if field.GetRelatedResourceSlug() != "tags" {
+		t.Errorf("Expected related resource 'tags', got '%s'", field.GetRelatedResourceSlug())
 	}
 
 	if field.GetRelationshipName() != "Tags" {

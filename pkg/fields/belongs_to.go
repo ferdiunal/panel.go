@@ -619,9 +619,10 @@ func (b *BelongsToField) GetOwnerKeyColumn() string {
 //
 // 1. Schema.Extract ile foreign key değerini alır
 // 2. İlişki eager loaded ise ve RelatedResource varsa:
-//    - İlişkili kaydın ID'sini alır
-//    - RelatedResource.RecordTitle ile başlığı alır
-//    - {"id": foreignKey, "title": recordTitle} formatında döndürür
+//   - İlişkili kaydın ID'sini alır
+//   - RelatedResource.RecordTitle ile başlığı alır
+//   - {"id": foreignKey, "title": recordTitle} formatında döndürür
+//
 // 3. İlişki yüklenmemişse veya nil ise null döndürür
 //
 // # Önemli Notlar
@@ -652,8 +653,8 @@ func (b *BelongsToField) Extract(record any) {
 	// Schema.Extract ile foreign key değerini al
 	b.Schema.Extract(record)
 
-	// DisplayUsing callback'i varsa onu kullan
-	if b.DisplayUsing != nil {
+	// Display callback varsa Schema.Extract sonucu korunur
+	if b.DisplayCallback != nil {
 		return
 	}
 

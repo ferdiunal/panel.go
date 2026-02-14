@@ -35,52 +35,52 @@ import (
 	"gorm.io/gorm"
 )
 
-/// # ExamplePlugin Struct
-///
-/// Örnek plugin implementasyonu.
-/// plugin.BasePlugin'i embed ederek sadece gerekli metodları override eder.
+// / # ExamplePlugin Struct
+// /
+// / Örnek plugin implementasyonu.
+// / plugin.BasePlugin'i embed ederek sadece gerekli metodları override eder.
 type ExamplePlugin struct {
 	plugin.BasePlugin
 }
 
-/// # Metadata Metodları
-///
-/// Plugin'in temel bilgilerini döndürür.
+// / # Metadata Metodları
+// /
+// / Plugin'in temel bilgilerini döndürür.
 func (p *ExamplePlugin) Name() string        { return "example-plugin" }
 func (p *ExamplePlugin) Version() string     { return "1.0.0" }
 func (p *ExamplePlugin) Author() string      { return "Panel.go Team" }
 func (p *ExamplePlugin) Description() string { return "Example plugin demonstrating plugin system" }
 
-/// # Register Metodu
-///
-/// Plugin kaydedildiğinde çağrılır.
-/// Temel yapılandırma işlemleri burada yapılır.
+// / # Register Metodu
+// /
+// / Plugin kaydedildiğinde çağrılır.
+// / Temel yapılandırma işlemleri burada yapılır.
 func (p *ExamplePlugin) Register(panel interface{}) error {
 	fmt.Println("ExamplePlugin: Register called")
 	return nil
 }
 
-/// # Boot Metodu
-///
-/// Panel başlatıldığında çağrılır.
-/// Resource, page, middleware vb. ekleme işlemleri burada yapılır.
+// / # Boot Metodu
+// /
+// / Panel başlatıldığında çağrılır.
+// / Resource, page, middleware vb. ekleme işlemleri burada yapılır.
 func (p *ExamplePlugin) Boot(panel interface{}) error {
 	fmt.Println("ExamplePlugin: Boot called")
 	return nil
 }
 
-/// # Resources Metodu
-///
-/// Plugin'in sağladığı resource'ları döndürür.
+// / # Resources Metodu
+// /
+// / Plugin'in sağladığı resource'ları döndürür.
 func (p *ExamplePlugin) Resources() []resource.Resource {
 	return []resource.Resource{
 		NewExampleResource(),
 	}
 }
 
-/// # Middleware Metodu
-///
-/// Plugin'in sağladığı middleware'leri döndürür.
+// / # Middleware Metodu
+// /
+// / Plugin'in sağladığı middleware'leri döndürür.
 func (p *ExamplePlugin) Middleware() []fiber.Handler {
 	return []fiber.Handler{
 		func(c *fiber.Ctx) error {
@@ -91,9 +91,9 @@ func (p *ExamplePlugin) Middleware() []fiber.Handler {
 	}
 }
 
-/// # Routes Metodu
-///
-/// Plugin'in sağladığı özel route'ları tanımlar.
+// / # Routes Metodu
+// /
+// / Plugin'in sağladığı özel route'ları tanımlar.
 func (p *ExamplePlugin) Routes(router fiber.Router) {
 	router.Get("/api/example-plugin/hello", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -103,18 +103,18 @@ func (p *ExamplePlugin) Routes(router fiber.Router) {
 	})
 }
 
-/// # Migrations Metodu
-///
-/// Plugin'in sağladığı migration'ları döndürür.
+// / # Migrations Metodu
+// /
+// / Plugin'in sağladığı migration'ları döndürür.
 func (p *ExamplePlugin) Migrations() []plugin.Migration {
 	return []plugin.Migration{
 		&CreateExampleTable{},
 	}
 }
 
-/// # ExampleModel Struct
-///
-/// Örnek veritabanı modeli.
+// / # ExampleModel Struct
+// /
+// / Örnek veritabanı modeli.
 type ExampleModel struct {
 	gorm.Model
 	Name        string `json:"name" gorm:"size:255;not null"`
@@ -122,9 +122,14 @@ type ExampleModel struct {
 	Active      bool   `json:"active" gorm:"default:true"`
 }
 
-/// # CreateExampleTable Migration
-///
-/// Example tablosunu oluşturan migration.
+// ExampleResource is a modern resource definition for the example plugin.
+type ExampleResource struct {
+	resource.Base
+}
+
+// / # CreateExampleTable Migration
+// /
+// / Example tablosunu oluşturan migration.
 type CreateExampleTable struct{}
 
 func (m *CreateExampleTable) Name() string {
@@ -147,18 +152,18 @@ func (m *CreateExampleTable) Down(db interface{}) error {
 	return gormDB.Migrator().DropTable(&ExampleModel{})
 }
 
-/// # NewExampleResource Fonksiyonu
-///
-/// Örnek resource oluşturur.
+// / # NewExampleResource Fonksiyonu
+// /
+// / Örnek resource oluşturur.
 func NewExampleResource() resource.Resource {
-	return resource.New(
-		&ExampleModel{},
-		"example",
-		"Example Resource",
-	).Icon("cube").
-		Group("Plugin Examples").
-		Fields(func(r *resource.Resource) []fields.Field {
-			return []fields.Field{
+	return &ExampleResource{
+		Base: resource.Base{
+			DataModel:  &ExampleModel{},
+			Identifier: "example",
+			Label:      "Example Resource",
+			IconName:   "cube",
+			GroupName:  "Plugin Examples",
+			FieldsVal: []fields.Element{
 				fields.ID(),
 				fields.Text("Name", "name").
 					Label("Name").
@@ -177,19 +182,20 @@ func NewExampleResource() resource.Resource {
 				fields.DateTime("Created At", "created_at").
 					Label("Created At").
 					Sortable().
-					HideOnForm(),
+					OnlyOnList(),
 				fields.DateTime("Updated At", "updated_at").
 					Label("Updated At").
 					Sortable().
-					HideOnForm(),
-			}
-		})
+					OnlyOnList(),
+			},
+		},
+	}
 }
 
-/// # init Fonksiyonu
-///
-/// Plugin'i global registry'ye kaydeder.
-/// Bu fonksiyon otomatik olarak çağrılır (Go'nun init mekanizması).
+// / # init Fonksiyonu
+// /
+// / Plugin'i global registry'ye kaydeder.
+// / Bu fonksiyon otomatik olarak çağrılır (Go'nun init mekanizması).
 func init() {
 	plugin.Register(&ExamplePlugin{})
 	fmt.Println("ExamplePlugin registered via init()")

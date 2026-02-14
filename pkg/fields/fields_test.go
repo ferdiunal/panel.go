@@ -21,8 +21,8 @@ func TestFieldSerialization(t *testing.T) {
 	if data["key"] != "full_name" {
 		t.Errorf("Expected key to be 'full_name', got %v", data["key"])
 	}
-	if data["view"] != "text-field" {
-		t.Errorf("Expected view to be 'text-field', got %v", data["view"])
+	if data["view"] != "text-field-index" {
+		t.Errorf("Expected view to be 'text-field-index', got %v", data["view"])
 	}
 	if data["sortable"] != true {
 		t.Error("Expected sortable to be true")

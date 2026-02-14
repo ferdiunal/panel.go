@@ -58,9 +58,25 @@ func (m *MockDataProvider) Delete(ctx *appContext.Context, id string) error {
 	return nil
 }
 
-func (m *MockDataProvider) SetSearchColumns(cols []string)                    {}
-func (m *MockDataProvider) SetWith(rels []string)                             {}
+func (m *MockDataProvider) SetSearchColumns(cols []string)                          {}
+func (m *MockDataProvider) SetWith(rels []string)                                   {}
 func (m *MockDataProvider) SetRelationshipFields(fields []fields.RelationshipField) {}
+func (m *MockDataProvider) QueryTable(ctx *appContext.Context, table string, conditions map[string]interface{}) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+func (m *MockDataProvider) QueryRelationship(ctx *appContext.Context, relationshipType string, foreignKey string, foreignValue interface{}, displayField string) (interface{}, error) {
+	return nil, nil
+}
+func (m *MockDataProvider) BeginTx(ctx *appContext.Context) (data.DataProvider, error) { return m, nil }
+func (m *MockDataProvider) Commit() error                                              { return nil }
+func (m *MockDataProvider) Rollback() error                                            { return nil }
+func (m *MockDataProvider) Raw(ctx *appContext.Context, sql string, args ...interface{}) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+func (m *MockDataProvider) Exec(ctx *appContext.Context, sql string, args ...interface{}) error {
+	return nil
+}
+func (m *MockDataProvider) GetClient() interface{} { return nil }
 
 func TestFieldHandler_List(t *testing.T) {
 	app := fiber.New()
@@ -213,8 +229,10 @@ func (m *MockResource) Lenses() []resource.Lens {
 }
 
 func (m *MockResource) Title() string                                         { return "Mock User" }
+func (m *MockResource) TitleWithContext(ctx *fiber.Ctx) string                { return m.Title() }
 func (m *MockResource) Icon() string                                          { return "user" }
 func (m *MockResource) Group() string                                         { return "Management" }
+func (m *MockResource) GroupWithContext(ctx *fiber.Ctx) string                { return m.Group() }
 func (m *MockResource) Policy() auth.Policy                                   { return nil }
 func (m *MockResource) GetSortable() []resource.Sortable                      { return nil }
 func (m *MockResource) Slug() string                                          { return "users" }

@@ -48,11 +48,11 @@ func TestTypeMapperFieldToSQLType(t *testing.T) {
 		{"number", fields.TYPE_NUMBER, 0, "bigint"},
 		{"boolean", fields.TYPE_BOOLEAN, 0, "boolean"},
 		{"date", fields.TYPE_DATE, 0, "date"},
-		{"datetime", fields.TYPE_DATETIME, 0, "datetime"},
+		{"datetime", fields.TYPE_DATETIME, 0, "timestamp"},
 		{"file", fields.TYPE_FILE, 0, "text"},
 		{"select", fields.TYPE_SELECT, 0, "varchar(100)"},
-		{"key_value", fields.TYPE_KEY_VALUE, 0, "json"},
-		{"link (FK)", fields.TYPE_LINK, 0, "bigint unsigned"},
+		{"key_value", fields.TYPE_KEY_VALUE, 0, "jsonb"},
+		{"link (FK)", fields.TYPE_LINK, 0, "bigint"},
 	}
 
 	for _, tt := range tests {

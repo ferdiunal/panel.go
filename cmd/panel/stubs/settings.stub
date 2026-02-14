@@ -1,6 +1,10 @@
 package {{.PackageName}}
 
 import (
+	"fmt"
+	"mime/multipart"
+	"os"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/domain/setting"
 	"github.com/ferdiunal/panel.go/pkg/fields"
@@ -23,6 +27,7 @@ func NewSettings() *Settings {
 	s.SetIcon("settings")
 	s.SetNavigationOrder(98) // Menünün sonuna yakın
 	s.SetVisible(true)
+	s.SetGroup("System")
 
 	// i18n desteği
 	// locales/tr.yaml: navigation.settings: "Ayarlar"
@@ -36,31 +41,61 @@ func NewSettings() *Settings {
 	return s
 }
 
-// CanAccess, Settings sayfasına erişim kontrolü yapar.
-// Tüm oturum açmış kullanıcılar erişebilir.
-func (s *Settings) CanAccess(ctx *context.Context) bool {
-	return true
-}
-
 // SettingsFieldResolver, Settings form alanlarını dinamik olarak oluşturur.
 type SettingsFieldResolver struct{}
 
 // ResolveFields, Settings sayfasında gösterilecek form alanlarını döndürür.
 func (r *SettingsFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	var settings []setting.Setting
+	ctx.DB().Find(&settings)
+
+	settingsMap := make(map[string]string)
+	for _, s := range settings {
+		settingsMap[s.Key] = s.Value
+	}
+
 	return []fields.Element{
 		// Örnek: Site adı alanı
 		fields.Text("Site Name", "site_name").
 			Required().
-			Placeholder("Enter site name"),
+			Placeholder("Enter site name").
+			Default(settingsMap["site_name"]),
+
+		fields.Textarea("Site Description", "site_description").
+			Required().
+			Placeholder("Enter site description").
+			MaxLength(160).
+			Default(settingsMap["site_description"]),
+
+		fields.File("Logo", "logo").
+			Required().
+			Placeholder("Upload logo").
+			Default(settingsMap["logo"]),
 
 		// Örnek: E-posta alanı
-		fields.Email("Admin Email", "admin_email").
+		fields.Email("Contact Email", "contact_email").
 			Required().
-			Placeholder("admin@example.com"),
+			Placeholder("admin@example.com").
+			MaxLength(100).
+			Default(settingsMap["contact_email"]),
 
-		// Daha fazla alan ekleyebilirsiniz:
-		// fields.Switch("Enable Registration", "enable_registration"),
-		// fields.Textarea("Welcome Message", "welcome_message"),
+		fields.Tel("Contact Phone", "contact_phone").
+			Required().
+			Placeholder("Enter contact phone").
+			MaxLength(15).
+			Default(settingsMap["contact_phone"]),
+
+		fields.Textarea("Contact Address", "contact_address").
+			Required().
+			Placeholder("Enter contact address").
+			MaxLength(1000).
+			Default(settingsMap["contact_address"]),
+
+		fields.Switch("Forgot Password Enabled", "forgot_password_enabled").
+			Default(settingsMap["forgot_password_enabled"] == "true"),
+
+		fields.Switch("Registration Enabled", "registration_enabled").
+			Default(settingsMap["registration_enabled"] == "true"),
 	}
 }
 
@@ -68,16 +103,41 @@ func (r *SettingsFieldResolver) ResolveFields(ctx *context.Context) []fields.Ele
 // Veri doğrulaması ve veritabanı işlemleri burada yapılır.
 func (s *Settings) Save(ctx *context.Context, db *gorm.DB, data map[string]any) error {
 	// Örnek: Site adını kaydet
-	if siteName, ok := data["site_name"].(string); ok {
-		// Veritabanına kaydet
-		// db.Model(&setting.Setting{}).Where("key = ?", "site_name").Update("value", siteName)
-	}
+	for key, value := range data {
+		var strValue string
 
-	// Örnek: Admin e-postasını kaydet
-	if adminEmail, ok := data["admin_email"].(string); ok {
-		// Veritabanına kaydet
-		// db.Model(&setting.Setting{}).Where("key = ?", "admin_email").Update("value", adminEmail)
+		// Dosya yükleme kontrolü
+		if fileHeader, ok := value.(*multipart.FileHeader); ok {
+			// Yükleme klasörünü oluştur
+			uploadDir := "./storage/uploads"
+			if err := os.MkdirAll(uploadDir, 0755); err != nil {
+				return err
+			}
+			// Dosyayı kaydet
+			uploadPath := fmt.Sprintf("%s/%s", uploadDir, fileHeader.Filename)
+			if err := ctx.Ctx.SaveFile(fileHeader, uploadPath); err != nil {
+				return err
+			}
+			// Veritabanına dosya yolunu kaydet (webden erişilebilir yol)
+			strValue = fmt.Sprintf("/storage/uploads/%s", fileHeader.Filename)
+		} else {
+			strValue = fmt.Sprintf("%v", value)
+		}
+
+		var count int64
+		db.Model(&setting.Setting{}).Where("key = ?", key).Count(&count)
+		if count > 0 {
+			db.Model(&setting.Setting{}).Where("key = ?", key).Update("value", strValue)
+		} else {
+			db.Create(&setting.Setting{Key: key, Value: strValue})
+		}
 	}
 
 	return nil
+}
+
+// CanAccess, Settings sayfasına erişim kontrolü yapar.
+// Tüm oturum açmış kullanıcılar erişebilir.
+func (s *Settings) CanAccess(ctx *context.Context) bool {
+	return true
 }

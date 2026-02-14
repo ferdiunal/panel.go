@@ -109,10 +109,10 @@ func TestMorphToGetRelationshipType(t *testing.T) {
 	}
 }
 
-// TestMorphToGetRelatedResource tests GetRelatedResource method
+// TestMorphToGetRelatedResource tests GetRelatedResourceSlug method
 func TestMorphToGetRelatedResource(t *testing.T) {
 	field := NewMorphTo("Commentable", "commentable")
-	resource := field.GetRelatedResource()
+	resource := field.GetRelatedResourceSlug()
 
 	if resource != "" {
 		t.Errorf("Expected empty related resource for MorphTo, got '%s'", resource)

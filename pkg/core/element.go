@@ -675,6 +675,66 @@ type Element interface {
 	//       OnForm().Nullable()
 	Nullable() Element
 
+	// Min, element için minimum sayısal değeri ayarlar.
+	//
+	// Bu metod, sayısal alanlar için minimum değeri belirler.
+	// Frontend'de HTML 'min' özelliği olarak kullanılır.
+	//
+	// Parametreler:
+	//   - value: Minimum değer (int, float, string)
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	//
+	// Örnek:
+	//   field := fields.Number("Age", "age").Min(18)
+	Min(value any) Element
+
+	// Max, element için maksimum sayısal değeri ayarlar.
+	//
+	// Bu metod, sayısal alanlar için maksimum değeri belirler.
+	// Frontend'de HTML 'max' özelliği olarak kullanılır.
+	//
+	// Parametreler:
+	//   - value: Maksimum değer (int, float, string)
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	//
+	// Örnek:
+	//   field := fields.Number("Quantity", "quantity").Max(100)
+	Max(value any) Element
+
+	// MinLength, element için minimum karakter uzunluğunu ayarlar.
+	//
+	// Bu metod, string alanlar için minimum karakter sayısını belirler.
+	// Frontend'de HTML 'minlength' özelliği olarak kullanılır.
+	//
+	// Parametreler:
+	//   - length: Minimum karakter sayısı
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	//
+	// Örnek:
+	//   field := fields.Password("Password", "password").MinLength(8)
+	MinLength(length int) Element
+
+	// MaxLength, element için maksimum karakter uzunluğunu ayarlar.
+	//
+	// Bu metod, string alanlar için maksimum karakter sayısını belirler.
+	// Frontend'de HTML 'maxlength' özelliği olarak kullanılır.
+	//
+	// Parametreler:
+	//   - length: Maksimum karakter sayısı
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	//
+	// Örnek:
+	//   field := fields.Text("Title", "title").MaxLength(100)
+	MaxLength(length int) Element
+
 	// Placeholder, element için yer tutucu metni ayarlar.
 	//
 	// Yer tutucu metin, element boş olduğunda gösterilir ve

@@ -221,6 +221,10 @@ func langMiddleware(config Config) fiber.Handler {
 }
 
 func New(config Config) *Panel {
+	// configRef, closure'ların her zaman güncel config'i okumasını sağlar.
+	// Panel oluşturulduktan sonra p.Config'e yeniden atanır.
+	configRef := &config
+
 	// SECURITY: Configure Fiber with TrustProxy for production deployments behind reverse proxy
 	// This is REQUIRED for earlydata middleware to work securely
 	app := fiber.New(fiber.Config{
@@ -233,6 +237,12 @@ func New(config Config) *Panel {
 		ProxyHeader: fiber.HeaderXForwardedFor,
 	})
 	db := config.Database.Instance
+
+	// Inject DB to Context
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("db", db)
+		return c.Next()
+	})
 
 	// Auth Components
 	userRepo := orm.NewUserRepository(db)
@@ -254,6 +264,17 @@ func New(config Config) *Panel {
 	// CSRF and session token cookies are excluded from encryption for compatibility
 	if config.EncryptionCookie.Key != "" {
 		app.Use(encryptcookie.New(config.EncryptionCookie))
+	}
+
+	// I18n Middleware
+	if config.I18n.Enabled {
+		app.Use(fiberi18n.New(&fiberi18n.Config{
+			RootPath:         config.I18n.RootPath,
+			AcceptLanguages:  config.I18n.AcceptLanguages,
+			DefaultLanguage:  config.I18n.DefaultLanguage,
+			FormatBundleFile: config.I18n.FormatBundleFile,
+		}))
+		app.Use(langMiddleware(config))
 	}
 
 	// PERFORMANCE: Compress middleware with optimized settings for API responses
@@ -419,7 +440,7 @@ func New(config Config) *Panel {
 			}
 
 			// Serve HTML with injection
-			return ServeHTML(c, assetsUIPath, config)
+			return ServeHTML(c, assetsUIPath, *configRef)
 		})
 	} else if config.Environment == "development" {
 		// Priority 2: Check pkg/panel/ui/index.html (SDK development)
@@ -449,7 +470,7 @@ func New(config Config) *Panel {
 					}
 				}
 
-				return ServeHTML(c, localUIPath, config)
+				return ServeHTML(c, localUIPath, *configRef)
 			})
 		} else {
 			// Priority 3: Embedded assets (backward compatibility)
@@ -490,8 +511,10 @@ func New(config Config) *Panel {
 					}
 
 					// Inject and serve
-					data := GetHTMLInjectionData(c, config)
-					html := InjectHTML(string(htmlBytes), data)
+					data := GetHTMLInjectionData(c, *configRef)
+					initData := GetInitData(c, *configRef, data)
+					initJSON, _ := json.Marshal(initData)
+					html := InjectHTML(string(htmlBytes), data, string(initJSON))
 
 					c.Set("Content-Type", "text/html; charset=utf-8")
 					c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -535,8 +558,10 @@ func New(config Config) *Panel {
 					return c.Status(500).SendString("Failed to load UI")
 				}
 
-				data := GetHTMLInjectionData(c, config)
-				html := InjectHTML(string(htmlBytes), data)
+				data := GetHTMLInjectionData(c, *configRef)
+				initData := GetInitData(c, *configRef, data)
+				initJSON, _ := json.Marshal(initData)
+				html := InjectHTML(string(htmlBytes), data, string(initJSON))
 
 				c.Set("Content-Type", "text/html; charset=utf-8")
 				c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -570,8 +595,12 @@ func New(config Config) *Panel {
 		plugins:   make([]interface{}, 0),
 	}
 
-	// Load Dynamic Settings
+	// Load Dynamic Settings (veritabanından)
 	_ = p.LoadSettings()
+
+	// configRef'i p.Config'e yönlendir — artık closure'lar
+	// veritabanından yüklenen güncel settings'i görür
+	configRef = &p.Config
 
 	// Plugin System: Auto-discovery (optional)
 	if config.Plugins.AutoDiscover && config.Plugins.Path != "" {
@@ -857,6 +886,20 @@ func (p *Panel) LoadSettings() error {
 		return nil
 	}
 
+	// Features config'ini settings tablosu ile senkronize et.
+	// Eğer key yoksa config'deki varsayılan değerle oluştur.
+	featureDefaults := map[string]string{
+		"registration_enabled":    fmt.Sprintf("%v", p.Config.Features.Register),
+		"forgot_password_enabled": fmt.Sprintf("%v", p.Config.Features.ForgotPassword),
+	}
+	for key, defaultVal := range featureDefaults {
+		var count int64
+		p.Db.Model(&setting.Setting{}).Where("key = ?", key).Count(&count)
+		if count == 0 {
+			p.Db.Create(&setting.Setting{Key: key, Value: defaultVal})
+		}
+	}
+
 	if err := p.Db.Find(&settings).Error; err != nil {
 		return err
 	}
@@ -881,19 +924,31 @@ func (p *Panel) LoadSettings() error {
 			if v, ok := val.(string); ok {
 				config.SiteName = v
 			}
-		case "register":
-			if v, ok := val.(bool); ok {
-				config.Register = v
-				p.Config.Features.Register = v
-			}
-		case "forgot_password":
-			if v, ok := val.(bool); ok {
-				config.ForgotPassword = v
-				p.Config.Features.ForgotPassword = v
-			}
+		case "registration_enabled":
+			boolVal := parseBoolValue(val)
+			config.Register = boolVal
+			p.Config.Features.Register = boolVal
+		case "forgot_password_enabled":
+			boolVal := parseBoolValue(val)
+			config.ForgotPassword = boolVal
+			p.Config.Features.ForgotPassword = boolVal
 		}
 	}
 	return nil
+}
+
+// parseBoolValue, çeşitli tiplerdeki değerleri bool'a çevirir.
+// String "true"/"false", bool true/false ve float64 1/0 destekler.
+func parseBoolValue(val interface{}) bool {
+	switch v := val.(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true" || v == "1"
+	case float64:
+		return v != 0
+	}
+	return false
 }
 
 // / # Register Metodu
@@ -1717,7 +1772,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 		}
 		items = append(items, NavItem{
 			Slug:  slug,
-			Title: pg.Title(),
+			Title: i18n.Trans(c.Ctx, pg.Title()),
 			Icon:  pg.Icon(),
 			Group: pg.Group(),
 			Type:  "page",
@@ -1838,76 +1893,15 @@ func getLanguageName(lang language.Tag) string {
 }
 
 func (p *Panel) handleInit(c *context.Context) error {
-	fmt.Printf("DEBUG: handleInit called. Config: %+v\n", p.Config)
-	fmt.Printf("DEBUG: SettingsValues: %+v\n", p.Config.SettingsValues)
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in handleInit:", r)
-		}
-	}()
-
 	// Get CSRF token from context (set by CSRF middleware) and send in response header
-	// This allows JavaScript to read the token (since the cookie is HTTPOnly)
 	if csrfToken := c.Locals("csrf"); csrfToken != nil {
 		c.Set("X-CSRF-Token", csrfToken.(string))
 	}
 
-	// Get features from settings or use config defaults
-	registerEnabled := p.Config.Features.Register
-	forgotPasswordEnabled := p.Config.Features.ForgotPassword
-
-	// Check if settings have override values
-	if settings := p.Config.SettingsValues.Values; settings != nil {
-		if registerVal, ok := settings["register"]; ok {
-			if boolVal, ok := registerVal.(bool); ok {
-				registerEnabled = boolVal
-			}
-		}
-		if forgotVal, ok := settings["forgot_password"]; ok {
-			if boolVal, ok := forgotVal.(bool); ok {
-				forgotPasswordEnabled = boolVal
-			}
-		}
-	}
-
-	// Get i18n and theme data
 	injectionData := GetHTMLInjectionData(c.Ctx, p.Config)
+	initData := GetInitData(c.Ctx, p.Config, injectionData)
 
-	// i18n bilgisini hazırla
-	i18nData := fiber.Map{
-		"lang":      injectionData.Lang,
-		"direction": injectionData.Dir,
-	}
-
-	// Desteklenen diller listesini ekle
-	if p.Config.I18n.Enabled {
-		supportedLangs := []fiber.Map{}
-		for _, lang := range p.Config.I18n.AcceptLanguages {
-			supportedLangs = append(supportedLangs, fiber.Map{
-				"code": lang.String(),
-				"name": getLanguageName(lang),
-			})
-		}
-		i18nData["supported_languages"] = supportedLangs
-		i18nData["default_language"] = p.Config.I18n.DefaultLanguage.String()
-		i18nData["use_url_prefix"] = p.Config.I18n.UseURLPrefix
-		i18nData["url_prefix_optional"] = p.Config.I18n.URLPrefixOptional
-	}
-
-	return c.JSON(fiber.Map{
-		"features": fiber.Map{
-			"register":        registerEnabled,
-			"forgot_password": forgotPasswordEnabled,
-		},
-		"oauth": fiber.Map{
-			"google": p.Config.OAuth.Google.Enabled(),
-		},
-		"i18n":     i18nData,
-		"theme":    injectionData.Theme,
-		"version":  "1.0.0",
-		"settings": p.Config.SettingsValues.Values,
-	})
+	return c.JSON(initData)
 }
 
 // / # handleResolve Metodu

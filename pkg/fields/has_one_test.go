@@ -109,10 +109,10 @@ func TestHasOneGetRelationshipType(t *testing.T) {
 	}
 }
 
-// TestHasOneGetRelatedResource tests GetRelatedResource method
+// TestHasOneGetRelatedResource tests GetRelatedResourceSlug method
 func TestHasOneGetRelatedResource(t *testing.T) {
 	field := HasOne("Profile", "profile", "profiles")
-	resource := field.GetRelatedResource()
+	resource := field.GetRelatedResourceSlug()
 
 	if resource != "profiles" {
 		t.Errorf("Expected related resource 'profiles', got '%s'", resource)
@@ -252,8 +252,8 @@ func TestHasOneImplementsRelationshipField(t *testing.T) {
 		t.Errorf("Expected relationship type 'hasOne', got '%s'", field.GetRelationshipType())
 	}
 
-	if field.GetRelatedResource() != "profiles" {
-		t.Errorf("Expected related resource 'profiles', got '%s'", field.GetRelatedResource())
+	if field.GetRelatedResourceSlug() != "profiles" {
+		t.Errorf("Expected related resource 'profiles', got '%s'", field.GetRelatedResourceSlug())
 	}
 
 	if field.GetRelationshipName() != "Profile" {

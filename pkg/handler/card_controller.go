@@ -240,17 +240,12 @@ func HandleCardList(h *FieldHandler, c *context.Context) error {
 
 			// TODO: Card.Resolve() şimdilik kullanılmayacak (aşağıdaki satırlar comment out edildi)
 
-			// Resolve data - Get GORM DB from provider
-			db, ok := h.Provider.GetClient().(*gorm.DB)
-			if !ok {
-				results <- cardResult{
-					card:       w,
-					data:       nil,
-					err:        fmt.Errorf("database client not available"),
-					index:      idx,
-					serialized: serialized,
+			// Resolve data. If provider/db is unavailable, card still gets a nil db.
+			var db *gorm.DB
+			if h.Provider != nil {
+				if client, ok := h.Provider.GetClient().(*gorm.DB); ok {
+					db = client
 				}
-				return
 			}
 			data, err := w.Resolve(c, db)
 

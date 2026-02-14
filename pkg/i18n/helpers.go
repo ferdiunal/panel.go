@@ -3,8 +3,6 @@
 package i18n
 
 import (
-	"fmt"
-
 	"github.com/gofiber/contrib/fiberi18n/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -36,7 +34,6 @@ import (
 //	})
 //	// Çıktı: "5 ürün, toplam: 150.50 TL"
 func Trans(c *fiber.Ctx, messageID string, templateData ...map[string]interface{}) string {
-	fmt.Printf("messageID: %s\ntemplateData: %v\n, HasContext: %t\n", messageID, templateData, c != nil)
 	if c == nil {
 		return messageID
 	}
@@ -44,7 +41,6 @@ func Trans(c *fiber.Ctx, messageID string, templateData ...map[string]interface{
 	var result string
 	var err error
 
-	fmt.Printf("messageID: %s\ntemplateData: %v\n", messageID, templateData)
 	if len(templateData) > 0 && templateData[0] != nil {
 		result, err = fiberi18n.Localize(c, &i18n.LocalizeConfig{
 			MessageID:    messageID,

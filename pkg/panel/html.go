@@ -5,119 +5,197 @@
 package panel
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ferdiunal/panel.go/pkg/i18n"
 	"github.com/ferdiunal/panel.go/pkg/rtl"
 	"github.com/gofiber/fiber/v2"
+	"gopkg.in/yaml.v3"
 )
 
 // HTMLPlaceholders, index.html'de kullanılan placeholder'lar.
 const (
-	PlaceholderLang  = "{{PANEL_LANG}}"
-	PlaceholderDir   = "{{PANEL_DIR}}"
-	PlaceholderTheme = "{{PANEL_THEME}}"
-	PlaceholderTitle = "{{PANEL_TITLE}}"
+	PlaceholderLang    = "{{PANEL_LANG}}"
+	PlaceholderDir     = "{{PANEL_DIR}}"
+	PlaceholderTheme   = "{{PANEL_THEME}}"
+	PlaceholderTitle   = "{{PANEL_TITLE}}"
+	PlaceholderInit    = "{{PANEL_INIT}}"
+	PlaceholderFavicon = "{{PANEL_FAVICON}}"
 )
 
 // HTMLInjectionData, HTML'e inject edilecek veri.
 type HTMLInjectionData struct {
-	Lang  string // Dil kodu (örn: "tr", "en", "ar")
-	Dir   string // Text direction ("ltr" veya "rtl")
-	Theme string // Tema ("light" veya "dark")
-	Title string // Site başlığı
+	Lang    string // Dil kodu (örn: "tr", "en", "ar")
+	Dir     string // Text direction ("ltr" veya "rtl")
+	Theme   string // Tema ("light" veya "dark")
+	Title   string // Site başlığı
+	Favicon string // Favicon URL (logo veya varsayılan)
 }
 
 // GetHTMLInjectionData, request'ten HTML injection data'sını oluşturur.
-//
-// Bu fonksiyon, request context'inden dil, RTL ve tema bilgilerini alır
-// ve HTMLInjectionData struct'ı oluşturur.
-//
-// ## Parametreler
-//   - c: Fiber context
-//   - config: Panel config
-//
-// ## Dönüş Değeri
-//   - HTMLInjectionData: Injection data
 func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 	// Dil bilgisini al
-	// Öncelik sırası: 1) Middleware'den locale, 2) Config'den default language, 3) "en"
 	lang := "en"
 
-	// i18n middleware'i etkinse, middleware'den locale'i al
 	if config.I18n.Enabled {
-		// Middleware'den locale'i al (cookie > header > query > default)
 		lang = i18n.GetLocale(c)
-
-		// Eğer locale boşsa veya "en" ise, config'den default language'i kullan
 		if lang == "" || (lang == "en" && config.I18n.DefaultLanguage.String() != "" && config.I18n.DefaultLanguage.String() != "en") {
 			lang = config.I18n.DefaultLanguage.String()
 		}
 	} else if config.I18n.DefaultLanguage.String() != "" {
-		// i18n devre dışıysa, config'den default language'i kullan
 		lang = config.I18n.DefaultLanguage.String()
 	}
 
 	// Direction bilgisini al
 	dir := rtl.GetDirectionString(lang)
 
-	// Tema bilgisini al (cookie veya query'den)
+	// Tema bilgisini al
 	theme := c.Query("theme", c.Cookies("theme", "light"))
 	if theme != "dark" && theme != "light" {
-		theme = "light" // Varsayılan tema
+		theme = "light"
 	}
 
 	// Site başlığını al
 	title := config.SettingsValues.SiteName
 	if title == "" {
-		title = "Panel.go" // Varsayılan başlık
+		title = "Panel.go"
 	}
 
-	fmt.Println(lang, dir, theme, title)
+	// Favicon — settings'den logo varsa onu kullan
+	favicon := "/vite.svg"
+	if config.SettingsValues.Values != nil {
+		if logo, ok := config.SettingsValues.Values["logo"]; ok {
+			if logoStr, ok := logo.(string); ok && logoStr != "" {
+				favicon = logoStr
+			}
+		}
+	}
 
 	return HTMLInjectionData{
-		Lang:  lang,
-		Dir:   dir,
-		Theme: theme,
-		Title: title,
+		Lang:    lang,
+		Dir:     dir,
+		Theme:   theme,
+		Title:   title,
+		Favicon: favicon,
+	}
+}
+
+// loadTranslations, belirtilen dil için YAML locale dosyasını okur
+// ve tüm key'leri "dot notation" (nested.key.path) olarak flat bir map'e çevirir.
+func loadTranslations(config Config, lang string) map[string]interface{} {
+	rootPath := config.I18n.RootPath
+	if rootPath == "" {
+		rootPath = "./locales"
+	}
+
+	filePath := filepath.Join(rootPath, lang+".yaml")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		// Dosya yoksa boş map dön
+		return map[string]interface{}{}
+	}
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return map[string]interface{}{}
+	}
+
+	// Nested YAML'ı flat dot notation'a çevir
+	flat := make(map[string]interface{})
+	flattenMap("", raw, flat)
+	return flat
+}
+
+// flattenMap, nested map'i dot notation'a çevirir.
+// Örn: { auth: { login: { title: "Giriş" } } } -> { "auth.login.title": "Giriş" }
+func flattenMap(prefix string, src map[string]interface{}, dest map[string]interface{}) {
+	for key, val := range src {
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+
+		switch v := val.(type) {
+		case map[string]interface{}:
+			flattenMap(fullKey, v, dest)
+		default:
+			dest[fullKey] = v
+		}
+	}
+}
+
+// GetInitData, frontend'e inject edilecek init verisini oluşturur.
+// handleInit API endpoint'i ile aynı veriyi döner.
+func GetInitData(c *fiber.Ctx, config Config, injectionData HTMLInjectionData) fiber.Map {
+	// Features
+	registerEnabled := config.Features.Register
+	forgotPasswordEnabled := config.Features.ForgotPassword
+
+	if settings := config.SettingsValues.Values; settings != nil {
+		if registerVal, ok := settings["registration_enabled"]; ok {
+			registerEnabled = parseBoolValue(registerVal)
+		}
+		if forgotVal, ok := settings["forgot_password_enabled"]; ok {
+			forgotPasswordEnabled = parseBoolValue(forgotVal)
+		}
+	}
+
+	// i18n
+	i18nData := fiber.Map{
+		"lang":      injectionData.Lang,
+		"direction": injectionData.Dir,
+	}
+
+	if config.I18n.Enabled {
+		supportedLangs := []fiber.Map{}
+		for _, lang := range config.I18n.AcceptLanguages {
+			supportedLangs = append(supportedLangs, fiber.Map{
+				"code": lang.String(),
+				"name": getLanguageName(lang),
+			})
+		}
+		i18nData["supported_languages"] = supportedLangs
+		i18nData["default_language"] = config.I18n.DefaultLanguage.String()
+		i18nData["use_url_prefix"] = config.I18n.UseURLPrefix
+		i18nData["url_prefix_optional"] = config.I18n.URLPrefixOptional
+	}
+
+	// Translations — aktif dil için locale dosyasını oku
+	translations := loadTranslations(config, injectionData.Lang)
+
+	return fiber.Map{
+		"features": fiber.Map{
+			"register":        registerEnabled,
+			"forgot_password": forgotPasswordEnabled,
+		},
+		"oauth": fiber.Map{
+			"google": config.OAuth.Google.Enabled(),
+		},
+		"i18n":         i18nData,
+		"translations": translations,
+		"theme":        injectionData.Theme,
+		"version":      "1.0.0",
+		"settings":     config.SettingsValues.Values,
 	}
 }
 
 // InjectHTML, HTML içeriğine placeholder'ları inject eder.
-//
-// Bu fonksiyon, HTML string'indeki placeholder'ları gerçek değerlerle
-// replace eder.
-//
-// ## Parametreler
-//   - html: HTML içeriği
-//   - data: Injection data
-//
-// ## Dönüş Değeri
-//   - string: Inject edilmiş HTML
-func InjectHTML(html string, data HTMLInjectionData) string {
-	// Placeholder'ları replace et
+func InjectHTML(html string, data HTMLInjectionData, initJSON string) string {
 	html = strings.ReplaceAll(html, PlaceholderLang, data.Lang)
 	html = strings.ReplaceAll(html, PlaceholderDir, data.Dir)
 	html = strings.ReplaceAll(html, PlaceholderTheme, data.Theme)
 	html = strings.ReplaceAll(html, PlaceholderTitle, data.Title)
+	html = strings.ReplaceAll(html, PlaceholderFavicon, data.Favicon)
+	html = strings.ReplaceAll(html, PlaceholderInit, initJSON)
 
 	return html
 }
 
 // ServeHTML, HTML dosyasını inject ederek serve eder.
-//
-// Bu fonksiyon, HTML dosyasını okur, placeholder'ları inject eder ve
-// client'a döndürür.
-//
-// ## Parametreler
-//   - c: Fiber context
-//   - htmlPath: HTML dosya yolu
-//   - config: Panel config
-//
-// ## Dönüş Değeri
-//   - error: Hata varsa error, yoksa nil
 func ServeHTML(c *fiber.Ctx, htmlPath string, config Config) error {
 	// HTML'i oku
 	htmlBytes, err := os.ReadFile(htmlPath)
@@ -128,8 +206,15 @@ func ServeHTML(c *fiber.Ctx, htmlPath string, config Config) error {
 	// Injection data'sını al
 	data := GetHTMLInjectionData(c, config)
 
+	// Init verisini JSON olarak oluştur
+	initData := GetInitData(c, config, data)
+	initJSON, err := json.Marshal(initData)
+	if err != nil {
+		initJSON = []byte("{}")
+	}
+
 	// HTML'i inject et
-	html := InjectHTML(string(htmlBytes), data)
+	html := InjectHTML(string(htmlBytes), data, string(initJSON))
 
 	// HTML döndür
 	c.Set("Content-Type", "text/html; charset=utf-8")

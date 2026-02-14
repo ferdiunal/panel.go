@@ -440,7 +440,8 @@ func publishSkills() {
 
 // initProject, yeni bir Panel.go projesini başlatır.
 func initProject(database string) {
-	fmt.Println("🚀 Initializing Panel.go project...\n")
+	fmt.Println("🚀 Initializing Panel.go project...")
+	fmt.Println()
 
 	// Proje adını al (mevcut dizin adı)
 	cwd, err := os.Getwd()

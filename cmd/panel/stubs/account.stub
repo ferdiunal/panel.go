@@ -48,24 +48,42 @@ type AccountFieldResolver struct{}
 
 // ResolveFields, Account sayfasında gösterilecek form alanlarını döndürür.
 func (r *AccountFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	// Get User from Context
+	user := ctx.User()
+	if user == nil {
+		return []fields.Element{}
+	}
+
 	return []fields.Element{
-		// Örnek: Ad alanı
-		fields.Text("Name", "name").
+		fields.Image("Avatar", "avatar").
+			WithProps("rounded", true).
+			WithProps("size", "lg"),
+
+		fields.Text("Ad Soyad", "name").
 			Required().
-			Placeholder("Enter your name"),
+			MaxLength(255).
+			Value(user.Name),
 
-		// Örnek: E-posta alanı
-		fields.Email("Email", "email").
+		fields.Email("E-posta", "email").
 			Required().
-			Placeholder("your@email.com"),
+			MaxLength(255).
+			Value(user.Email),
 
-		// Örnek: Şifre alanı
-		fields.Password("New Password", "password").
-			Placeholder("Leave blank to keep current password"),
+		fields.Password("Mevcut Şifre", "current_password").
+			MinLength(6).
+			MaxLength(255).
+			PrepareForUpdate(func(value interface{}, data map[string]interface{}) interface{} {
+				// Şifre boşsa güncelleme yapma
+				if value == "" {
+					delete(data, "current_password")
+				}
+				return value
+			}),
 
-		// Daha fazla alan ekleyebilirsiniz:
-		// fields.Tel("Phone", "phone"),
-		// fields.Textarea("Bio", "bio"),
+		fields.Password("Yeni Şifre", "new_password").
+			MinLength(6).
+			MaxLength(255).
+			Confirmed(),
 	}
 }
 

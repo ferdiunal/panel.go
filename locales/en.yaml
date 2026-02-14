@@ -38,7 +38,7 @@ navigation:
   settings: "Settings"
   account: "Account"
   users: "Users"
-  logout: "Logout"
+  logout: "Log out"
 
 # Pages
 pages:
@@ -58,6 +58,7 @@ button:
   create: "Create"
   back: "Back"
   submit: "Submit"
+  createAndContinue: "Create and Continue"
 
 # Confirmation Messages
 confirm:
@@ -84,3 +85,53 @@ resources:
       role_placeholder: "Select a role"
       password: "Password"
       password_placeholder: "Enter your password"
+
+# Auth Pages
+auth:
+  login:
+    title: "Login"
+    description: "Enter your credentials to access the panel"
+    email: "Email"
+    emailPlaceholder: "m@example.com"
+    password: "Password"
+    passwordPlaceholder: "Enter your password"
+    submit: "Login"
+    submitting: "Logging in..."
+    forgotPassword: "Forgot password?"
+    noAccount: "Don't have an account?"
+    register: "Register"
+    fillAllFields: "Please fill in all fields"
+    loginFailed: "Login failed"
+  register:
+    title: "Register"
+    description: "Enter your information to create an account"
+    name: "Full Name"
+    namePlaceholder: "John Doe"
+    nameMinLength: "Name must be at least 2 characters"
+    email: "Email"
+    emailPlaceholder: "m@example.com"
+    emailInvalid: "Enter a valid email address"
+    password: "Password"
+    passwordMinLength: "Password must be at least 6 characters"
+    submit: "Create Account"
+    success: "Account created! You can now login."
+    failed: "Registration failed"
+    hasAccount: "Already have an account?"
+    login: "Login"
+  forgotPassword:
+    title: "Forgot Password"
+    description: "Enter your email to reset your password"
+    email: "Email"
+    emailPlaceholder: "m@example.com"
+    emailInvalid: "Please enter a valid email address."
+    submit: "Send Reset Link"
+    success: "Reset link has been sent to your email."
+    failed: "Operation failed"
+    backToLogin: "Back to login"
+  terms: "By continuing, you agree to our {termsLink} and {privacyLink}."
+  termsOfService: "Terms of Service"
+  privacyPolicy: "Privacy Policy"
+
+# Sidebar
+sidebar:
+  poweredBy: "Panel.go by Ferdi Unal"
