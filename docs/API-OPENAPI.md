@@ -1,6 +1,6 @@
 # OpenAPI/Swagger Entegrasyonu
 
-Panel.go, tüm REST API endpoint'leri için otomatik OpenAPI 3.0.3 spesifikasyonu oluşturur ve Swagger UI, ReDoc, RapiDoc gibi dokümantasyon arayüzleri sağlar.
+Panel.go, tüm REST API endpoint'leri için otomatik OpenAPI 3.0.3 spesifikasyonu oluşturur ve Swagger UI arayüzü sağlar.
 
 ## İçindekiler
 
@@ -8,8 +8,6 @@ Panel.go, tüm REST API endpoint'leri için otomatik OpenAPI 3.0.3 spesifikasyon
 - [Endpoint'ler](#endpointler)
 - [Kullanım](#kullanım)
 - [Swagger UI](#swagger-ui)
-- [ReDoc](#redoc)
-- [RapiDoc](#rapidoc)
 - [OpenAPI Spec](#openapi-spec)
 - [Özelleştirme](#özelleştirme)
 
@@ -20,8 +18,6 @@ Panel.go, tüm REST API endpoint'leri için otomatik OpenAPI 3.0.3 spesifikasyon
 - ✅ **Action Endpoint'leri**: Resource action'ları OpenAPI spec'e dahil edilir
 - ✅ **Filter Parametreleri**: Resource filter'ları query parametreleri olarak eklenir
 - ✅ **Swagger UI**: Modern, interaktif API dokümantasyonu
-- ✅ **ReDoc**: Temiz ve okunabilir dokümantasyon
-- ✅ **RapiDoc**: Özelleştirilebilir dokümantasyon arayüzü
 - ✅ **Custom Mapping**: Field type'ları için özel mapping desteği
 
 ## Endpoint'ler
@@ -33,8 +29,6 @@ Panel.go başlatıldığında aşağıdaki endpoint'ler otomatik olarak oluştur
 | Endpoint | Açıklama |
 |----------|----------|
 | `GET /api/docs` | Swagger UI arayüzü |
-| `GET /api/docs/redoc` | ReDoc arayüzü |
-| `GET /api/docs/rapidoc` | RapiDoc arayüzü |
 | `GET /api/openapi.json` | OpenAPI 3.0.3 spec (JSON) |
 
 ### Resource Endpoint'leri (Otomatik)
@@ -74,22 +68,6 @@ http://localhost:8080/api/docs
 
 Swagger UI, tüm API endpoint'lerini interaktif olarak gösterir. Her endpoint'i test edebilir, request/response örneklerini görebilirsiniz.
 
-### ReDoc'a Erişim
-
-Daha temiz ve okunabilir bir dokümantasyon için:
-
-```
-http://localhost:8080/api/docs/redoc
-```
-
-### RapiDoc'a Erişim
-
-Modern ve özelleştirilebilir dokümantasyon için:
-
-```
-http://localhost:8080/api/docs/rapidoc
-```
-
 ### OpenAPI Spec'i İndirme
 
 OpenAPI spec'i JSON formatında indirmek için:
@@ -105,7 +83,7 @@ Swagger UI, API'nizi interaktif olarak test etmenizi sağlar:
 ### Özellikler
 
 - **Try it out**: Endpoint'leri doğrudan tarayıcıdan test edin
-- **Authentication**: Bearer token ile kimlik doğrulama
+- **Authentication**: Session cookie veya API key ile kimlik doğrulama
 - **Request/Response**: Örnek request ve response'ları görün
 - **Schema**: Veri modellerini inceleyin
 - **Filter**: Endpoint'leri arayın ve filtreleyin
@@ -124,39 +102,9 @@ Swagger UI, API'nizi interaktif olarak test etmenizi sağlar:
 Swagger UI'da authentication kullanmak için:
 
 1. Sağ üstteki "Authorize" butonuna tıklayın
-2. Bearer token'ınızı girin
+2. API key ile çalışacaksanız `apiKeyAuth` bölümüne key değerini girin
 3. "Authorize" butonuna tıklayın
-4. Artık tüm endpoint'leri token ile test edebilirsiniz
-
-## ReDoc
-
-ReDoc, API dokümantasyonunu temiz ve okunabilir bir şekilde sunar:
-
-### Özellikler
-
-- **Temiz Tasarım**: Okunması kolay, modern tasarım
-- **Arama**: Endpoint ve schema'ları arayın
-- **Kod Örnekleri**: Farklı dillerde kod örnekleri
-- **Responsive**: Mobil uyumlu
-
-### Kullanım
-
-ReDoc'u açın: `http://localhost:8080/api/docs/redoc`
-
-## RapiDoc
-
-RapiDoc, özelleştirilebilir ve modern bir dokümantasyon arayüzüdür:
-
-### Özellikler
-
-- **Dark Mode**: Karanlık tema desteği
-- **Özelleştirilebilir**: Renk ve tema ayarları
-- **Try it out**: Endpoint'leri test edin
-- **Schema Viewer**: Veri modellerini görselleştirin
-
-### Kullanım
-
-RapiDoc'u açın: `http://localhost:8080/api/docs/rapidoc`
+4. Artık endpoint'leri API key ile test edebilirsiniz
 
 ## OpenAPI Spec
 
@@ -258,8 +206,6 @@ func main() {
 
     // OpenAPI endpoint'leri otomatik olarak oluşturulur
     // http://localhost:8080/api/docs - Swagger UI
-    // http://localhost:8080/api/docs/redoc - ReDoc
-    // http://localhost:8080/api/docs/rapidoc - RapiDoc
     // http://localhost:8080/api/openapi.json - OpenAPI Spec
 
     p.Start()
@@ -307,8 +253,8 @@ func main() {
 
 Swagger UI'da authentication kullanırken:
 
-- Bearer token kullanın
-- Token'ı güvenli bir şekilde saklayın
+- API key kullanın
+- Key'i güvenli bir şekilde saklayın
 - Production'da HTTPS kullanın
 
 ### 2. Versioning
@@ -386,8 +332,6 @@ Custom security scheme'leri ekleyebilirsiniz:
 
 - [OpenAPI Specification](https://swagger.io/specification/)
 - [Swagger UI](https://swagger.io/tools/swagger-ui/)
-- [ReDoc](https://redocly.com/redoc/)
-- [RapiDoc](https://rapidocweb.com/)
 - [OpenAPI Generator](https://openapi-generator.tech/)
 
 ## Sonraki Adımlar

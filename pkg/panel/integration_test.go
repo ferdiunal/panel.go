@@ -81,6 +81,8 @@ func (r *IntUserResource) Slug() string                                         
 func (r *IntUserResource) GetSortable() []resource.Sortable                      { return nil }
 func (r *IntUserResource) GetDialogType() resource.DialogType                    { return resource.DialogTypeSheet }
 func (r *IntUserResource) SetDialogType(t resource.DialogType) resource.Resource { return r }
+func (r *IntUserResource) GetDialogSize() resource.DialogSize                    { return resource.DialogSizeMD }
+func (r *IntUserResource) SetDialogSize(s resource.DialogSize) resource.Resource { return r }
 func (r *IntUserResource) Repository(db *gorm.DB) data.DataProvider              { return nil }
 func (r *IntUserResource) Cards() []widget.Card {
 	return []widget.Card{
@@ -168,6 +170,8 @@ func (r *IntBlogResource) Slug() string                                         
 func (r *IntBlogResource) GetSortable() []resource.Sortable                      { return nil }
 func (r *IntBlogResource) GetDialogType() resource.DialogType                    { return resource.DialogTypeSheet }
 func (r *IntBlogResource) SetDialogType(t resource.DialogType) resource.Resource { return r }
+func (r *IntBlogResource) GetDialogSize() resource.DialogSize                    { return resource.DialogSizeMD }
+func (r *IntBlogResource) SetDialogSize(s resource.DialogSize) resource.Resource { return r }
 func (r *IntBlogResource) Repository(db *gorm.DB) data.DataProvider              { return nil }
 func (r *IntBlogResource) Cards() []widget.Card {
 	return []widget.Card{}
@@ -284,6 +288,8 @@ func (r *IntCommentResource) Slug() string                                      
 func (r *IntCommentResource) GetSortable() []resource.Sortable                      { return nil }
 func (r *IntCommentResource) GetDialogType() resource.DialogType                    { return resource.DialogTypeSheet }
 func (r *IntCommentResource) SetDialogType(t resource.DialogType) resource.Resource { return r }
+func (r *IntCommentResource) GetDialogSize() resource.DialogSize                    { return resource.DialogSizeMD }
+func (r *IntCommentResource) SetDialogSize(s resource.DialogSize) resource.Resource { return r }
 func (r *IntCommentResource) Repository(db *gorm.DB) data.DataProvider              { return nil }
 func (r *IntCommentResource) Cards() []widget.Card {
 	return []widget.Card{}

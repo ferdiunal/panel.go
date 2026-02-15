@@ -171,8 +171,10 @@ func NewGormDataProvider(db *gorm.DB, model interface{}) *GormDataProvider {
 	// Initialize column validator for SQL injection protection
 	validator, err := NewColumnValidator(db, model)
 	if err != nil {
-		// Log error but don't fail - fall back to basic validation
-		fmt.Printf("[SECURITY WARNING] Failed to create column validator: %v\n", err)
+		// Log error but don't fail - fall back to basic validation.
+		if db != nil && db.Logger != nil {
+			db.Logger.Warn(stdcontext.Background(), "security warning: failed to create column validator: %v", err)
+		}
 	}
 
 	return &GormDataProvider{
@@ -237,6 +239,23 @@ func (p *GormDataProvider) getContext(ctx *context.Context) stdcontext.Context {
 		return stdcontext.Background()
 	}
 	return stdCtx
+}
+
+func (p *GormDataProvider) warnf(ctx stdcontext.Context, msg string, args ...interface{}) {
+	if p == nil || p.DB == nil || p.DB.Logger == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = stdcontext.Background()
+	}
+	p.DB.Logger.Warn(ctx, msg, args...)
+}
+
+func gormStatementContext(db *gorm.DB) stdcontext.Context {
+	if db != nil && db.Statement != nil && db.Statement.Context != nil {
+		return db.Statement.Context
+	}
+	return stdcontext.Background()
 }
 
 // / # SetSearchColumns
@@ -460,7 +479,7 @@ func (p *GormDataProvider) applyFilters(db *gorm.DB, filters []query.Filter) *go
 			validatedCol, err := p.columnValidator.ValidateColumn(f.Field)
 			if err != nil {
 				// Skip invalid columns - don't expose error to user
-				fmt.Printf("[SECURITY] Rejected invalid column in filter: %s\n", f.Field)
+				p.warnf(gormStatementContext(db), "security: rejected invalid column in filter: %s", f.Field)
 				continue
 			}
 			safeColumn = validatedCol
@@ -711,13 +730,10 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	// WORKAROUND: Direkt olarak WithRelationships kullan çünkü relationshipFields boş olabilir
 	// (field type detection sorunu nedeniyle)
 	relationshipTableByName := p.relationshipTableByName()
-	fmt.Printf("[DEBUG] Index - Preloading relationships: %v\n", p.WithRelationships)
 	for _, relName := range p.WithRelationships {
 		if shouldSkipPreloadForViaResource(relName, req.ViaResource, relationshipTableByName) {
-			fmt.Printf("[DEBUG] Index - Skip preload in via context: %s (via=%s)\n", relName, req.ViaResource)
 			continue
 		}
-		fmt.Printf("[DEBUG] Index - Preload: %s\n", relName)
 		db = db.Preload(relName)
 	}
 
@@ -725,7 +741,6 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	// Bu blok, HasMany ilişkilerinde child kayıtları parent ID'ye göre filtrelemek için kullanılır.
 	// Frontend'den gelen viaResource ve viaResourceId parametreleri kullanılır.
 	if req.ViaResource != "" && req.ViaResourceId != "" {
-		fmt.Printf("[GORM] Checking relationship filter for ViaResource: %s, ID: %s\n", req.ViaResource, req.ViaResourceId)
 		stmt := &gorm.Statement{DB: p.DB}
 		if err := stmt.Parse(p.Model); err == nil {
 			for _, rel := range stmt.Schema.Relationships.Relations {
@@ -737,15 +752,12 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 							if !ref.OwnPrimaryKey { // Child tablodaki FK (örn: organization_id)
 								columnName := ref.ForeignKey.DBName
 								db = db.Where(fmt.Sprintf("%s = ?", columnName), req.ViaResourceId)
-								fmt.Printf("[GORM] Applied relationship filter: %s = %s\n", columnName, req.ViaResourceId)
 								break
 							}
 						}
 					}
 				}
 			}
-		} else {
-			fmt.Printf("[GORM] Error parsing model schema for relationship filter: %v\n", err)
 		}
 	}
 
@@ -755,12 +767,6 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	}
 
 	// Apply Search with column validation
-	if len(req.Filters) > 0 {
-		db = p.applyFilters(db, req.Filters)
-	}
-
-	// Apply Search with column validation
-	fmt.Printf("[GORM] Search: %q, SearchColumns: %v\n", req.Search, p.SearchColumns)
 	if req.Search != "" && len(p.SearchColumns) > 0 {
 		searchQuery := p.DB.WithContext(stdCtx).Session(&gorm.Session{NewDB: true})
 		for _, col := range p.SearchColumns {
@@ -770,7 +776,7 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 				validatedCol, err := p.columnValidator.ValidateColumn(col)
 				if err != nil {
 					// Skip invalid columns - don't expose error to user
-					fmt.Printf("[SECURITY] Rejected invalid search column: %s\n", col)
+					p.warnf(stdCtx, "security: rejected invalid search column: %s", col)
 					continue
 				}
 				safeColumn = validatedCol
@@ -781,9 +787,6 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 			searchQuery = searchQuery.Or(fmt.Sprintf("%s LIKE ?", safeColumn), "%"+req.Search+"%")
 		}
 		db = db.Where(searchQuery)
-		fmt.Printf("[GORM] Search applied for columns: %v\n", p.SearchColumns)
-	} else {
-		fmt.Printf("[GORM] Search NOT applied - Search empty: %v, SearchColumns empty: %v\n", req.Search == "", len(p.SearchColumns) == 0)
 	}
 
 	// Count Total
@@ -801,7 +804,7 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 					validatedCol, err := p.columnValidator.ValidateColumn(sort.Column)
 					if err != nil {
 						// Skip invalid columns - don't expose error to user
-						fmt.Printf("[SECURITY] Rejected invalid sort column: %s\n", sort.Column)
+						p.warnf(stdCtx, "security: rejected invalid sort column: %s", sort.Column)
 						continue
 					}
 					safeColumn = validatedCol
@@ -855,7 +858,7 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 			if field.GetLoadingStrategy() == fields.LAZY_LOADING {
 				for _, item := range items {
 					if _, err := p.relationshipLoader.LazyLoad(stdCtx, item, field); err != nil {
-						fmt.Printf("[WARN] Failed to lazy load %s: %v\n", field.GetRelationshipName(), err)
+						p.warnf(stdCtx, "warn: failed to lazy load %s: %v", field.GetRelationshipName(), err)
 					}
 				}
 			}
@@ -1032,9 +1035,7 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 	// Apply Eager Loading with GORM Preload
 	// WORKAROUND: Direkt olarak WithRelationships kullan çünkü relationshipFields boş olabilir
 	// (field type detection sorunu nedeniyle)
-	fmt.Printf("[DEBUG] Show - Preloading relationships: %v\n", p.WithRelationships)
 	for _, relName := range p.WithRelationships {
-		fmt.Printf("[DEBUG] Show - Preload: %s\n", relName)
 		db = db.Preload(relName)
 	}
 
@@ -1050,7 +1051,7 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 	for _, field := range relationshipFields {
 		if field.GetLoadingStrategy() == fields.LAZY_LOADING {
 			if _, err := p.relationshipLoader.LazyLoad(stdCtx, result, field); err != nil {
-				fmt.Printf("[WARN] Failed to lazy load %s: %v\n", field.GetRelationshipName(), err)
+				p.warnf(stdCtx, "warn: failed to lazy load %s: %v", field.GetRelationshipName(), err)
 			}
 		}
 	}
@@ -1226,7 +1227,7 @@ func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interfac
 				modelVal = modelVal.Elem()
 			}
 			if err := field.Set(stdCtx, modelVal, v); err != nil {
-				fmt.Printf("[GORM] Error setting field %s: %v\n", field.Name, err)
+				p.warnf(stdCtx, "gorm: error setting field %s: %v", field.Name, err)
 			}
 		}
 	}
@@ -1277,7 +1278,7 @@ func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interfac
 
 							if foreignKey != "" && relatedTable != "" && newItemID != nil {
 								if err := p.replaceHasOne(stdCtx, newItemID, foreignKey, v, relatedTable); err != nil {
-									fmt.Printf("[WARN] Failed to replace HasOne: %v\n", err)
+									p.warnf(stdCtx, "warn: failed to replace has-one relationship: %v", err)
 								}
 							}
 						}
@@ -1319,7 +1320,7 @@ func (p *GormDataProvider) Create(ctx *context.Context, data map[string]interfac
 
 							if pivotTable != "" && parentColumn != "" && relatedColumn != "" && newItemID != nil {
 								if err := p.replaceMany2Many(stdCtx, newItemID, ids, pivotTable, parentColumn, relatedColumn); err != nil {
-									fmt.Printf("[WARN] Failed to replace Many2Many: %v\n", err)
+									p.warnf(stdCtx, "warn: failed to replace many-to-many relationship: %v", err)
 								}
 							}
 						}
@@ -1574,13 +1575,13 @@ func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[stri
 					if v != nil {
 						if foreignKey != "" && relatedTable != "" && itemID != nil {
 							if err := p.replaceHasOne(stdCtx, itemID, foreignKey, v, relatedTable); err != nil {
-								fmt.Printf("[WARN] Failed to replace HasOne: %v\n", err)
+								p.warnf(stdCtx, "warn: failed to replace has-one relationship: %v", err)
 							}
 						}
 					} else {
 						if foreignKey != "" && relatedTable != "" && itemID != nil {
 							if err := p.clearHasOne(stdCtx, itemID, foreignKey, relatedTable); err != nil {
-								fmt.Printf("[WARN] Failed to clear HasOne: %v\n", err)
+								p.warnf(stdCtx, "warn: failed to clear has-one relationship: %v", err)
 							}
 						}
 					}
@@ -1624,14 +1625,14 @@ func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[stri
 					if len(ids) > 0 {
 						if pivotTable != "" && parentColumn != "" && relatedColumn != "" && itemID != nil {
 							if err := p.replaceMany2Many(stdCtx, itemID, ids, pivotTable, parentColumn, relatedColumn); err != nil {
-								fmt.Printf("[WARN] Failed to replace Many2Many: %v\n", err)
+								p.warnf(stdCtx, "warn: failed to replace many-to-many relationship: %v", err)
 							}
 						}
 					} else {
 						// If empty list sent, clear associations
 						if pivotTable != "" && parentColumn != "" && itemID != nil {
 							if err := p.clearMany2Many(stdCtx, itemID, pivotTable, parentColumn); err != nil {
-								fmt.Printf("[WARN] Failed to clear Many2Many: %v\n", err)
+								p.warnf(stdCtx, "warn: failed to clear many-to-many relationship: %v", err)
 							}
 						}
 					}
@@ -1867,10 +1868,7 @@ func (p *GormDataProvider) SetRelationshipFields(fields []fields.RelationshipFie
 //
 // - []fields.RelationshipField: Yüklenecek ilişki field'ları
 func (p *GormDataProvider) getRelationshipFields() []fields.RelationshipField {
-	fmt.Printf("[DEBUG] getRelationshipFields - WithRelationships: %v, relationshipFields count: %d\n", p.WithRelationships, len(p.relationshipFields))
-
 	if len(p.WithRelationships) == 0 || len(p.relationshipFields) == 0 {
-		fmt.Printf("[DEBUG] getRelationshipFields - Returning empty (WithRels empty: %v, Fields empty: %v)\n", len(p.WithRelationships) == 0, len(p.relationshipFields) == 0)
 		return []fields.RelationshipField{}
 	}
 
@@ -1879,14 +1877,11 @@ func (p *GormDataProvider) getRelationshipFields() []fields.RelationshipField {
 	for _, relName := range p.WithRelationships {
 		for _, field := range p.relationshipFields {
 			if field.GetRelationshipName() == relName {
-				fmt.Printf("[DEBUG] getRelationshipFields - Matched: %s\n", relName)
 				result = append(result, field)
 				break
 			}
 		}
 	}
-
-	fmt.Printf("[DEBUG] getRelationshipFields - Returning %d fields\n", len(result))
 	return result
 }
 

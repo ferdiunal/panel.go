@@ -239,8 +239,15 @@ func HandleResourceUpdate(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
+	resolvedData, err := h.resolveResourceFields(c.Ctx, c.Resource(), result, h.getElements(c))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
 	return c.JSON(fiber.Map{
-		"data":          h.resolveResourceFields(c.Ctx, c.Resource(), result, h.getElements(c)),
+		"data":          resolvedData,
 		"notifications": notificationsResponse,
 	})
 }

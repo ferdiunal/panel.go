@@ -124,6 +124,18 @@ type Base struct {
 	/// Diyalog tipi - Oluşturma/düzenleme işlemleri için kullanılacak diyalog türü
 	DialogType DialogType
 
+	/// Diyalog genişliği - Oluşturma/düzenleme modallarında kullanılacak genişlik preset'i
+	DialogSize DialogSize
+
+	/// Index görünümünde satıra tıklanınca açılacak varsayılan aksiyon
+	IndexRowClickAction IndexRowClickAction
+
+	/// Index görünümünde drag-drop reorder özelliği açık mı?
+	IndexReorderEnabled bool
+
+	/// Reorder sırasında güncellenecek kolon adı (örn: order_column)
+	IndexReorderColumn string
+
 	/// Dosya yükleme işleyicisi - Özel dosya yükleme mantığı için
 	/// nil ise varsayılan yükleme mantığı kullanılır
 	UploadHandler func(c *appContext.Context, file *multipart.FileHeader) (string, error)
@@ -797,6 +809,63 @@ func (r Base) GetDialogType() DialogType {
 // / - Çalışma zamanında diyalog tipini değiştirmek için kullanılabilir
 func (r *Base) SetDialogType(dialogType DialogType) Resource {
 	r.DialogType = dialogType
+	return r
+}
+
+// GetDialogSize, resource için modal/sheet genişlik preset'ini döner.
+// Boş ise varsayılan olarak DialogSizeMD kullanılır.
+func (r Base) GetDialogSize() DialogSize {
+	if r.DialogSize == "" {
+		return DialogSizeMD
+	}
+	return r.DialogSize
+}
+
+// SetDialogSize, resource için modal/sheet genişlik preset'ini ayarlar.
+func (r *Base) SetDialogSize(dialogSize DialogSize) Resource {
+	r.DialogSize = dialogSize
+	return r
+}
+
+// GetIndexRowClickAction, index satırına tıklanınca açılacak varsayılan aksiyonu döner.
+// Varsayılan değer "edit" olarak normalize edilir.
+func (r Base) GetIndexRowClickAction() IndexRowClickAction {
+	return NormalizeIndexRowClickAction(r.IndexRowClickAction)
+}
+
+// SetIndexRowClickAction, index satır tıklama aksiyonunu ayarlar.
+func (r *Base) SetIndexRowClickAction(action IndexRowClickAction) Resource {
+	r.IndexRowClickAction = NormalizeIndexRowClickAction(action)
+	return r
+}
+
+// GetIndexReorderConfig, index drag-drop reorder ayarlarını döner.
+func (r Base) GetIndexReorderConfig() IndexReorderConfig {
+	column := NormalizeIndexReorderColumn(r.IndexReorderColumn)
+	enabled := r.IndexReorderEnabled && column != ""
+
+	return IndexReorderConfig{
+		Enabled: enabled,
+		Column:  column,
+	}
+}
+
+// SetIndexReorder, index reorder ayarlarını toplu şekilde günceller.
+func (r *Base) SetIndexReorder(enabled bool, column string) Resource {
+	normalizedColumn := NormalizeIndexReorderColumn(column)
+	r.IndexReorderEnabled = enabled && normalizedColumn != ""
+	r.IndexReorderColumn = normalizedColumn
+	return r
+}
+
+// EnableIndexReorder, verilen kolon için reorder özelliğini etkinleştirir.
+func (r *Base) EnableIndexReorder(column string) Resource {
+	return r.SetIndexReorder(true, column)
+}
+
+// DisableIndexReorder, index reorder özelliğini devre dışı bırakır.
+func (r *Base) DisableIndexReorder() Resource {
+	r.IndexReorderEnabled = false
 	return r
 }
 

@@ -9,6 +9,7 @@ import (
 	appContext "github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -57,6 +58,16 @@ func TestHandleResourceIndex_Success(t *testing.T) {
 	dataList := response["data"].([]interface{})
 	if len(dataList) != 2 {
 		t.Errorf("Expected 2 items, got %d", len(dataList))
+	}
+
+	meta := response["meta"].(map[string]interface{})
+	if meta["row_click_action"] != string(resource.IndexRowClickActionEdit) {
+		t.Errorf("Expected default row_click_action=edit, got %v", meta["row_click_action"])
+	}
+
+	reorderMeta := meta["reorder"].(map[string]interface{})
+	if reorderMeta["enabled"] != false {
+		t.Errorf("Expected reorder.enabled=false, got %v", reorderMeta["enabled"])
 	}
 }
 

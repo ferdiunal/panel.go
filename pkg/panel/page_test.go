@@ -128,3 +128,15 @@ func TestPageAPI(t *testing.T) {
 		t.Errorf("Expected slug in detail, got %v", detailResp["slug"])
 	}
 }
+
+func TestDefaultAPIPageRegistration(t *testing.T) {
+	db, _ := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	app := New(Config{
+		Database:    DatabaseConfig{Instance: db},
+		Environment: "test",
+	})
+
+	if _, ok := app.pages["api-settings"]; !ok {
+		t.Error("default api page not registered")
+	}
+}

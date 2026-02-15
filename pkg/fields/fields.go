@@ -532,6 +532,32 @@ func KeyValue(name string, attribute ...string) *Schema {
 	return f
 }
 
+// Matrix, satır/sütun bazlı JSON veri giriş alanı oluşturur.
+//
+// Bu alan tipi; dinamik kolonlar, farklı hücre tipleri (text/select/checkbox/radio vb.)
+// ve satır ekleme-silme davranışları gibi gelişmiş form ihtiyaçları için kullanılır.
+//
+// Parametreler:
+//   - name: Alanın görüntü adı
+//   - attribute: İsteğe bağlı veritabanı sütun adı
+//
+// Dönüş Değeri:
+//   - *Schema: Yapılandırılmış matrix alan şeması pointer'ı
+//
+// Örnek Kullanım:
+//
+//	matrix := Matrix("Variant Matrix", "variant_matrix")
+//
+// Önemli Notlar:
+//   - Frontend bileşeni "matrix-field" olarak ayarlanır
+//   - TYPE_KEY_VALUE kullanılarak JSON tabanlı veri formatı korunur
+func Matrix(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "matrix-field"
+	f.Type = TYPE_KEY_VALUE
+	return f
+}
+
 // ============================================================================
 // İLİŞKİ ALANLARI (Relationship Fields)
 // ============================================================================

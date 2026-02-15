@@ -346,6 +346,8 @@ func (m *MockResource) GetSortable() []resource.Sortable                      { 
 func (m *MockResource) Slug() string                                          { return "users" }
 func (m *MockResource) GetDialogType() resource.DialogType                    { return resource.DialogTypeSheet }
 func (m *MockResource) SetDialogType(t resource.DialogType) resource.Resource { return m }
+func (m *MockResource) GetDialogSize() resource.DialogSize                    { return resource.DialogSizeMD }
+func (m *MockResource) SetDialogSize(s resource.DialogSize) resource.Resource { return m }
 func (m *MockResource) Repository(db *gorm.DB) data.DataProvider              { return nil }
 func (m *MockResource) GetRecordTitleKey() string                             { return "full_name" }
 func (m *MockResource) SetRecordTitleKey(key string) resource.Resource        { return m }
@@ -577,12 +579,15 @@ func TestResolveResourceFields_NormalizesNilRelationshipCollectionData(t *testin
 	relationshipField.View = "has-many-field"
 	relationshipField.Type = fields.TYPE_RELATIONSHIP
 
-	resolved := h.resolveResourceFields(
+	resolved, err := h.resolveResourceFields(
 		nil,
 		&core.ResourceContext{},
 		item,
 		[]fields.Element{relationshipField},
 	)
+	if err != nil {
+		t.Fatalf("resolveResourceFields returned error: %v", err)
+	}
 
 	fieldData, ok := resolved["product_variants"].(map[string]interface{})
 	if !ok {
@@ -618,12 +623,15 @@ func TestResolveResourceFields_AppliesDisplayCallbackWithComputedValue(t *testin
 		return fmt.Sprintf("size-for-%d", product.ID)
 	})
 
-	resolved := h.resolveResourceFields(
+	resolved, err := h.resolveResourceFields(
 		nil,
 		&core.ResourceContext{},
 		item,
 		[]fields.Element{computedField},
 	)
+	if err != nil {
+		t.Fatalf("resolveResourceFields returned error: %v", err)
+	}
 
 	fieldData, ok := resolved["sizes"].(map[string]interface{})
 	if !ok {
@@ -643,12 +651,15 @@ func TestResolveResourceFields_AppliesDisplayCallbackElementResult(t *testing.T)
 		return fields.Badge("Category")
 	})
 
-	resolved := h.resolveResourceFields(
+	resolved, err := h.resolveResourceFields(
 		nil,
 		&core.ResourceContext{},
 		item,
 		[]fields.Element{field},
 	)
+	if err != nil {
+		t.Fatalf("resolveResourceFields returned error: %v", err)
+	}
 
 	fieldData, ok := resolved["category_id"].(map[string]interface{})
 	if !ok {
@@ -680,12 +691,15 @@ func TestResolveResourceFields_AppliesDisplayCallbackStackResult(t *testing.T) {
 		})
 	})
 
-	resolved := h.resolveResourceFields(
+	resolved, err := h.resolveResourceFields(
 		nil,
 		&core.ResourceContext{},
 		item,
 		[]fields.Element{field},
 	)
+	if err != nil {
+		t.Fatalf("resolveResourceFields returned error: %v", err)
+	}
 
 	fieldData, ok := resolved["sizes"].(map[string]interface{})
 	if !ok {

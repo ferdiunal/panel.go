@@ -73,6 +73,8 @@ func (r *UserResource) GetSortable() []resource.Sortable                      { 
 func (u *UserResource) Slug() string                                          { return "users" }
 func (u *UserResource) GetDialogType() resource.DialogType                    { return resource.DialogTypeSheet }
 func (u *UserResource) SetDialogType(t resource.DialogType) resource.Resource { return u }
+func (u *UserResource) GetDialogSize() resource.DialogSize                    { return resource.DialogSizeMD }
+func (u *UserResource) SetDialogSize(s resource.DialogSize) resource.Resource { return u }
 func (u *UserResource) Repository(db *gorm.DB) data.DataProvider {
 	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/core"
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	internalconcurrency "github.com/ferdiunal/panel.go/pkg/internal/concurrency"
 	"github.com/ferdiunal/panel.go/pkg/notification"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/widget"
@@ -24,6 +25,15 @@ import (
 )
 
 const formNullSentinel = "__PANEL_NULL__"
+
+// ConcurrencyConfig controls request-time concurrency behavior for handler hot paths.
+type ConcurrencyConfig struct {
+	EnablePipelineV2 bool
+	FailFast         bool
+	MaxWorkers       int
+	CardWorkers      int
+	FieldWorkers     int
+}
 
 // / Bu yapı, panel API'sinde kaynak (resource) işlemlerini yönetmek için kullanılan
 // / merkezi HTTP istek işleyicisidir. Tüm CRUD operasyonları, alan (field) çözümleme,
@@ -83,7 +93,11 @@ type FieldHandler struct {
 	Cards               []widget.Card
 	Title               string
 	DialogType          resource.DialogType
+	DialogSize          resource.DialogSize
+	IndexRowClickAction resource.IndexRowClickAction
+	IndexReorderConfig  resource.IndexReorderConfig
 	NotificationService *notification.Service
+	Concurrency         ConcurrencyConfig
 }
 
 func collectSearchableColumns(elements []fields.Element) []string {
@@ -240,6 +254,36 @@ func collectRelationshipPreloads(
 	return preloads
 }
 
+type indexRowClickActionProvider interface {
+	GetIndexRowClickAction() resource.IndexRowClickAction
+}
+
+type indexReorderConfigProvider interface {
+	GetIndexReorderConfig() resource.IndexReorderConfig
+}
+
+func resolveIndexRowClickAction(res resource.Resource) resource.IndexRowClickAction {
+	if provider, ok := res.(indexRowClickActionProvider); ok {
+		return resource.NormalizeIndexRowClickAction(provider.GetIndexRowClickAction())
+	}
+	return resource.IndexRowClickActionEdit
+}
+
+func resolveIndexReorderConfig(res resource.Resource) resource.IndexReorderConfig {
+	if provider, ok := res.(indexReorderConfigProvider); ok {
+		cfg := provider.GetIndexReorderConfig()
+		column := resource.NormalizeIndexReorderColumn(cfg.Column)
+		return resource.IndexReorderConfig{
+			Enabled: cfg.Enabled && column != "",
+			Column:  column,
+		}
+	}
+	return resource.IndexReorderConfig{
+		Enabled: false,
+		Column:  "",
+	}
+}
+
 // / Bu fonksiyon, özel bir veri sağlayıcı (DataProvider) ile yeni bir FieldHandler oluşturur.
 // / Minimal konfigürasyonla handler oluşturmak için kullanılır.
 // /
@@ -278,7 +322,15 @@ func collectRelationshipPreloads(
 // / - `NewLensHandler`: Lens ile filtrelenmiş handler oluşturur
 func NewFieldHandler(provider data.DataProvider) *FieldHandler {
 	return &FieldHandler{
-		Provider: provider,
+		Provider:            provider,
+		IndexRowClickAction: resource.IndexRowClickActionEdit,
+		IndexReorderConfig: resource.IndexReorderConfig{
+			Enabled: false,
+			Column:  "",
+		},
+		Concurrency: ConcurrencyConfig{
+			FailFast: true,
+		},
 	}
 }
 
@@ -443,7 +495,13 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 		Cards:               res.Cards(),
 		Title:               res.Title(),
 		DialogType:          res.GetDialogType(),
+		DialogSize:          res.GetDialogSize(),
+		IndexRowClickAction: resolveIndexRowClickAction(res),
+		IndexReorderConfig:  resolveIndexReorderConfig(res),
 		NotificationService: notificationService,
+		Concurrency: ConcurrencyConfig{
+			FailFast: true,
+		},
 	}
 }
 
@@ -549,13 +607,93 @@ func NewLensHandler(client interface{}, res resource.Resource, lens resource.Len
 	provider.SetSearchColumns(collectSearchableColumns(lens.Fields()))
 
 	return &FieldHandler{
-		Provider: provider,
-		Elements: nil, // Lazy load edilecek
-		Policy:   res.Policy(),
-		Title:    lens.Name(),
-		Resource: res,
-		Lens:     lens,
+		Provider:            provider,
+		Elements:            nil, // Lazy load edilecek
+		Policy:              res.Policy(),
+		Title:               lens.Name(),
+		Resource:            res,
+		Lens:                lens,
+		DialogType:          res.GetDialogType(),
+		DialogSize:          res.GetDialogSize(),
+		IndexRowClickAction: resolveIndexRowClickAction(res),
+		IndexReorderConfig:  resolveIndexReorderConfig(res),
+		Concurrency: ConcurrencyConfig{
+			FailFast: true,
+		},
 	}
+}
+
+func (h *FieldHandler) SetConcurrencyConfig(cfg ConcurrencyConfig) {
+	h.Concurrency = cfg
+}
+
+func (h *FieldHandler) usePipelineV2() bool {
+	return h != nil && h.Concurrency.EnablePipelineV2
+}
+
+func (h *FieldHandler) shouldFailFast() bool {
+	if !h.usePipelineV2() {
+		return false
+	}
+	// Default fail-fast behavior for v2 when not explicitly configured.
+	if !h.Concurrency.FailFast {
+		return false
+	}
+	return true
+}
+
+func (h *FieldHandler) resolveMaxWorkers(total int) int {
+	return internalconcurrency.ClampWorkers(h.Concurrency.MaxWorkers, total)
+}
+
+func (h *FieldHandler) resolveCardWorkers(total int) int {
+	workers := h.Concurrency.CardWorkers
+	if workers <= 0 {
+		workers = h.Concurrency.MaxWorkers
+	}
+	return internalconcurrency.ClampWorkers(workers, total)
+}
+
+func (h *FieldHandler) resolveFieldWorkers(total int) int {
+	workers := h.Concurrency.FieldWorkers
+	if workers <= 0 {
+		workers = h.Concurrency.MaxWorkers
+	}
+	return internalconcurrency.ClampWorkers(workers, total)
+}
+
+func cloneElementForIsolation(element fields.Element) fields.Element {
+	value := reflect.ValueOf(element)
+	if !value.IsValid() || value.Kind() != reflect.Ptr || value.IsNil() {
+		return element
+	}
+
+	elemType := value.Elem().Type()
+	cloned := reflect.New(elemType)
+	cloned.Elem().Set(value.Elem())
+
+	clonedElement, ok := cloned.Interface().(fields.Element)
+	if !ok {
+		return element
+	}
+	return clonedElement
+}
+
+func cloneElementsForIsolation(elements []fields.Element) []fields.Element {
+	cloned := make([]fields.Element, len(elements))
+	for i, element := range elements {
+		cloned[i] = cloneElementForIsolation(element)
+	}
+	return cloned
+}
+
+func cloneResourceContextForIsolation(ctx *core.ResourceContext) *core.ResourceContext {
+	if ctx == nil {
+		return nil
+	}
+
+	cloned := *ctx
+	return &cloned
 }
 
 // / getElements, context ile field'ları lazy load eder.
@@ -830,7 +968,7 @@ func (h *FieldHandler) Detail(c *context.Context) error {
 // / - `Element.Extract`: Item'dan veri çıkarır
 // / - `Element.JsonSerialize`: Veriyi JSON formatına dönüştürür
 // / - `Element.GetResolveCallback`: Özel callback fonksiyonunu alır
-func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceContext, item interface{}, elements []fields.Element) map[string]interface{} {
+func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceContext, item interface{}, elements []fields.Element) (map[string]interface{}, error) {
 	resourceData := make(map[string]interface{})
 	for _, element := range elements {
 		if !element.IsVisible(ctx) {
@@ -869,17 +1007,14 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 
 		// Resolve MorphTo display fields
 		if element.GetView() == "morph-to-field" {
-			fmt.Printf("[DEBUG] MorphTo field detected: %s\n", element.GetKey())
 			if data, ok := serialized["data"].(map[string]interface{}); ok {
 				morphType, _ := data["type"].(string)
 				morphID := data["id"]
-				fmt.Printf("[DEBUG] MorphTo data - type: %s, id: %v\n", morphType, morphID)
 
 				if morphType != "" && morphID != nil {
 					// Get display field from props
 					if props, ok := serialized["props"].(map[string]interface{}); ok {
 						if displaysRaw, ok := props["displays"]; ok {
-							fmt.Printf("[DEBUG] Displays found: %+v\n", displaysRaw)
 							// displays can be map[string]string or map[string]interface{}
 							var displayField string
 							switch displays := displaysRaw.(type) {
@@ -890,16 +1025,12 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 									displayField = df
 								}
 							}
-							fmt.Printf("[DEBUG] Display field for type '%s': %s\n", morphType, displayField)
 
 							if displayField != "" {
 								// TODO: Implement MorphTo display field resolution via Provider
 								// This requires adding a QueryTable method to DataProvider interface
 								// or using a specialized relationship resolver
-								fmt.Printf("[DEBUG] TODO: Resolve MorphTo display for table '%s' field '%s' with id %v\n", strings.ToLower(morphType), displayField, morphID)
 							}
-						} else {
-							fmt.Printf("[DEBUG] No displays found in props\n")
 						}
 					}
 				}
@@ -914,9 +1045,13 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 		}
 		applyDisplayCallback(element, serialized, item)
 
-		resourceData[serialized["key"].(string)] = serialized
+		key, ok := serialized["key"].(string)
+		if !ok || strings.TrimSpace(key) == "" {
+			return nil, fmt.Errorf("failed to resolve field key for view %s", element.GetView())
+		}
+		resourceData[key] = serialized
 	}
-	return resourceData
+	return resourceData, nil
 }
 
 func normalizeRelationshipCollectionData(view string, serialized map[string]interface{}) {

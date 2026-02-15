@@ -40,6 +40,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/data/orm"
 	"github.com/ferdiunal/panel.go/pkg/domain/account"
+	"github.com/ferdiunal/panel.go/pkg/domain/apikey"
 	notificationDomain "github.com/ferdiunal/panel.go/pkg/domain/notification"
 	"github.com/ferdiunal/panel.go/pkg/domain/session"
 	"github.com/ferdiunal/panel.go/pkg/domain/setting"
@@ -95,15 +96,18 @@ import (
 // / - Panel örneği oluşturulduktan sonra değiştirilmemelidir
 // / - Kaynaklar ve sayfalar Start() çağrılmadan önce kayıtlı olmalıdır
 type Panel struct {
-	Config             Config
-	Db                 *gorm.DB
-	Fiber              *fiber.App
-	Auth               *auth.Service
-	resources          map[string]resource.Resource
-	pages              map[string]page.Page
-	plugins            []interface{} // Registered plugins
-	http2PushResources []string      // Cached list of critical assets for HTTP/2 push
-	openAPIHandler     *handler.OpenAPIHandler
+	Config                Config
+	Db                    *gorm.DB
+	Fiber                 *fiber.App
+	Auth                  *auth.Service
+	resources             map[string]resource.Resource
+	publicResources       map[string]resource.Resource
+	internalResourceSlugs map[string]struct{}
+	pages                 map[string]page.Page
+	plugins               []interface{} // Registered plugins
+	http2PushResources    []string      // Cached list of critical assets for HTTP/2 push
+	openAPIHandler        *handler.OpenAPIHandler
+	apiKeyAuth            *middleware.APIKeyAuth
 }
 
 // / # New Fonksiyonu
@@ -221,6 +225,12 @@ func langMiddleware(config Config) fiber.Handler {
 }
 
 func New(config Config) *Panel {
+	// Preserve default fail-fast=true for legacy/zero config while still allowing
+	// explicit FailFast=false when pipeline v2 is enabled.
+	if !config.Concurrency.EnablePipelineV2 && !config.Concurrency.FailFast {
+		config.Concurrency.FailFast = true
+	}
+
 	// configRef, closure'ların her zaman güncel config'i okumasını sağlar.
 	// Panel oluşturulduktan sonra p.Config'e yeniden atanır.
 	configRef := &config
@@ -255,7 +265,7 @@ func New(config Config) *Panel {
 	authH := authHandler.NewHandler(authService, accountLockout, config.Environment)
 
 	// Auto Migrate Auth Domains
-	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{}, &notificationDomain.Notification{})
+	db.AutoMigrate(&user.User{}, &session.Session{}, &account.Account{}, &verification.Verification{}, &setting.Setting{}, &notificationDomain.Notification{}, &apikey.APIKey{})
 
 	// Middleware Registration
 	// SECURITY: EncryptCookie middleware - MUST be registered BEFORE other cookie middleware
@@ -300,7 +310,7 @@ func New(config Config) *Panel {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     strings.Join(allowedOrigins, ","),
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token",
+		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token,X-API-Key",
 		AllowCredentials: true,
 		ExposeHeaders:    "Content-Length",
 		MaxAge:           3600,
@@ -593,13 +603,15 @@ func New(config Config) *Panel {
 	}
 
 	p := &Panel{
-		Config:    config,
-		Db:        db,
-		Fiber:     app,
-		Auth:      authService,
-		resources: make(map[string]resource.Resource),
-		pages:     make(map[string]page.Page),
-		plugins:   make([]interface{}, 0),
+		Config:                config,
+		Db:                    db,
+		Fiber:                 app,
+		Auth:                  authService,
+		resources:             make(map[string]resource.Resource),
+		publicResources:       make(map[string]resource.Resource),
+		internalResourceSlugs: make(map[string]struct{}),
+		pages:                 make(map[string]page.Page),
+		plugins:               make([]interface{}, 0),
 	}
 
 	// Load Dynamic Settings (veritabanından)
@@ -620,9 +632,9 @@ func New(config Config) *Panel {
 
 	// Register Default Resources
 	if p.Config.UserResource != nil {
-		p.RegisterResource(p.Config.UserResource)
+		p.registerSystemResource(p.Config.UserResource)
 	} else {
-		p.RegisterResource(resourceUser.GetUserResource())
+		p.registerSystemResource(resourceUser.GetUserResource())
 	}
 
 	// Register Additional Resources
@@ -632,9 +644,15 @@ func New(config Config) *Panel {
 
 	// Auto-discover resources from global registry
 	// Requires resources to register themselves via init() functions
-	for _, res := range resource.List() {
-		p.RegisterResource(res)
+	for slug, res := range resource.List() {
+		if p.isInternalResourceSlug(slug) {
+			continue
+		}
+		p.Register(slug, res)
 	}
+
+	// Register Pages from Config
+	p.RegisterPage(newDefaultAPIPage(config))
 
 	// Register Pages from Config
 	// Kullanıcı tarafından tanımlanan sayfaları kaydet
@@ -647,6 +665,25 @@ func New(config Config) *Panel {
 	// /api/resource/:resource/:id -> Detail/Show/Update/Delete
 
 	api := app.Group("/api")
+	apiKeyConfig := p.resolveAPIKeyRuntimeConfig()
+	p.apiKeyAuth = middleware.NewAPIKeyAuth(apiKeyConfig.Enabled, apiKeyConfig.Header, apiKeyConfig.Keys)
+	p.apiKeyAuth.SetDynamicValidator(p.validateManagedAPIKey)
+
+	// Public OpenAPI routes (must stay outside API auth middleware).
+	openAPIConfig := openapi.SpecGeneratorConfig{
+		Title:        "Panel.go Admin Panel",
+		Version:      "1.0.0",
+		Description:  "Panel.go Admin Panel API",
+		ServerURL:    "",
+		APIKeyHeader: apiKeyConfig.Header,
+	}
+	p.openAPIHandler = handler.NewOpenAPIHandler(p.publicResources, openAPIConfig)
+	app.Get("/api/openapi.json", p.openAPIHandler.GetSpec)
+	app.Get("/api/docs", p.openAPIHandler.SwaggerUI)
+	if config.I18n.Enabled && config.I18n.UseURLPrefix {
+		app.Get("/api/:lang/openapi.json", p.openAPIHandler.GetSpec)
+		app.Get("/api/:lang/docs", p.openAPIHandler.SwaggerUI)
+	}
 
 	// RESILIENCE: Circuit Breaker middleware
 	// Servis hatalarını yönetir ve sistem çökmelerini önler
@@ -726,10 +763,16 @@ func New(config Config) *Panel {
 		apiGroup.Get("/init", context.Wrap(p.handleInit)) // App Initialization
 
 		// Middleware
+		apiGroup.Use(p.apiKeyAuth.Middleware())
 		apiGroup.Use(context.Wrap(authH.SessionMiddleware))
 		// SECURITY: Rate limiting for general API endpoints (100 req/min)
 		// TEMPORARY: Rate limiting disabled for development
 		// apiGroup.Use(middleware.APIRateLimiter())
+
+		// Managed API key lifecycle routes (admin + session only).
+		apiGroup.Get("/api-keys", context.Wrap(p.handleAPIKeyList))
+		apiGroup.Post("/api-keys", context.Wrap(p.handleAPIKeyCreate))
+		apiGroup.Delete("/api-keys/:id", context.Wrap(p.handleAPIKeyRevoke))
 
 		// Page Routes
 		apiGroup.Get("/pages", context.Wrap(p.handlePages))
@@ -749,6 +792,7 @@ func New(config Config) *Panel {
 		apiGroup.Post("/resource/:resource/actions/:action", context.Wrap(p.handleResourceActionExecute)) // Execute action
 		apiGroup.Get("/resource/:resource", context.Wrap(p.handleResourceIndex))
 		apiGroup.Post("/resource/:resource", context.Wrap(p.handleResourceStore))
+		apiGroup.Post("/resource/:resource/reorder", context.Wrap(p.handleResourceReorder))
 		apiGroup.Get("/resource/:resource/create", context.Wrap(p.handleResourceCreate)) // New Route
 		apiGroup.Get("/resource/:resource/:id", context.Wrap(p.handleResourceShow))
 		apiGroup.Get("/resource/:resource/:id/detail", context.Wrap(p.handleResourceDetail))
@@ -786,19 +830,6 @@ func New(config Config) *Panel {
 	api.Get("/notifications", context.Wrap(notificationHandler.HandleGetUnreadNotifications))
 	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
 	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
-
-	// OpenAPI Routes (dual route registration dışında)
-	openAPIConfig := openapi.SpecGeneratorConfig{
-		Title:       "Panel.go Admin Panel",
-		Version:     "1.0.0",
-		Description: "Panel.go Admin Panel API",
-		ServerURL:   "",
-	}
-	p.openAPIHandler = handler.NewOpenAPIHandler(p.resources, openAPIConfig)
-	api.Get("/openapi.json", p.openAPIHandler.GetSpec)
-	api.Get("/docs", p.openAPIHandler.SwaggerUI)
-	api.Get("/docs/redoc", p.openAPIHandler.ReDocUI)
-	api.Get("/docs/rapidoc", p.openAPIHandler.RapidocUI)
 
 	// Boot Plugins: Load plugins from global registry and boot them
 	// Plugins register themselves via init() functions
@@ -926,6 +957,10 @@ func (p *Panel) LoadSettings() error {
 	}
 
 	for _, s := range settings {
+		if isAPIKeySettingKey(s.Key) {
+			continue
+		}
+
 		// Parse JSON value
 		var val interface{}
 		if err := json.Unmarshal([]byte(s.Value), &val); err != nil {
@@ -995,8 +1030,7 @@ func parseBoolValue(val interface{}) bool {
 // / - Diyalog türü her zaman Sheet olarak ayarlanır
 // / - Slug benzersiz olmalıdır
 func (p *Panel) Register(slug string, res resource.Resource) {
-	res.SetDialogType(resource.DialogTypeSheet)
-	p.resources[slug] = res
+	p.registerResourceWithScope(slug, res, false)
 }
 
 // / # RegisterResource Metodu
@@ -1141,13 +1175,20 @@ func (p *Panel) Start() error {
 // / - Hata işleme otomatik olarak yapılır
 func (p *Panel) withResourceHandler(c *context.Context, fn func(*handler.FieldHandler) error) error {
 	slug := c.Params("resource")
-	res, ok := p.resources[slug]
+	res, ok := p.resolveResourceForRequest(c, slug)
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Resource not found",
 		})
 	}
 	h := handler.NewResourceHandler(p.Db, res, p.Config.Storage.Path, p.Config.Storage.URL)
+	h.SetConcurrencyConfig(handler.ConcurrencyConfig{
+		EnablePipelineV2: p.Config.Concurrency.EnablePipelineV2,
+		FailFast:         p.Config.Concurrency.FailFast,
+		MaxWorkers:       p.Config.Concurrency.MaxWorkers,
+		CardWorkers:      p.Config.Concurrency.CardWorkers,
+		FieldWorkers:     p.Config.Concurrency.FieldWorkers,
+	})
 	return fn(h)
 }
 
@@ -1275,6 +1316,13 @@ func (p *Panel) handleResourceDetail(c *context.Context) error {
 func (p *Panel) handleResourceStore(c *context.Context) error {
 	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
 		return handler.HandleResourceStore(h, c)
+	})
+}
+
+// handleResourceReorder updates row order for reorder-enabled resources.
+func (p *Panel) handleResourceReorder(c *context.Context) error {
+	return p.withResourceHandler(c, func(h *handler.FieldHandler) error {
+		return handler.HandleResourceReorder(h, c)
 	})
 }
 
@@ -1572,7 +1620,7 @@ func (p *Panel) withLensHandler(c *context.Context, fn func(*handler.FieldHandle
 	slug := c.Params("resource")
 	lensSlug := c.Params("lens")
 
-	res, ok := p.resources[slug]
+	res, ok := p.resolveResourceForRequest(c, slug)
 	if !ok {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Resource not found",
@@ -1596,6 +1644,13 @@ func (p *Panel) withLensHandler(c *context.Context, fn func(*handler.FieldHandle
 
 	// Create Handler for Lens
 	h := handler.NewLensHandler(p.Db, res, targetLens)
+	h.SetConcurrencyConfig(handler.ConcurrencyConfig{
+		EnablePipelineV2: p.Config.Concurrency.EnablePipelineV2,
+		FailFast:         p.Config.Concurrency.FailFast,
+		MaxWorkers:       p.Config.Concurrency.MaxWorkers,
+		CardWorkers:      p.Config.Concurrency.CardWorkers,
+		FieldWorkers:     p.Config.Concurrency.FieldWorkers,
+	})
 
 	return fn(h)
 }
@@ -1794,6 +1849,9 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 
 	items := []NavItem{}
 	for slug, res := range p.resources {
+		if !p.isResourceAccessibleForRequest(c, slug) {
+			continue
+		}
 		if !res.Visible() {
 			continue
 		}
@@ -1809,7 +1867,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 	}
 
 	for slug, pg := range p.pages {
-		if !pg.Visible() {
+		if !pg.Visible() || !pg.CanAccess(c) {
 			continue
 		}
 		items = append(items, NavItem{
@@ -2010,7 +2068,7 @@ func (p *Panel) handleResolve(c *context.Context) error {
 	}
 
 	// Check Resources
-	if res, ok := p.resources[path]; ok {
+	if res, ok := p.resolveResourceForRequest(c, path); ok {
 		return c.JSON(fiber.Map{
 			"type": "resource",
 			"slug": path,

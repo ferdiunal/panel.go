@@ -12,68 +12,68 @@ import (
 	"gorm.io/gorm"
 )
 
-/// # Action Interface
-///
-/// Bu interface, bir kaynak üzerinde gerçekleştirilebilecek özel toplu işlemleri (bulk actions) temsil eder.
-/// Action'lar, kullanıcıların seçili kayıtlar üzerinde özel işlemler yapmasına olanak tanır.
-///
-/// ## Kullanım Senaryoları
-///
-/// - **Toplu Durum Değişikliği**: Seçili kayıtları aktif/pasif yapma
-/// - **Toplu Silme**: Birden fazla kaydı aynı anda silme
-/// - **E-posta Gönderimi**: Seçili kullanıcılara toplu e-posta gönderme
-/// - **Dışa Aktarma**: Seçili kayıtları CSV/Excel formatında dışa aktarma
-/// - **Toplu Güncelleme**: Seçili kayıtların belirli alanlarını güncelleme
-/// - **Onay İşlemleri**: Bekleyen kayıtları toplu olarak onaylama/reddetme
-///
-/// ## Örnek Kullanım
-///
-/// ```go
-/// type ActivateUsersAction struct{}
-///
-/// func (a *ActivateUsersAction) GetName() string {
-///     return "Kullanıcıları Aktifleştir"
-/// }
-///
-/// func (a *ActivateUsersAction) GetSlug() string {
-///     return "activate-users"
-/// }
-///
-/// func (a *ActivateUsersAction) GetIcon() string {
-///     return "check-circle" // Lucide icon
-/// }
-///
-/// func (a *ActivateUsersAction) Execute(ctx *appContext.Context, items []any) error {
-///     for _, item := range items {
-///         user := item.(*User)
-///         user.IsActive = true
-///         if err := ctx.DB.Save(user).Error; err != nil {
-///             return err
-///         }
-///     }
-///     return nil
-/// }
-/// ```
-///
-/// ## Önemli Notlar
-///
-/// - Action'lar transaction içinde çalıştırılmalıdır
-/// - Hata durumunda tüm işlemler geri alınmalıdır (rollback)
-/// - Kullanıcı yetkilendirmesi Execute metodunda kontrol edilmelidir
-/// - İşlem sonucu kullanıcıya bildirim gösterilmelidir
-///
-/// ## Avantajlar
-///
-/// - Tekrarlayan işlemleri otomatikleştirir
-/// - Kullanıcı deneyimini iyileştirir
-/// - Kod tekrarını azaltır
-/// - Merkezi hata yönetimi sağlar
-///
-/// ## Dikkat Edilmesi Gerekenler
-///
-/// - Büyük veri setlerinde performans sorunları yaşanabilir
-/// - İşlem süresi uzun olabilir, timeout ayarları yapılmalıdır
-/// - Concurrent işlemlerde race condition'a dikkat edilmelidir
+// / # Action Interface
+// /
+// / Bu interface, bir kaynak üzerinde gerçekleştirilebilecek özel toplu işlemleri (bulk actions) temsil eder.
+// / Action'lar, kullanıcıların seçili kayıtlar üzerinde özel işlemler yapmasına olanak tanır.
+// /
+// / ## Kullanım Senaryoları
+// /
+// / - **Toplu Durum Değişikliği**: Seçili kayıtları aktif/pasif yapma
+// / - **Toplu Silme**: Birden fazla kaydı aynı anda silme
+// / - **E-posta Gönderimi**: Seçili kullanıcılara toplu e-posta gönderme
+// / - **Dışa Aktarma**: Seçili kayıtları CSV/Excel formatında dışa aktarma
+// / - **Toplu Güncelleme**: Seçili kayıtların belirli alanlarını güncelleme
+// / - **Onay İşlemleri**: Bekleyen kayıtları toplu olarak onaylama/reddetme
+// /
+// / ## Örnek Kullanım
+// /
+// / ```go
+// / type ActivateUsersAction struct{}
+// /
+// / func (a *ActivateUsersAction) GetName() string {
+// /     return "Kullanıcıları Aktifleştir"
+// / }
+// /
+// / func (a *ActivateUsersAction) GetSlug() string {
+// /     return "activate-users"
+// / }
+// /
+// / func (a *ActivateUsersAction) GetIcon() string {
+// /     return "check-circle" // Lucide icon
+// / }
+// /
+// / func (a *ActivateUsersAction) Execute(ctx *appContext.Context, items []any) error {
+// /     for _, item := range items {
+// /         user := item.(*User)
+// /         user.IsActive = true
+// /         if err := ctx.DB.Save(user).Error; err != nil {
+// /             return err
+// /         }
+// /     }
+// /     return nil
+// / }
+// / ```
+// /
+// / ## Önemli Notlar
+// /
+// / - Action'lar transaction içinde çalıştırılmalıdır
+// / - Hata durumunda tüm işlemler geri alınmalıdır (rollback)
+// / - Kullanıcı yetkilendirmesi Execute metodunda kontrol edilmelidir
+// / - İşlem sonucu kullanıcıya bildirim gösterilmelidir
+// /
+// / ## Avantajlar
+// /
+// / - Tekrarlayan işlemleri otomatikleştirir
+// / - Kullanıcı deneyimini iyileştirir
+// / - Kod tekrarını azaltır
+// / - Merkezi hata yönetimi sağlar
+// /
+// / ## Dikkat Edilmesi Gerekenler
+// /
+// / - Büyük veri setlerinde performans sorunları yaşanabilir
+// / - İşlem süresi uzun olabilir, timeout ayarları yapılmalıdır
+// / - Concurrent işlemlerde race condition'a dikkat edilmelidir
 type Action interface {
 	/// GetName, işlemin kullanıcı arayüzünde görünecek Türkçe adını döner.
 	///
@@ -168,83 +168,83 @@ type Action interface {
 	Execute(ctx *appContext.Context, items []any) error
 }
 
-/// # Filter Interface
-///
-/// Bu interface, kaynak listelerinde uygulanabilecek filtreleme seçeneklerini temsil eder.
-/// Filtreler, kullanıcıların büyük veri setlerini daraltarak istedikleri kayıtları bulmalarını sağlar.
-///
-/// ## Kullanım Senaryoları
-///
-/// - **Durum Filtreleme**: Aktif/pasif, yayınlanmış/taslak kayıtları filtreleme
-/// - **Tarih Aralığı**: Belirli tarih aralığındaki kayıtları gösterme
-/// - **Kategori Filtreleme**: Belirli kategorilere ait kayıtları listeleme
-/// - **Fiyat Aralığı**: Min-max fiyat aralığında ürün filtreleme
-/// - **Kullanıcı Filtreleme**: Belirli kullanıcıya ait kayıtları gösterme
-/// - **Boolean Filtreler**: Öne çıkan, onaylanmış vb. kayıtları filtreleme
-///
-/// ## Örnek Kullanım
-///
-/// ```go
-/// type StatusFilter struct{}
-///
-/// func (f *StatusFilter) GetName() string {
-///     return "Durum"
-/// }
-///
-/// func (f *StatusFilter) GetSlug() string {
-///     return "status"
-/// }
-///
-/// func (f *StatusFilter) GetType() string {
-///     return "select" // select, date, range, boolean
-/// }
-///
-/// func (f *StatusFilter) GetOptions() map[string]string {
-///     return map[string]string{
-///         "active":   "Aktif",
-///         "inactive": "Pasif",
-///         "pending":  "Beklemede",
-///     }
-/// }
-///
-/// func (f *StatusFilter) Apply(db *gorm.DB, value any) *gorm.DB {
-///     if status, ok := value.(string); ok && status != "" {
-///         return db.Where("status = ?", status)
-///     }
-///     return db
-/// }
-/// ```
-///
-/// ## Filtre Tipleri
-///
-/// - **select**: Açılır liste (dropdown) ile tek seçim
-/// - **multiselect**: Çoklu seçim listesi
-/// - **date**: Tarih seçici
-/// - **daterange**: Tarih aralığı seçici
-/// - **range**: Sayısal aralık (min-max)
-/// - **boolean**: Evet/Hayır seçimi
-/// - **search**: Metin arama kutusu
-///
-/// ## Önemli Notlar
-///
-/// - Filtreler URL query parametrelerine yansıtılır
-/// - Filtre değerleri sayfa yenilendiğinde korunur
-/// - Birden fazla filtre aynı anda uygulanabilir
-/// - Filtre değerleri validate edilmelidir
-///
-/// ## Avantajlar
-///
-/// - Kullanıcı deneyimini iyileştirir
-/// - Büyük veri setlerinde gezinmeyi kolaylaştırır
-/// - Performanslı sorgular oluşturur
-/// - URL ile paylaşılabilir filtreler
-///
-/// ## Dikkat Edilmesi Gerekenler
-///
-/// - SQL injection'a karşı parameterized query kullanın
-/// - Geçersiz değerleri kontrol edin
-/// - İndeksli sütunlarda filtreleme yapın
-/// - Karmaşık filtrelerde performans testleri yapın
+// / # Filter Interface
+// /
+// / Bu interface, kaynak listelerinde uygulanabilecek filtreleme seçeneklerini temsil eder.
+// / Filtreler, kullanıcıların büyük veri setlerini daraltarak istedikleri kayıtları bulmalarını sağlar.
+// /
+// / ## Kullanım Senaryoları
+// /
+// / - **Durum Filtreleme**: Aktif/pasif, yayınlanmış/taslak kayıtları filtreleme
+// / - **Tarih Aralığı**: Belirli tarih aralığındaki kayıtları gösterme
+// / - **Kategori Filtreleme**: Belirli kategorilere ait kayıtları listeleme
+// / - **Fiyat Aralığı**: Min-max fiyat aralığında ürün filtreleme
+// / - **Kullanıcı Filtreleme**: Belirli kullanıcıya ait kayıtları gösterme
+// / - **Boolean Filtreler**: Öne çıkan, onaylanmış vb. kayıtları filtreleme
+// /
+// / ## Örnek Kullanım
+// /
+// / ```go
+// / type StatusFilter struct{}
+// /
+// / func (f *StatusFilter) GetName() string {
+// /     return "Durum"
+// / }
+// /
+// / func (f *StatusFilter) GetSlug() string {
+// /     return "status"
+// / }
+// /
+// / func (f *StatusFilter) GetType() string {
+// /     return "select" // select, date, range, boolean
+// / }
+// /
+// / func (f *StatusFilter) GetOptions() map[string]string {
+// /     return map[string]string{
+// /         "active":   "Aktif",
+// /         "inactive": "Pasif",
+// /         "pending":  "Beklemede",
+// /     }
+// / }
+// /
+// / func (f *StatusFilter) Apply(db *gorm.DB, value any) *gorm.DB {
+// /     if status, ok := value.(string); ok && status != "" {
+// /         return db.Where("status = ?", status)
+// /     }
+// /     return db
+// / }
+// / ```
+// /
+// / ## Filtre Tipleri
+// /
+// / - **select**: Açılır liste (dropdown) ile tek seçim
+// / - **multiselect**: Çoklu seçim listesi
+// / - **date**: Tarih seçici
+// / - **daterange**: Tarih aralığı seçici
+// / - **range**: Sayısal aralık (min-max)
+// / - **boolean**: Evet/Hayır seçimi
+// / - **search**: Metin arama kutusu
+// /
+// / ## Önemli Notlar
+// /
+// / - Filtreler URL query parametrelerine yansıtılır
+// / - Filtre değerleri sayfa yenilendiğinde korunur
+// / - Birden fazla filtre aynı anda uygulanabilir
+// / - Filtre değerleri validate edilmelidir
+// /
+// / ## Avantajlar
+// /
+// / - Kullanıcı deneyimini iyileştirir
+// / - Büyük veri setlerinde gezinmeyi kolaylaştırır
+// / - Performanslı sorgular oluşturur
+// / - URL ile paylaşılabilir filtreler
+// /
+// / ## Dikkat Edilmesi Gerekenler
+// /
+// / - SQL injection'a karşı parameterized query kullanın
+// / - Geçersiz değerleri kontrol edin
+// / - İndeksli sütunlarda filtreleme yapın
+// / - Karmaşık filtrelerde performans testleri yapın
 type Filter interface {
 	/// GetName, filtrenin kullanıcı arayüzünde görünecek Türkçe adını döner.
 	///
@@ -393,77 +393,77 @@ type Filter interface {
 	Apply(db any, value any) any
 }
 
-/// # Sortable Struct
-///
-/// Bu yapı, liste görünümlerinde varsayılan sıralama ayarlarını tanımlar.
-/// Kaynak ilk yüklendiğinde hangi sütuna göre ve hangi yönde sıralanacağını belirler.
-///
-/// ## Kullanım Senaryoları
-///
-/// - **Tarih Sıralaması**: En yeni kayıtları üstte gösterme (created_at DESC)
-/// - **Alfabetik Sıralama**: Kayıtları ada göre A-Z sıralama (name ASC)
-/// - **Öncelik Sıralaması**: Önemli kayıtları üstte gösterme (priority DESC)
-/// - **Fiyat Sıralaması**: Ürünleri fiyata göre sıralama (price ASC/DESC)
-/// - **Durum Sıralaması**: Aktif kayıtları üstte gösterme (is_active DESC)
-///
-/// ## Örnek Kullanım
-///
-/// ```go
-/// // Resource'da varsayılan sıralama tanımlama
-/// func (r *PostResource) GetSortable() []resource.Sortable {
-///     return []resource.Sortable{
-///         {
-///             Column:    "created_at",
-///             Direction: "desc",
-///         },
-///     }
-/// }
-///
-/// // Çoklu sıralama
-/// func (r *UserResource) GetSortable() []resource.Sortable {
-///     return []resource.Sortable{
-///         {
-///             Column:    "is_active",
-///             Direction: "desc",
-///         },
-///         {
-///             Column:    "created_at",
-///             Direction: "desc",
-///         },
-///     }
-/// }
-///
-/// // Alfabetik sıralama
-/// func (r *CategoryResource) GetSortable() []resource.Sortable {
-///     return []resource.Sortable{
-///         {
-///             Column:    "name",
-///             Direction: "asc",
-///         },
-///     }
-/// }
-/// ```
-///
-/// ## Önemli Notlar
-///
-/// - Sıralama sütunu veritabanında mevcut olmalıdır
-/// - Performans için sıralama sütunlarına indeks ekleyin
-/// - Direction değeri "asc" veya "desc" olmalıdır
-/// - Çoklu sıralama için birden fazla Sortable tanımlanabilir
-/// - Kullanıcı arayüzden sıralamayı değiştirebilir
-///
-/// ## Avantajlar
-///
-/// - Tutarlı kullanıcı deneyimi sağlar
-/// - En önemli kayıtlar önce gösterilir
-/// - Performanslı sorgular oluşturur
-/// - Kullanıcı beklentilerini karşılar
-///
-/// ## Dikkat Edilmesi Gerekenler
-///
-/// - İndekslenmemiş sütunlarda sıralama yavaş olabilir
-/// - Büyük veri setlerinde performans testleri yapın
-/// - NULL değerleri olan sütunlarda sıralama davranışını kontrol edin
+// / # Sortable Struct
+// /
+// / Bu yapı, liste görünümlerinde varsayılan sıralama ayarlarını tanımlar.
+// / Kaynak ilk yüklendiğinde hangi sütuna göre ve hangi yönde sıralanacağını belirler.
+// /
+// / ## Kullanım Senaryoları
+// /
+// / - **Tarih Sıralaması**: En yeni kayıtları üstte gösterme (created_at DESC)
+// / - **Alfabetik Sıralama**: Kayıtları ada göre A-Z sıralama (name ASC)
+// / - **Öncelik Sıralaması**: Önemli kayıtları üstte gösterme (priority DESC)
+// / - **Fiyat Sıralaması**: Ürünleri fiyata göre sıralama (price ASC/DESC)
+// / - **Durum Sıralaması**: Aktif kayıtları üstte gösterme (is_active DESC)
+// /
+// / ## Örnek Kullanım
+// /
+// / ```go
+// / // Resource'da varsayılan sıralama tanımlama
+// / func (r *PostResource) GetSortable() []resource.Sortable {
+// /     return []resource.Sortable{
+// /         {
+// /             Column:    "created_at",
+// /             Direction: "desc",
+// /         },
+// /     }
+// / }
+// /
+// / // Çoklu sıralama
+// / func (r *UserResource) GetSortable() []resource.Sortable {
+// /     return []resource.Sortable{
+// /         {
+// /             Column:    "is_active",
+// /             Direction: "desc",
+// /         },
+// /         {
+// /             Column:    "created_at",
+// /             Direction: "desc",
+// /         },
+// /     }
+// / }
+// /
+// / // Alfabetik sıralama
+// / func (r *CategoryResource) GetSortable() []resource.Sortable {
+// /     return []resource.Sortable{
+// /         {
+// /             Column:    "name",
+// /             Direction: "asc",
+// /         },
+// /     }
+// / }
+// / ```
+// /
+// / ## Önemli Notlar
+// /
+// / - Sıralama sütunu veritabanında mevcut olmalıdır
+// / - Performans için sıralama sütunlarına indeks ekleyin
+// / - Direction değeri "asc" veya "desc" olmalıdır
+// / - Çoklu sıralama için birden fazla Sortable tanımlanabilir
+// / - Kullanıcı arayüzden sıralamayı değiştirebilir
+// /
+// / ## Avantajlar
+// /
+// / - Tutarlı kullanıcı deneyimi sağlar
+// / - En önemli kayıtlar önce gösterilir
+// / - Performanslı sorgular oluşturur
+// / - Kullanıcı beklentilerini karşılar
+// /
+// / ## Dikkat Edilmesi Gerekenler
+// /
+// / - İndekslenmemiş sütunlarda sıralama yavaş olabilir
+// / - Büyük veri setlerinde performans testleri yapın
+// / - NULL değerleri olan sütunlarda sıralama davranışını kontrol edin
 type Sortable struct {
 	/// Column, sıralanacak veritabanı sütun adını belirtir.
 	///
@@ -501,73 +501,73 @@ type Sortable struct {
 	Direction string
 }
 
-/// # Resource Interface
-///
-/// Bu interface, paneldeki her bir varlığı (örneğin Users, Posts, Products) temsil eder.
-/// Resource, bir CRUD (Create, Read, Update, Delete) kaynağının tüm özelliklerini tanımlar:
-/// veri modeli, alanlar, ilişkiler, yetkilendirme, görünüm ayarları ve özel işlemler.
-///
-/// ## Kullanım Senaryoları
-///
-/// - **Kullanıcı Yönetimi**: Kullanıcıları listeleme, ekleme, düzenleme, silme
-/// - **İçerik Yönetimi**: Blog yazıları, sayfalar, yorumlar
-/// - **E-Ticaret**: Ürünler, kategoriler, siparişler, müşteriler
-/// - **Medya Yönetimi**: Görseller, videolar, dosyalar
-/// - **Sistem Ayarları**: Yapılandırma, roller, izinler
-///
-/// ## Temel Örnek
-///
-/// ```go
-/// type UserResource struct {
-///     resource.OptimizedBase
-/// }
-///
-/// func (r *UserResource) Model() any {
-///     return &User{}
-/// }
-///
-/// func (r *UserResource) Slug() string {
-///     return "users"
-/// }
-///
-/// func (r *UserResource) Title() string {
-///     return "Kullanıcılar"
-/// }
-///
-/// func (r *UserResource) Icon() string {
-///     return "users"
-/// }
-///
-/// func (r *UserResource) Fields() []fields.Element {
-///     return []fields.Element{
-///         fields.ID("ID").Sortable(),
-///         fields.Text("Ad", "name").Required().Searchable(),
-///         fields.Email("E-posta", "email").Required().Unique("users", "email"),
-///         fields.DateTime("Kayıt Tarihi", "created_at").ReadOnly(),
-///     }
-/// }
-/// ```
-///
-/// ## Referanslar
-///
-/// - **Alan Sistemi**: Detaylı bilgi için [docs/Fields.md](../../docs/Fields.md) dosyasına bakın
-/// - **İlişkiler**: İlişki tanımlamaları için [docs/Relationships.md](../../docs/Relationships.md) dosyasına bakın
-///
-/// ## Önemli Notlar
-///
-/// - Her resource benzersiz bir slug'a sahip olmalıdır
-/// - Model() metodu GORM model struct'ının pointer'ını dönmelidir
-/// - Fields() metodu tüm alanları tanımlar, GetFields() ise bağlama göre filtreler
-/// - Yetkilendirme için Policy() metodunu implement edin
-/// - OptimizedBase kullanarak varsayılan implementasyonları kullanabilirsiniz
-///
-/// ## Avantajlar
-///
-/// - Tip güvenli CRUD işlemleri
-/// - Otomatik API endpoint oluşturma
-/// - Dinamik form ve liste görünümleri
-/// - Merkezi yetkilendirme kontrolü
-/// - Kolay özelleştirme ve genişletme
+// / # Resource Interface
+// /
+// / Bu interface, paneldeki her bir varlığı (örneğin Users, Posts, Products) temsil eder.
+// / Resource, bir CRUD (Create, Read, Update, Delete) kaynağının tüm özelliklerini tanımlar:
+// / veri modeli, alanlar, ilişkiler, yetkilendirme, görünüm ayarları ve özel işlemler.
+// /
+// / ## Kullanım Senaryoları
+// /
+// / - **Kullanıcı Yönetimi**: Kullanıcıları listeleme, ekleme, düzenleme, silme
+// / - **İçerik Yönetimi**: Blog yazıları, sayfalar, yorumlar
+// / - **E-Ticaret**: Ürünler, kategoriler, siparişler, müşteriler
+// / - **Medya Yönetimi**: Görseller, videolar, dosyalar
+// / - **Sistem Ayarları**: Yapılandırma, roller, izinler
+// /
+// / ## Temel Örnek
+// /
+// / ```go
+// / type UserResource struct {
+// /     resource.OptimizedBase
+// / }
+// /
+// / func (r *UserResource) Model() any {
+// /     return &User{}
+// / }
+// /
+// / func (r *UserResource) Slug() string {
+// /     return "users"
+// / }
+// /
+// / func (r *UserResource) Title() string {
+// /     return "Kullanıcılar"
+// / }
+// /
+// / func (r *UserResource) Icon() string {
+// /     return "users"
+// / }
+// /
+// / func (r *UserResource) Fields() []fields.Element {
+// /     return []fields.Element{
+// /         fields.ID("ID").Sortable(),
+// /         fields.Text("Ad", "name").Required().Searchable(),
+// /         fields.Email("E-posta", "email").Required().Unique("users", "email"),
+// /         fields.DateTime("Kayıt Tarihi", "created_at").ReadOnly(),
+// /     }
+// / }
+// / ```
+// /
+// / ## Referanslar
+// /
+// / - **Alan Sistemi**: Detaylı bilgi için [docs/Fields.md](../../docs/Fields.md) dosyasına bakın
+// / - **İlişkiler**: İlişki tanımlamaları için [docs/Relationships.md](../../docs/Relationships.md) dosyasına bakın
+// /
+// / ## Önemli Notlar
+// /
+// / - Her resource benzersiz bir slug'a sahip olmalıdır
+// / - Model() metodu GORM model struct'ının pointer'ını dönmelidir
+// / - Fields() metodu tüm alanları tanımlar, GetFields() ise bağlama göre filtreler
+// / - Yetkilendirme için Policy() metodunu implement edin
+// / - OptimizedBase kullanarak varsayılan implementasyonları kullanabilirsiniz
+// /
+// / ## Avantajlar
+// /
+// / - Tip güvenli CRUD işlemleri
+// / - Otomatik API endpoint oluşturma
+// / - Dinamik form ve liste görünümleri
+// / - Merkezi yetkilendirme kontrolü
+// / - Kolay özelleştirme ve genişletme
 type Resource interface {
 	/// Model, GORM model yapısının bir örneğini döner.
 	///
@@ -1267,6 +1267,22 @@ type Resource interface {
 	/// - Runtime'da dialog tipini değiştirebilir
 	/// - OptimizedBase bu metodu implement eder
 	SetDialogType(DialogType) Resource
+
+	/// GetDialogSize, create/update form modal genişlik preset'ini döner.
+	///
+	/// Döndürür:
+	/// - `DialogSize`: sm, md, lg, xl, 2xl, 3xl, 4xl, 5xl veya full
+	GetDialogSize() DialogSize
+
+	/// SetDialogSize, create/update form modal genişlik preset'ini ayarlar.
+	///
+	/// Parametreler:
+	/// - `dialogSize`: Genişlik preset'i
+	///
+	/// Döndürür:
+	/// - Yapılandırılmış Resource pointer'ı (method chaining için)
+	SetDialogSize(DialogSize) Resource
+
 	/// Repository, kaynağın veri erişim katmanını (DataProvider) döner.
 	///
 	/// Bu metod, varsayılan GORM DataProvider yerine özel bir repository implementasyonu

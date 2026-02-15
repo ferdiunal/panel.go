@@ -56,13 +56,14 @@ type SpecGenerator struct {
 //   - CacheTTL: Cache süresi (0 = cache yok, development için önerilir)
 //   - CustomMappings: Özel field type mapping'leri
 type SpecGeneratorConfig struct {
-	Title             string                                    // API başlığı
-	Version           string                                    // API versiyonu
-	Description       string                                    // API açıklaması
-	ServerURL         string                                    // API sunucu URL'i
-	ServerDescription string                                    // Sunucu açıklaması
-	CacheTTL          time.Duration                             // Cache süresi (0 = cache yok)
-	CustomMappings    *CustomMappingRegistry                    // Özel field type mapping'leri
+	Title             string                 // API başlığı
+	Version           string                 // API versiyonu
+	Description       string                 // API açıklaması
+	ServerURL         string                 // API sunucu URL'i
+	ServerDescription string                 // Sunucu açıklaması
+	APIKeyHeader      string                 // API key header adı (Swagger authorize için)
+	CacheTTL          time.Duration          // Cache süresi (0 = cache yok)
+	CustomMappings    *CustomMappingRegistry // Özel field type mapping'leri
 }
 
 // specCache, OpenAPI spec cache'ini yönetir.
@@ -112,6 +113,9 @@ func NewSpecGenerator(resources map[string]resource.Resource, config SpecGenerat
 	}
 	if config.ServerDescription == "" {
 		config.ServerDescription = "API Server"
+	}
+	if config.APIKeyHeader == "" {
+		config.APIKeyHeader = "X-API-Key"
 	}
 
 	mapper := NewFieldTypeMapper()
@@ -186,11 +190,11 @@ func (g *SpecGenerator) InvalidateCache() {
 // generateSpec, OpenAPI spesifikasyonunu oluşturur.
 //
 // ## Davranış
-//   1. Temel spec yapısını oluşturur
-//   2. Statik endpoint'leri ekler (auth, init, navigation)
-//   3. Dinamik resource endpoint'lerini ekler
-//   4. Component'leri (schemas, security schemes) ekler
-//   5. Tag'leri ekler
+//  1. Temel spec yapısını oluşturur
+//  2. Statik endpoint'leri ekler (auth, init, navigation)
+//  3. Dinamik resource endpoint'lerini ekler
+//  4. Component'leri (schemas, security schemes) ekler
+//  5. Tag'leri ekler
 //
 // ## Dönüş Değeri
 //   - *OpenAPISpec: Oluşturulan OpenAPI spesifikasyonu
@@ -224,10 +228,17 @@ func (g *SpecGenerator) generateSpec() (*OpenAPISpec, error) {
 		Name:        "session_token",
 		Description: "Session cookie authentication",
 	}
+	spec.Components.SecuritySchemes["apiKeyAuth"] = SecurityScheme{
+		Type:        "apiKey",
+		In:          "header",
+		Name:        g.config.APIKeyHeader,
+		Description: "API key authentication",
+	}
 
 	// Global security requirement ekle
 	spec.Security = []SecurityRequirement{
 		{"cookieAuth": []string{}},
+		{"apiKeyAuth": []string{}},
 	}
 
 	// Statik endpoint'leri ekle

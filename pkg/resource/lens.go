@@ -7,89 +7,89 @@ import (
 	"gorm.io/gorm"
 )
 
-/// Bu interface, veri tabanı sorgularını özelleştirerek belirli görünümler (segmentler) oluşturmak için kullanılır.
-///
-/// # Genel Bakış
-///
-/// Lens'ler, kaynak verilerinin farklı perspektiflerden görüntülenmesini sağlar. Örneğin, bir kullanıcı kaynağında
-/// "Aktif Kullanıcılar", "Pasif Kullanıcılar", "Yöneticiler" gibi farklı lens'ler tanımlayabilirsiniz.
-/// Her lens, kendi sorgu mantığı, alanları ve widget'larına sahip olabilir.
-///
-/// # Kullanım Senaryoları
-///
-/// - **Veri Segmentasyonu**: Verileri belirli kriterlere göre filtreleyerek farklı görünümler oluşturma
-/// - **Özel Raporlama**: Belirli kullanıcı grupları için özelleştirilmiş veri görünümleri
-/// - **İş Akışı Yönetimi**: Farklı iş akışı aşamalarındaki kayıtları görüntüleme
-/// - **Performans Optimizasyonu**: Sık kullanılan filtreleri önceden tanımlayarak sorgu performansını artırma
-///
-/// # Avantajlar
-///
-/// - **Esneklik**: Her lens için farklı alan setleri ve widget'lar tanımlayabilirsiniz
-/// - **Yeniden Kullanılabilirlik**: Karmaşık sorguları tekrar tekrar yazmak yerine lens olarak tanımlayın
-/// - **Kullanıcı Deneyimi**: Kullanıcıların ihtiyaç duydukları verilere hızlıca erişmesini sağlar
-/// - **Bakım Kolaylığı**: Sorgu mantığı merkezi bir yerde tanımlanır
-///
-/// # Önemli Notlar
-///
-/// - Lens'ler, temel kaynak sorgusunu modifiye eder, tamamen yeni bir sorgu oluşturmaz
-/// - Her lens'in benzersiz bir slug'ı olmalıdır (URL'de kullanılır)
-/// - Lens-spesifik alanlar tanımlanmazsa, kaynağın varsayılan alanları kullanılır
-/// - GetFields ve Fields metodları birlikte çalışır: Fields() statik alanları, GetFields() dinamik alanları döner
-///
-/// # Kullanım Örneği
-///
-/// ```go
-/// type ActiveUsersLens struct{}
-///
-/// func (l *ActiveUsersLens) Name() string {
-///     return "Aktif Kullanıcılar"
-/// }
-///
-/// func (l *ActiveUsersLens) Slug() string {
-///     return "active-users"
-/// }
-///
-/// func (l *ActiveUsersLens) Query(db *gorm.DB) *gorm.DB {
-///     return db.Where("status = ?", "active").Where("last_login > ?", time.Now().AddDate(0, -1, 0))
-/// }
-///
-/// func (l *ActiveUsersLens) Fields() []fields.Element {
-///     return []fields.Element{
-///         fields.NewText("name").SetLabel("İsim"),
-///         fields.NewText("email").SetLabel("E-posta"),
-///         fields.NewDateTime("last_login").SetLabel("Son Giriş"),
-///     }
-/// }
-///
-/// func (l *ActiveUsersLens) GetFields(ctx *appContext.Context) []fields.Element {
-///     // Dinamik alan yapılandırması
-///     return l.Fields()
-/// }
-///
-/// func (l *ActiveUsersLens) GetCards(ctx *appContext.Context) []widget.Card {
-///     return []widget.Card{
-///         widget.NewMetricCard("Toplam Aktif", "1,234"),
-///     }
-/// }
-///
-/// // Resource'a lens ekleme
-/// func (r *UserResource) Lenses() []resource.Lens {
-///     return []resource.Lens{
-///         &ActiveUsersLens{},
-///     }
-/// }
-/// ```
-///
-/// # İlgili Dokümantasyon
-///
-/// - Alan tanımlamaları için: docs/Fields.md
-/// - İlişki yönetimi için: docs/Relationships.md
-///
-/// # Gereksinimler
-///
-/// - Requirement 13.1: Lens'lerin özel sorgu mantığını tanımlamasına izin ver
-/// - Requirement 13.2: Lens'lerin lens-spesifik alanları filtrelemesine izin ver
-/// - Requirement 13.3: Lens'lerin lens-spesifik işlemler ve card'lar tanımlamasına izin ver
+// / Bu interface, veri tabanı sorgularını özelleştirerek belirli görünümler (segmentler) oluşturmak için kullanılır.
+// /
+// / # Genel Bakış
+// /
+// / Lens'ler, kaynak verilerinin farklı perspektiflerden görüntülenmesini sağlar. Örneğin, bir kullanıcı kaynağında
+// / "Aktif Kullanıcılar", "Pasif Kullanıcılar", "Yöneticiler" gibi farklı lens'ler tanımlayabilirsiniz.
+// / Her lens, kendi sorgu mantığı, alanları ve widget'larına sahip olabilir.
+// /
+// / # Kullanım Senaryoları
+// /
+// / - **Veri Segmentasyonu**: Verileri belirli kriterlere göre filtreleyerek farklı görünümler oluşturma
+// / - **Özel Raporlama**: Belirli kullanıcı grupları için özelleştirilmiş veri görünümleri
+// / - **İş Akışı Yönetimi**: Farklı iş akışı aşamalarındaki kayıtları görüntüleme
+// / - **Performans Optimizasyonu**: Sık kullanılan filtreleri önceden tanımlayarak sorgu performansını artırma
+// /
+// / # Avantajlar
+// /
+// / - **Esneklik**: Her lens için farklı alan setleri ve widget'lar tanımlayabilirsiniz
+// / - **Yeniden Kullanılabilirlik**: Karmaşık sorguları tekrar tekrar yazmak yerine lens olarak tanımlayın
+// / - **Kullanıcı Deneyimi**: Kullanıcıların ihtiyaç duydukları verilere hızlıca erişmesini sağlar
+// / - **Bakım Kolaylığı**: Sorgu mantığı merkezi bir yerde tanımlanır
+// /
+// / # Önemli Notlar
+// /
+// / - Lens'ler, temel kaynak sorgusunu modifiye eder, tamamen yeni bir sorgu oluşturmaz
+// / - Her lens'in benzersiz bir slug'ı olmalıdır (URL'de kullanılır)
+// / - Lens-spesifik alanlar tanımlanmazsa, kaynağın varsayılan alanları kullanılır
+// / - GetFields ve Fields metodları birlikte çalışır: Fields() statik alanları, GetFields() dinamik alanları döner
+// /
+// / # Kullanım Örneği
+// /
+// / ```go
+// / type ActiveUsersLens struct{}
+// /
+// / func (l *ActiveUsersLens) Name() string {
+// /     return "Aktif Kullanıcılar"
+// / }
+// /
+// / func (l *ActiveUsersLens) Slug() string {
+// /     return "active-users"
+// / }
+// /
+// / func (l *ActiveUsersLens) Query(db *gorm.DB) *gorm.DB {
+// /     return db.Where("status = ?", "active").Where("last_login > ?", time.Now().AddDate(0, -1, 0))
+// / }
+// /
+// / func (l *ActiveUsersLens) Fields() []fields.Element {
+// /     return []fields.Element{
+// /         fields.NewText("name").SetLabel("İsim"),
+// /         fields.NewText("email").SetLabel("E-posta"),
+// /         fields.NewDateTime("last_login").SetLabel("Son Giriş"),
+// /     }
+// / }
+// /
+// / func (l *ActiveUsersLens) GetFields(ctx *appContext.Context) []fields.Element {
+// /     // Dinamik alan yapılandırması
+// /     return l.Fields()
+// / }
+// /
+// / func (l *ActiveUsersLens) GetCards(ctx *appContext.Context) []widget.Card {
+// /     return []widget.Card{
+// /         widget.NewMetricCard("Toplam Aktif", "1,234"),
+// /     }
+// / }
+// /
+// / // Resource'a lens ekleme
+// / func (r *UserResource) Lenses() []resource.Lens {
+// /     return []resource.Lens{
+// /         &ActiveUsersLens{},
+// /     }
+// / }
+// / ```
+// /
+// / # İlgili Dokümantasyon
+// /
+// / - Alan tanımlamaları için: docs/Fields.md
+// / - İlişki yönetimi için: docs/Relationships.md
+// /
+// / # Gereksinimler
+// /
+// / - Requirement 13.1: Lens'lerin özel sorgu mantığını tanımlamasına izin ver
+// / - Requirement 13.2: Lens'lerin lens-spesifik alanları filtrelemesine izin ver
+// / - Requirement 13.3: Lens'lerin lens-spesifik işlemler ve card'lar tanımlamasına izin ver
 type Lens interface {
 	/// Bu fonksiyon, Lens'in kullanıcı arayüzünde görüntülenecek adını döner.
 	///
@@ -395,75 +395,75 @@ type Lens interface {
 	GetQuery() func(*gorm.DB) *gorm.DB
 }
 
-/// Bu yapı, kaynak formlarının (ekleme/düzenleme/detay) kullanıcı arayüzünde nasıl sunulacağını belirler.
-///
-/// # Genel Bakış
-///
-/// DialogType, panel.go'da form görüntüleme modunu kontrol eden bir string sabiti türüdür.
-/// Farklı cihaz tipleri ve kullanıcı deneyimi senaryoları için optimize edilmiş üç farklı sunum modu sunar.
-///
-/// # Kullanım Senaryoları
-///
-/// - **Masaüstü Uygulamalar**: Sheet veya Modal tercih edilir (geniş ekran alanı)
-/// - **Mobil Uygulamalar**: Drawer tercih edilir (dokunmatik etkileşim için optimize)
-/// - **Hızlı Düzenleme**: Sheet, yan panel olarak hızlı erişim sağlar
-/// - **Odaklanma Gerektiren Formlar**: Modal, kullanıcının dikkatini forma yönlendirir
-/// - **Çok Adımlı Formlar**: Drawer veya Modal, daha fazla alan sağlar
-///
-/// # Avantajlar
-///
-/// - **Esneklik**: Her kaynak için farklı dialog tipi seçilebilir
-/// - **Responsive Tasarım**: Cihaz tipine göre en uygun görünüm
-/// - **Kullanıcı Deneyimi**: Her senaryo için optimize edilmiş etkileşim
-/// - **Tutarlılık**: Tüm kaynaklarda standart sunum modları
-///
-/// # Dezavantajlar
-///
-/// - **Mobil Sınırlamalar**: Sheet, küçük ekranlarda kullanışsız olabilir
-/// - **Modal Engelleme**: Modal, arka plan etkileşimini tamamen engeller
-/// - **Drawer Erişim**: Drawer, üst kısımdaki içeriğe erişimi zorlaştırabilir
-///
-/// # Önemli Notlar
-///
-/// - Varsayılan değer: DialogTypeSheet
-/// - Her kaynak için SetDialogType() metodu ile özelleştirilebilir
-/// - Dialog tipi, tüm form işlemleri için geçerlidir (create, edit, detail)
-/// - Frontend tarafında otomatik olarak uygun bileşen render edilir
-///
-/// # Kullanım Örneği
-///
-/// ```go
-/// // Resource tanımında dialog tipi belirleme
-/// func (r *UserResource) Configure() {
-///     r.SetDialogType(resource.DialogTypeModal)
-/// }
-///
-/// // Koşullu dialog tipi seçimi
-/// func (r *ProductResource) Configure() {
-///     if r.IsMobile() {
-///         r.SetDialogType(resource.DialogTypeDrawer)
-///     } else {
-///         r.SetDialogType(resource.DialogTypeSheet)
-///     }
-/// }
-///
-/// // Varsayılan değer kullanımı (Sheet)
-/// func (r *OrderResource) Configure() {
-///     // SetDialogType çağrılmazsa DialogTypeSheet kullanılır
-/// }
-/// ```
-///
-/// # Performans Notları
-///
-/// - Dialog tipi seçimi, render performansını etkilemez
-/// - Her dialog tipi, lazy loading destekler
-/// - Modal ve Sheet, overlay rendering kullanır
-/// - Drawer, transform animasyonları kullanır (GPU hızlandırmalı)
-///
-/// # Uyarılar
-///
-/// ⚠️ Dialog tipi değişikliği, mevcut açık formları etkilemez (sayfa yenileme gerekir)
-/// ⚠️ Çok büyük formlar için Modal veya Drawer tercih edilmelidir (Sheet sınırlı genişliğe sahiptir)
+// / Bu yapı, kaynak formlarının (ekleme/düzenleme/detay) kullanıcı arayüzünde nasıl sunulacağını belirler.
+// /
+// / # Genel Bakış
+// /
+// / DialogType, panel.go'da form görüntüleme modunu kontrol eden bir string sabiti türüdür.
+// / Farklı cihaz tipleri ve kullanıcı deneyimi senaryoları için optimize edilmiş üç farklı sunum modu sunar.
+// /
+// / # Kullanım Senaryoları
+// /
+// / - **Masaüstü Uygulamalar**: Sheet veya Modal tercih edilir (geniş ekran alanı)
+// / - **Mobil Uygulamalar**: Drawer tercih edilir (dokunmatik etkileşim için optimize)
+// / - **Hızlı Düzenleme**: Sheet, yan panel olarak hızlı erişim sağlar
+// / - **Odaklanma Gerektiren Formlar**: Modal, kullanıcının dikkatini forma yönlendirir
+// / - **Çok Adımlı Formlar**: Drawer veya Modal, daha fazla alan sağlar
+// /
+// / # Avantajlar
+// /
+// / - **Esneklik**: Her kaynak için farklı dialog tipi seçilebilir
+// / - **Responsive Tasarım**: Cihaz tipine göre en uygun görünüm
+// / - **Kullanıcı Deneyimi**: Her senaryo için optimize edilmiş etkileşim
+// / - **Tutarlılık**: Tüm kaynaklarda standart sunum modları
+// /
+// / # Dezavantajlar
+// /
+// / - **Mobil Sınırlamalar**: Sheet, küçük ekranlarda kullanışsız olabilir
+// / - **Modal Engelleme**: Modal, arka plan etkileşimini tamamen engeller
+// / - **Drawer Erişim**: Drawer, üst kısımdaki içeriğe erişimi zorlaştırabilir
+// /
+// / # Önemli Notlar
+// /
+// / - Varsayılan değer: DialogTypeSheet
+// / - Her kaynak için SetDialogType() metodu ile özelleştirilebilir
+// / - Dialog tipi, tüm form işlemleri için geçerlidir (create, edit, detail)
+// / - Frontend tarafında otomatik olarak uygun bileşen render edilir
+// /
+// / # Kullanım Örneği
+// /
+// / ```go
+// / // Resource tanımında dialog tipi belirleme
+// / func (r *UserResource) Configure() {
+// /     r.SetDialogType(resource.DialogTypeModal)
+// / }
+// /
+// / // Koşullu dialog tipi seçimi
+// / func (r *ProductResource) Configure() {
+// /     if r.IsMobile() {
+// /         r.SetDialogType(resource.DialogTypeDrawer)
+// /     } else {
+// /         r.SetDialogType(resource.DialogTypeSheet)
+// /     }
+// / }
+// /
+// / // Varsayılan değer kullanımı (Sheet)
+// / func (r *OrderResource) Configure() {
+// /     // SetDialogType çağrılmazsa DialogTypeSheet kullanılır
+// / }
+// / ```
+// /
+// / # Performans Notları
+// /
+// / - Dialog tipi seçimi, render performansını etkilemez
+// / - Her dialog tipi, lazy loading destekler
+// / - Modal ve Sheet, overlay rendering kullanır
+// / - Drawer, transform animasyonları kullanır (GPU hızlandırmalı)
+// /
+// / # Uyarılar
+// /
+// / ⚠️ Dialog tipi değişikliği, mevcut açık formları etkilemez (sayfa yenileme gerekir)
+// / ⚠️ Çok büyük formlar için Modal veya Drawer tercih edilmelidir (Sheet sınırlı genişliğe sahiptir)
 type DialogType string
 
 const (
@@ -649,4 +649,19 @@ const (
 	/// ⚠️ Çoklu modal açma senaryolarından kaçının (UX problemi)
 	/// ⚠️ Uzun formlar için scroll yönetimi gerekebilir
 	DialogTypeModal DialogType = "modal"
+)
+
+// DialogSize, resource formlarında kullanılacak modal/sheet genişlik preset'ini temsil eder.
+type DialogSize string
+
+const (
+	DialogSizeSM   DialogSize = "sm"
+	DialogSizeMD   DialogSize = "md"
+	DialogSizeLG   DialogSize = "lg"
+	DialogSizeXL   DialogSize = "xl"
+	DialogSize2XL  DialogSize = "2xl"
+	DialogSize3XL  DialogSize = "3xl"
+	DialogSize4XL  DialogSize = "4xl"
+	DialogSize5XL  DialogSize = "5xl"
+	DialogSizeFull DialogSize = "full"
 )

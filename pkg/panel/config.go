@@ -221,6 +221,42 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
+// APIKeyConfig holds API key authentication settings for API endpoints.
+type APIKeyConfig struct {
+	// Enabled turns API key authentication checks on/off.
+	Enabled bool
+
+	// Header is the header name that carries the API key.
+	// Default: X-API-Key
+	Header string
+
+	// Keys is the allowed API key list.
+	// If empty and PANEL_API_KEY env var is set, env value is used.
+	Keys []string
+}
+
+// ConcurrencyConfig controls request-time concurrency behavior for hot paths.
+// Defaults:
+// - EnablePipelineV2: false
+// - FailFast: true
+// - Worker values (0): auto-tuned as min(2*NumCPU, 16)
+type ConcurrencyConfig struct {
+	// EnablePipelineV2 gates the new bounded/cancellable pipeline implementation.
+	EnablePipelineV2 bool
+
+	// FailFast cancels ongoing work on first critical error when pipeline v2 is enabled.
+	FailFast bool
+
+	// MaxWorkers is the general worker limit for resource hot paths.
+	MaxWorkers int
+
+	// CardWorkers overrides worker count for card resolution.
+	CardWorkers int
+
+	// FieldWorkers overrides worker count for index/lens field mapping.
+	FieldWorkers int
+}
+
 // / # Config - Panel Genel Yapılandırması
 // /
 // / Panelin tüm yapılandırma ayarlarını merkezi olarak tutar.
@@ -326,6 +362,13 @@ type Config struct {
 
 	/// CORS, Cross-Origin Resource Sharing yapılandırmasını tutar
 	CORS CORSConfig
+
+	/// APIKey, API endpoint'leri için API key kimlik doğrulamasını yapılandırır
+	APIKey APIKeyConfig
+
+	/// Concurrency, resource hot-path eşzamanlılık davranışını yapılandırır.
+	/// EnablePipelineV2 false ise mevcut davranış korunur.
+	Concurrency ConcurrencyConfig
 
 	/// EncryptionKey, cookie şifreleme için kullanılan AES anahtarıdır.
 	/// SECURITY: 32-byte (AES-256) base64-encoded key kullanın

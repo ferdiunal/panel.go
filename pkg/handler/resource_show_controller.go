@@ -226,8 +226,15 @@ func HandleResourceShow(h *FieldHandler, c *context.Context) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
+	resolvedData, err := h.resolveResourceFields(c.Ctx, c.Resource(), item, elements)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
 	return c.JSON(fiber.Map{
-		"data": h.resolveResourceFields(c.Ctx, c.Resource(), item, elements),
+		"data": resolvedData,
 		"meta": fiber.Map{
 			"title": h.Resource.TitleWithContext(c.Ctx),
 			"policy": fiber.Map{

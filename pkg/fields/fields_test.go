@@ -47,6 +47,26 @@ func TestFieldSerialization(t *testing.T) {
 	}
 }
 
+func TestFieldSerialization_IncludesDependencies(t *testing.T) {
+	f := Select("City", "city_id").
+		DependsOn("country_id")
+
+	data := f.JsonSerialize()
+
+	rawDependsOn, exists := data["depends_on"]
+	if !exists {
+		t.Fatalf("expected depends_on to be present in serialized field")
+	}
+
+	dependsOn, ok := rawDependsOn.([]string)
+	if !ok {
+		t.Fatalf("expected depends_on to be []string, got %T", rawDependsOn)
+	}
+	if len(dependsOn) != 1 || dependsOn[0] != "country_id" {
+		t.Fatalf("unexpected depends_on value: %v", dependsOn)
+	}
+}
+
 func TestIDInstantiation(t *testing.T) {
 	id := ID()
 	if id.Name != "ID" {
@@ -86,6 +106,11 @@ func TestNewFieldTypes(t *testing.T) {
 	kv := KeyValue("Settings")
 	if kv.Type != TYPE_KEY_VALUE || kv.View != "key-value-field" {
 		t.Errorf("KeyValue field mismatch")
+	}
+
+	matrix := Matrix("Variant Matrix")
+	if matrix.Type != TYPE_KEY_VALUE || matrix.View != "matrix-field" {
+		t.Errorf("Matrix field mismatch")
 	}
 
 	money := Money("Price")

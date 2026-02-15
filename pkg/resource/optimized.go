@@ -1006,7 +1006,11 @@ type Navigable struct {
 	navigationOrder int
 	visible         bool
 	dialogType      DialogType
+	dialogSize      DialogSize
 	sortable        []Sortable
+	rowClickAction  IndexRowClickAction
+	reorderEnabled  bool
+	reorderColumn   string
 }
 
 // / SetIcon, menüde gösterilecek ikon adını ayarlar.
@@ -1168,6 +1172,57 @@ func (n *Navigable) SetDialogType(dt DialogType) {
 // /   }
 func (n *Navigable) GetDialogType() DialogType {
 	return n.dialogType
+}
+
+// SetDialogSize, form modal/sheet genişlik preset'ini ayarlar.
+func (n *Navigable) SetDialogSize(ds DialogSize) {
+	n.dialogSize = ds
+}
+
+// GetDialogSize, form modal/sheet genişlik preset'ini döner.
+// Boş ise varsayılan olarak DialogSizeMD kullanılır.
+func (n *Navigable) GetDialogSize() DialogSize {
+	if n.dialogSize == "" {
+		return DialogSizeMD
+	}
+	return n.dialogSize
+}
+
+// SetIndexRowClickAction, index satır tıklama aksiyonunu ayarlar.
+func (n *Navigable) SetIndexRowClickAction(action IndexRowClickAction) {
+	n.rowClickAction = NormalizeIndexRowClickAction(action)
+}
+
+// GetIndexRowClickAction, index satır tıklama aksiyonunu döner.
+func (n *Navigable) GetIndexRowClickAction() IndexRowClickAction {
+	return NormalizeIndexRowClickAction(n.rowClickAction)
+}
+
+// SetIndexReorder, index reorder ayarlarını günceller.
+func (n *Navigable) SetIndexReorder(enabled bool, column string) {
+	normalizedColumn := NormalizeIndexReorderColumn(column)
+	n.reorderEnabled = enabled && normalizedColumn != ""
+	n.reorderColumn = normalizedColumn
+}
+
+// EnableIndexReorder, verilen kolon için reorder özelliğini etkinleştirir.
+func (n *Navigable) EnableIndexReorder(column string) {
+	n.SetIndexReorder(true, column)
+}
+
+// DisableIndexReorder, index reorder özelliğini devre dışı bırakır.
+func (n *Navigable) DisableIndexReorder() {
+	n.reorderEnabled = false
+}
+
+// GetIndexReorderConfig, index reorder ayarlarını döner.
+func (n *Navigable) GetIndexReorderConfig() IndexReorderConfig {
+	column := NormalizeIndexReorderColumn(n.reorderColumn)
+
+	return IndexReorderConfig{
+		Enabled: n.reorderEnabled && column != "",
+		Column:  column,
+	}
 }
 
 // / SetSortable, varsayılan sıralama ayarlarını belirler.
@@ -1717,6 +1772,51 @@ func (b *OptimizedBase) GetDialogType() DialogType {
 // /   r.SetDialogType(DialogTypeDrawer).SetVisible(true)
 func (b *OptimizedBase) SetDialogType(dt DialogType) Resource {
 	b.Navigable.SetDialogType(dt)
+	return b
+}
+
+// GetDialogSize, form modal/sheet genişlik preset'ini döner.
+func (b *OptimizedBase) GetDialogSize() DialogSize {
+	return b.Navigable.GetDialogSize()
+}
+
+// SetDialogSize, form modal/sheet genişlik preset'ini ayarlar ve resource'u döner.
+func (b *OptimizedBase) SetDialogSize(ds DialogSize) Resource {
+	b.Navigable.SetDialogSize(ds)
+	return b
+}
+
+// GetIndexRowClickAction, index satır tıklama aksiyonunu döner.
+func (b *OptimizedBase) GetIndexRowClickAction() IndexRowClickAction {
+	return b.Navigable.GetIndexRowClickAction()
+}
+
+// SetIndexRowClickAction, index satır tıklama aksiyonunu ayarlar.
+func (b *OptimizedBase) SetIndexRowClickAction(action IndexRowClickAction) Resource {
+	b.Navigable.SetIndexRowClickAction(action)
+	return b
+}
+
+// GetIndexReorderConfig, index reorder ayarlarını döner.
+func (b *OptimizedBase) GetIndexReorderConfig() IndexReorderConfig {
+	return b.Navigable.GetIndexReorderConfig()
+}
+
+// SetIndexReorder, index reorder ayarlarını toplu şekilde ayarlar.
+func (b *OptimizedBase) SetIndexReorder(enabled bool, column string) Resource {
+	b.Navigable.SetIndexReorder(enabled, column)
+	return b
+}
+
+// EnableIndexReorder, verilen kolon için index reorder özelliğini etkinleştirir.
+func (b *OptimizedBase) EnableIndexReorder(column string) Resource {
+	b.Navigable.EnableIndexReorder(column)
+	return b
+}
+
+// DisableIndexReorder, index reorder özelliğini devre dışı bırakır.
+func (b *OptimizedBase) DisableIndexReorder() Resource {
+	b.Navigable.DisableIndexReorder()
 	return b
 }
 

@@ -278,7 +278,12 @@ func HandleResourceEdit(h *FieldHandler, c *context.Context) error {
 	}
 
 	// Resolve fields with values
-	resolvedMap := h.resolveResourceFields(c.Ctx, c.Resource(), item, updateElements)
+	resolvedMap, err := h.resolveResourceFields(c.Ctx, c.Resource(), item, updateElements)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 
 	// Convert map to ordered slice based on h.Elements order
 	var orderedFields []map[string]interface{}

@@ -40,6 +40,7 @@ Başlangıç rehberi: [Başlarken](Getting-Started)
 
 ### 2. Güvenlik ve erişim
 - [Kimlik Doğrulama](Authentication)
+- [API Key Yönetimi](API_KEY_MANAGEMENT)
 - [Yetkilendirme](Authorization)
 
 ### 3. Arayüz ve ürün özellikleri

@@ -346,24 +346,26 @@ func (s *Schema) JsonSerialize() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"view":        view,
-		"type":        s.Type,
-		"key":         s.Key,
-		"name":        s.Name,
-		"data":        s.Data,
-		"props":       s.Props,
-		"context":     s.Context,
-		"placeholder": i18n.Trans(s.FiberCtx, s.PlaceholderText),
-		"label":       i18n.Trans(s.FiberCtx, s.LabelText),
-		"help_text":   i18n.Trans(s.FiberCtx, s.HelpTextContent),
-		"read_only":   s.IsReadOnly,
-		"disabled":    s.IsDisabled,
-		"required":    s.IsRequired,
-		"nullable":    s.IsNullable,
-		"sortable":    s.IsSortable,
-		"filterable":  s.IsFilterable,
-		"stacked":     s.IsStacked,
-		"text_align":  s.TextAlign,
+		"view":             view,
+		"type":             s.Type,
+		"key":              s.Key,
+		"name":             s.Name,
+		"data":             s.Data,
+		"props":            s.Props,
+		"depends_on":       s.DependsOnFields,
+		"dependency_rules": s.DependencyRules,
+		"context":          s.Context,
+		"placeholder":      i18n.Trans(s.FiberCtx, s.PlaceholderText),
+		"label":            i18n.Trans(s.FiberCtx, s.LabelText),
+		"help_text":        i18n.Trans(s.FiberCtx, s.HelpTextContent),
+		"read_only":        s.IsReadOnly,
+		"disabled":         s.IsDisabled,
+		"required":         s.IsRequired,
+		"nullable":         s.IsNullable,
+		"sortable":         s.IsSortable,
+		"filterable":       s.IsFilterable,
+		"stacked":          s.IsStacked,
+		"text_align":       s.TextAlign,
 	}
 }
 
@@ -1557,6 +1559,9 @@ func (s *Schema) GetDependencies() []string {
 	deps, ok := s.Props["dependencies"].([]string)
 	if ok {
 		return deps
+	}
+	if len(s.DependsOnFields) > 0 {
+		return s.DependsOnFields
 	}
 	return []string{}
 }

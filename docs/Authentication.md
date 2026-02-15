@@ -38,3 +38,15 @@ Panel auth sistemi, modüler ve genişletilebilir bir yapıya sahiptir. `better-
 - `POST /api/auth/sign-up/email`: Yeni üye kaydı.
 - `POST /api/auth/sign-out`: Çıkış yap.
 - `GET /api/auth/session`: Mevcut oturum bilgisini getir.
+
+## API Key ile Kimlik Doğrulama
+
+Panel.go, session cookie dışında API key ile de kimlik doğrulama destekler.
+
+- Varsayılan header: `X-API-Key`
+- Geçerli key geldiğinde request, auth middleware tarafından doğrulanmış kabul edilir
+- Session middleware, API key doğrulanmış isteklerde sentetik bir kullanıcı context'i oluşturur
+- API key kaynakları: statik config/env listesi + managed DB key listesi
+- Managed key lifecycle endpointleri: `GET/POST/DELETE /api/api-keys*` (admin session gerekir)
+
+Yönetim, runtime güncelleme ve güvenlik detayları için: [API Key Yönetimi](API_KEY_MANAGEMENT)

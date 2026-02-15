@@ -1,10 +1,12 @@
 package handler
 
 import (
+	stdcontext "context"
 	"fmt"
 	"sync"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
+	internalconcurrency "github.com/ferdiunal/panel.go/pkg/internal/concurrency"
 	"github.com/ferdiunal/panel.go/pkg/widget"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -219,6 +221,10 @@ func HandleCardList(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
+	if h.usePipelineV2() {
+		return handleCardListPipelineV2(h, c)
+	}
+
 	// Create buffered channel for results (non-blocking sends)
 	results := make(chan cardResult, len(h.Cards))
 
@@ -271,7 +277,6 @@ func HandleCardList(h *FieldHandler, c *context.Context) error {
 
 	for result := range results {
 		if result.err != nil {
-			fmt.Printf("Error resolving card %s: %v\n", result.card.Name(), result.err)
 			result.serialized["error"] = result.err.Error()
 		} else {
 			// Assign resolved data to "data" key
@@ -279,6 +284,63 @@ func HandleCardList(h *FieldHandler, c *context.Context) error {
 		}
 
 		// Store result at original index to maintain order
+		resp[result.index] = result.serialized
+	}
+
+	return c.JSON(fiber.Map{
+		"data": resp,
+	})
+}
+
+func handleCardListPipelineV2(h *FieldHandler, c *context.Context) error {
+	var db *gorm.DB
+	if h.Provider != nil {
+		if client, ok := h.Provider.GetClient().(*gorm.DB); ok {
+			db = client
+		}
+	}
+
+	indices := make([]int, len(h.Cards))
+	for i := range h.Cards {
+		indices[i] = i
+	}
+
+	failFast := h.shouldFailFast()
+	workers := h.resolveCardWorkers(len(indices))
+	results, err := internalconcurrency.MapOrdered(c.Context(), indices, workers, failFast, func(_ stdcontext.Context, _ int, index int) (cardResult, error) {
+		card := h.Cards[index]
+		serialized := card.JsonSerialize()
+		serialized["index"] = index
+		serialized["name"] = card.Name()
+		serialized["component"] = card.Component()
+		serialized["width"] = card.Width()
+
+		data, resolveErr := card.Resolve(c, db)
+		if resolveErr != nil && failFast {
+			return cardResult{}, fmt.Errorf("resolve card %s: %w", card.Name(), resolveErr)
+		}
+
+		return cardResult{
+			card:       card,
+			data:       data,
+			err:        resolveErr,
+			index:      index,
+			serialized: serialized,
+		}, nil
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	resp := make([]map[string]interface{}, len(h.Cards))
+	for _, result := range results {
+		if result.err != nil {
+			result.serialized["error"] = result.err.Error()
+		} else {
+			result.serialized["data"] = result.data
+		}
 		resp[result.index] = result.serialized
 	}
 

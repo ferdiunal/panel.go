@@ -31,6 +31,8 @@ package auth
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
+	"github.com/ferdiunal/panel.go/pkg/domain/session"
+	"github.com/ferdiunal/panel.go/pkg/domain/user"
 	"github.com/ferdiunal/panel.go/pkg/middleware"
 	"github.com/ferdiunal/panel.go/pkg/service/auth"
 	"github.com/gofiber/fiber/v2"
@@ -143,11 +145,13 @@ func NewHandler(service *auth.Service, accountLockout *middleware.AccountLockout
 // # JSON Örneği
 //
 // ```json
-// {
-//   "name": "Ahmet Yılmaz",
-//   "email": "ahmet@example.com",
-//   "password": "GüçlüŞifre123!"
-// }
+//
+//	{
+//	  "name": "Ahmet Yılmaz",
+//	  "email": "ahmet@example.com",
+//	  "password": "GüçlüŞifre123!"
+//	}
+//
 // ```
 //
 // # Validasyon Kuralları
@@ -169,11 +173,12 @@ func NewHandler(service *auth.Service, accountLockout *middleware.AccountLockout
 // POST /auth/register
 // Content-Type: application/json
 //
-// {
-//   "name": "Mehmet Demir",
-//   "email": "mehmet@example.com",
-//   "password": "Secure123!"
-// }
+//	{
+//	  "name": "Mehmet Demir",
+//	  "email": "mehmet@example.com",
+//	  "password": "Secure123!"
+//	}
+//
 // ```
 type RegisterRequest struct {
 	Name     string `json:"name"`
@@ -196,25 +201,29 @@ type RegisterRequest struct {
 // # Request Body
 //
 // ```json
-// {
-//   "name": "Kullanıcı Adı",
-//   "email": "kullanici@example.com",
-//   "password": "GüçlüŞifre123!"
-// }
+//
+//	{
+//	  "name": "Kullanıcı Adı",
+//	  "email": "kullanici@example.com",
+//	  "password": "GüçlüŞifre123!"
+//	}
+//
 // ```
 //
 // # Response
 //
 // **Başarılı (201 Created):**
 // ```json
-// {
-//   "user": {
-//     "id": "uuid",
-//     "name": "Kullanıcı Adı",
-//     "email": "kullanici@example.com",
-//     "created_at": "2024-01-01T00:00:00Z"
-//   }
-// }
+//
+//	{
+//	  "user": {
+//	    "id": "uuid",
+//	    "name": "Kullanıcı Adı",
+//	    "email": "kullanici@example.com",
+//	    "created_at": "2024-01-01T00:00:00Z"
+//	  }
+//	}
+//
 // ```
 //
 // **Hata Durumları:**
@@ -244,15 +253,17 @@ type RegisterRequest struct {
 // app.Post("/auth/register", handler.RegisterEmail)
 //
 // // Client tarafından kullanım
-// fetch('/auth/register', {
-//   method: 'POST',
-//   headers: { 'Content-Type': 'application/json' },
-//   body: JSON.stringify({
-//     name: 'Ahmet Yılmaz',
-//     email: 'ahmet@example.com',
-//     password: 'Secure123!'
-//   })
-// })
+//
+//	fetch('/auth/register', {
+//	  method: 'POST',
+//	  headers: { 'Content-Type': 'application/json' },
+//	  body: JSON.stringify({
+//	    name: 'Ahmet Yılmaz',
+//	    email: 'ahmet@example.com',
+//	    password: 'Secure123!'
+//	  })
+//	})
+//
 // ```
 //
 // # Önemli Notlar
@@ -301,10 +312,12 @@ func (h *Handler) RegisterEmail(c *context.Context) error {
 // # JSON Örneği
 //
 // ```json
-// {
-//   "email": "kullanici@example.com",
-//   "password": "GüçlüŞifre123!"
-// }
+//
+//	{
+//	  "email": "kullanici@example.com",
+//	  "password": "GüçlüŞifre123!"
+//	}
+//
 // ```
 //
 // # Güvenlik Özellikleri
@@ -322,10 +335,11 @@ func (h *Handler) RegisterEmail(c *context.Context) error {
 // POST /auth/login
 // Content-Type: application/json
 //
-// {
-//   "email": "ahmet@example.com",
-//   "password": "Secure123!"
-// }
+//	{
+//	  "email": "ahmet@example.com",
+//	  "password": "Secure123!"
+//	}
+//
 // ```
 //
 // # Önemli Notlar
@@ -355,27 +369,31 @@ type LoginRequest struct {
 // # Request Body
 //
 // ```json
-// {
-//   "email": "kullanici@example.com",
-//   "password": "GüçlüŞifre123!"
-// }
+//
+//	{
+//	  "email": "kullanici@example.com",
+//	  "password": "GüçlüŞifre123!"
+//	}
+//
 // ```
 //
 // # Response
 //
 // **Başarılı (200 OK):**
 // ```json
-// {
-//   "session": {
-//     "token": "secure-session-token-here",
-//     "expires": "2024-01-08T00:00:00Z"
-//   },
-//   "user": {
-//     "id": "uuid",
-//     "name": "Kullanıcı Adı",
-//     "email": "kullanici@example.com"
-//   }
-// }
+//
+//	{
+//	  "session": {
+//	    "token": "secure-session-token-here",
+//	    "expires": "2024-01-08T00:00:00Z"
+//	  },
+//	  "user": {
+//	    "id": "uuid",
+//	    "name": "Kullanıcı Adı",
+//	    "email": "kullanici@example.com"
+//	  }
+//	}
+//
 // ```
 //
 // **Hata Durumları:**
@@ -426,27 +444,31 @@ type LoginRequest struct {
 // app.Post("/auth/login", handler.LoginEmail)
 //
 // // Client tarafından kullanım
-// const response = await fetch('/auth/login', {
-//   method: 'POST',
-//   headers: { 'Content-Type': 'application/json' },
-//   body: JSON.stringify({
-//     email: 'ahmet@example.com',
-//     password: 'Secure123!'
-//   }),
-//   credentials: 'include' // Cookie için gerekli
-// });
 //
-// if (response.ok) {
-//   const { session, user } = await response.json();
-//   console.log('Giriş başarılı:', user.name);
-// } else if (response.status === 429) {
-//   console.error('Hesap kilitli, lütfen daha sonra tekrar deneyin');
-// } else if (response.status === 401) {
-//   const data = await response.json();
-//   if (data.remaining_attempts) {
-//     console.warn(`Yanlış şifre. Kalan deneme: ${data.remaining_attempts}`);
-//   }
-// }
+//	const response = await fetch('/auth/login', {
+//	  method: 'POST',
+//	  headers: { 'Content-Type': 'application/json' },
+//	  body: JSON.stringify({
+//	    email: 'ahmet@example.com',
+//	    password: 'Secure123!'
+//	  }),
+//	  credentials: 'include' // Cookie için gerekli
+//	});
+//
+//	if (response.ok) {
+//	  const { session, user } = await response.json();
+//	  console.log('Giriş başarılı:', user.name);
+//	} else if (response.status === 429) {
+//
+//	  console.error('Hesap kilitli, lütfen daha sonra tekrar deneyin');
+//	} else if (response.status === 401) {
+//
+//	  const data = await response.json();
+//	  if (data.remaining_attempts) {
+//	    console.warn(`Yanlış şifre. Kalan deneme: ${data.remaining_attempts}`);
+//	  }
+//	}
+//
 // ```
 //
 // # Cookie Detayları
@@ -454,20 +476,24 @@ type LoginRequest struct {
 // **Production Cookie:**
 // ```
 // Set-Cookie: __Host-session_token=<token>;
-//   Path=/;
-//   Expires=<date>;
-//   HttpOnly;
-//   Secure;
-//   SameSite=Strict
+//
+//	Path=/;
+//	Expires=<date>;
+//	HttpOnly;
+//	Secure;
+//	SameSite=Strict
+//
 // ```
 //
 // **Test Cookie:**
 // ```
 // Set-Cookie: session_token=<token>;
-//   Path=/;
-//   Expires=<date>;
-//   HttpOnly;
-//   SameSite=Strict
+//
+//	Path=/;
+//	Expires=<date>;
+//	HttpOnly;
+//	SameSite=Strict
+//
 // ```
 //
 // # Önemli Notlar
@@ -586,9 +612,11 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 //
 // **Başarılı (200 OK):**
 // ```json
-// {
-//   "message": "Signed out"
-// }
+//
+//	{
+//	  "message": "Signed out"
+//	}
+//
 // ```
 //
 // # İş Akışı
@@ -612,17 +640,19 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 // app.Post("/auth/logout", handler.SignOut)
 //
 // // Client tarafından kullanım
-// const response = await fetch('/auth/logout', {
-//   method: 'POST',
-//   credentials: 'include' // Cookie gönderimi için gerekli
-// });
 //
-// if (response.ok) {
-//   const data = await response.json();
-//   console.log(data.message); // "Signed out"
-//   // Kullanıcıyı login sayfasına yönlendir
-//   window.location.href = '/login';
-// }
+//	const response = await fetch('/auth/logout', {
+//	  method: 'POST',
+//	  credentials: 'include' // Cookie gönderimi için gerekli
+//	});
+//
+//	if (response.ok) {
+//	  const data = await response.json();
+//	  console.log(data.message); // "Signed out"
+//	  // Kullanıcıyı login sayfasına yönlendir
+//	  window.location.href = '/login';
+//	}
+//
 // ```
 //
 // # Cookie Temizleme Detayları
@@ -630,20 +660,24 @@ func (h *Handler) LoginEmail(c *context.Context) error {
 // **Production:**
 // ```
 // Set-Cookie: __Host-session_token=;
-//   Path=/;
-//   Max-Age=0;
-//   HttpOnly;
-//   Secure;
-//   SameSite=Strict
+//
+//	Path=/;
+//	Max-Age=0;
+//	HttpOnly;
+//	Secure;
+//	SameSite=Strict
+//
 // ```
 //
 // **Test:**
 // ```
 // Set-Cookie: session_token=;
-//   Path=/;
-//   Max-Age=0;
-//   HttpOnly;
-//   SameSite=Strict
+//
+//	Path=/;
+//	Max-Age=0;
+//	HttpOnly;
+//	SameSite=Strict
+//
 // ```
 //
 // # Önemli Notlar
@@ -699,24 +733,28 @@ func (h *Handler) SignOut(c *context.Context) error {
 //
 // **Geçerli Session (200 OK):**
 // ```json
-// {
-//   "session": {
-//     "token": "secure-session-token-here",
-//     "expires": "2024-01-08T00:00:00Z"
-//   },
-//   "user": {
-//     "id": "uuid",
-//     "name": "Kullanıcı Adı",
-//     "email": "kullanici@example.com"
-//   }
-// }
+//
+//	{
+//	  "session": {
+//	    "token": "secure-session-token-here",
+//	    "expires": "2024-01-08T00:00:00Z"
+//	  },
+//	  "user": {
+//	    "id": "uuid",
+//	    "name": "Kullanıcı Adı",
+//	    "email": "kullanici@example.com"
+//	  }
+//	}
+//
 // ```
 //
 // **Geçersiz/Yok Session (200 OK):**
 // ```json
-// {
-//   "session": null
-// }
+//
+//	{
+//	  "session": null
+//	}
+//
 // ```
 //
 // # İş Akışı
@@ -743,35 +781,39 @@ func (h *Handler) SignOut(c *context.Context) error {
 // app.Get("/auth/session", handler.GetSession)
 //
 // // Client tarafından kullanım (React örneği)
-// const checkSession = async () => {
-//   const response = await fetch('/auth/session', {
-//     credentials: 'include' // Cookie gönderimi için gerekli
-//   });
 //
-//   const data = await response.json();
+//	const checkSession = async () => {
+//	  const response = await fetch('/auth/session', {
+//	    credentials: 'include' // Cookie gönderimi için gerekli
+//	  });
 //
-//   if (data.session) {
-//     // Kullanıcı giriş yapmış
-//     console.log('Hoş geldin:', data.user.name);
-//     setUser(data.user);
-//     setIsAuthenticated(true);
-//   } else {
-//     // Kullanıcı giriş yapmamış
-//     console.log('Oturum bulunamadı');
-//     setIsAuthenticated(false);
-//   }
-// };
+//	  const data = await response.json();
+//
+//	  if (data.session) {
+//	    // Kullanıcı giriş yapmış
+//	    console.log('Hoş geldin:', data.user.name);
+//	    setUser(data.user);
+//	    setIsAuthenticated(true);
+//	  } else {
+//	    // Kullanıcı giriş yapmamış
+//	    console.log('Oturum bulunamadı');
+//	    setIsAuthenticated(false);
+//	  }
+//	};
 //
 // // Uygulama başlangıcında
-// useEffect(() => {
-//   checkSession();
-// }, []);
+//
+//	useEffect(() => {
+//	  checkSession();
+//	}, []);
 //
 // // Periyodik kontrol (opsiyonel)
-// useEffect(() => {
-//   const interval = setInterval(checkSession, 5 * 60 * 1000); // 5 dakikada bir
-//   return () => clearInterval(interval);
-// }, []);
+//
+//	useEffect(() => {
+//	  const interval = setInterval(checkSession, 5 * 60 * 1000); // 5 dakikada bir
+//	  return () => clearInterval(interval);
+//	}, []);
+//
 // ```
 //
 // # Güvenlik Özellikleri
@@ -881,22 +923,24 @@ func (h *Handler) GetSession(c *context.Context) error {
 //
 // ```go
 // // Handler içinde kullanıcı bilgisine erişim
-// func profileHandler(c *context.Context) error {
-//   // Session bilgisi
-//   session := c.Locals("session").(*auth.Session)
-//   fmt.Println("Session Token:", session.Token)
-//   fmt.Println("Expires At:", session.ExpiresAt)
 //
-//   // Kullanıcı bilgisi
-//   user := c.Locals("user").(*models.User)
-//   fmt.Println("User ID:", user.ID)
-//   fmt.Println("User Email:", user.Email)
-//   fmt.Println("User Name:", user.Name)
+//	func profileHandler(c *context.Context) error {
+//	  // Session bilgisi
+//	  session := c.Locals("session").(*auth.Session)
+//	  fmt.Println("Session Token:", session.Token)
+//	  fmt.Println("Expires At:", session.ExpiresAt)
 //
-//   return c.JSON(fiber.Map{
-//     "user": user,
-//   })
-// }
+//	  // Kullanıcı bilgisi
+//	  user := c.Locals("user").(*models.User)
+//	  fmt.Println("User ID:", user.ID)
+//	  fmt.Println("User Email:", user.Email)
+//	  fmt.Println("User Name:", user.Name)
+//
+//	  return c.JSON(fiber.Map{
+//	    "user": user,
+//	  })
+//	}
+//
 // ```
 //
 // # İş Akışı
@@ -916,9 +960,11 @@ func (h *Handler) GetSession(c *context.Context) error {
 //
 // **Başarısız (401 Unauthorized):**
 // ```json
-// {
-//   "error": "Unauthorized"
-// }
+//
+//	{
+//	  "error": "Unauthorized"
+//	}
+//
 // ```
 //
 // # Güvenlik Özellikleri
@@ -942,30 +988,35 @@ func (h *Handler) GetSession(c *context.Context) error {
 //
 // ```javascript
 // // Korumalı endpoint'e istek
-// const response = await fetch('/api/profile', {
-//   method: 'GET',
-//   credentials: 'include' // Cookie gönderimi için ZORUNLU
-// });
 //
-// if (response.status === 401) {
-//   // Session geçersiz veya yok
-//   console.log('Oturum süresi dolmuş, lütfen tekrar giriş yapın');
-//   window.location.href = '/login';
-// } else if (response.ok) {
-//   const data = await response.json();
-//   console.log('Kullanıcı:', data.user);
-// }
+//	const response = await fetch('/api/profile', {
+//	  method: 'GET',
+//	  credentials: 'include' // Cookie gönderimi için ZORUNLU
+//	});
+//
+//	if (response.status === 401) {
+//	  // Session geçersiz veya yok
+//	  console.log('Oturum süresi dolmuş, lütfen tekrar giriş yapın');
+//	  window.location.href = '/login';
+//	} else if (response.ok) {
+//
+//	  const data = await response.json();
+//	  console.log('Kullanıcı:', data.user);
+//	}
+//
 // ```
 //
 // # CORS Yapılandırması
 //
 // ```go
 // // Fiber CORS middleware yapılandırması
-// app.Use(cors.New(cors.Config{
-//   AllowOrigins:     "https://yourdomain.com",
-//   AllowCredentials: true, // Cookie için ZORUNLU
-//   AllowHeaders:     "Origin, Content-Type, Accept",
-// }))
+//
+//	app.Use(cors.New(cors.Config{
+//	  AllowOrigins:     "https://yourdomain.com",
+//	  AllowCredentials: true, // Cookie için ZORUNLU
+//	  AllowHeaders:     "Origin, Content-Type, Accept",
+//	}))
+//
 // ```
 //
 // # Best Practices
@@ -1006,6 +1057,20 @@ func (h *Handler) GetSession(c *context.Context) error {
 // - API key authentication (alternatif)
 // - JWT token support (stateless alternative)
 func (h *Handler) SessionMiddleware(c *context.Context) error {
+	if apiKeyAuth, ok := c.Locals(middleware.APIKeyAuthenticatedLocalKey).(bool); ok && apiKeyAuth {
+		apiUser := &user.User{
+			Name:  "API Key",
+			Email: "api-key@panel.local",
+			Role:  "admin",
+		}
+		c.Locals("user", apiUser)
+		c.Locals("session", &session.Session{
+			Token: "api-key",
+			User:  apiUser,
+		})
+		return c.Next()
+	}
+
 	cookieName := "__Host-session_token"
 	if h.environment == "test" {
 		cookieName = "session_token"
@@ -1040,9 +1105,11 @@ func (h *Handler) SessionMiddleware(c *context.Context) error {
 // # JSON Örneği
 //
 // ```json
-// {
-//   "email": "kullanici@example.com"
-// }
+//
+//	{
+//	  "email": "kullanici@example.com"
+//	}
+//
 // ```
 //
 // # Güvenlik Özellikleri
@@ -1059,9 +1126,10 @@ func (h *Handler) SessionMiddleware(c *context.Context) error {
 // POST /auth/forgot-password
 // Content-Type: application/json
 //
-// {
-//   "email": "ahmet@example.com"
-// }
+//	{
+//	  "email": "ahmet@example.com"
+//	}
+//
 // ```
 //
 // # Önemli Notlar
@@ -1090,18 +1158,22 @@ type ForgotPasswordRequest struct {
 // # Request Body
 //
 // ```json
-// {
-//   "email": "kullanici@example.com"
-// }
+//
+//	{
+//	  "email": "kullanici@example.com"
+//	}
+//
 // ```
 //
 // # Response
 //
 // **Her Zaman Başarılı (200 OK):**
 // ```json
-// {
-//   "message": "If an account exists with this email, a password reset link has been sent."
-// }
+//
+//	{
+//	  "message": "If an account exists with this email, a password reset link has been sent."
+//	}
+//
 // ```
 //
 // # İş Akışı
@@ -1143,31 +1215,34 @@ type ForgotPasswordRequest struct {
 // app.Post("/auth/forgot-password", handler.ForgotPassword)
 //
 // // Client tarafından kullanım
-// const forgotPassword = async (email) => {
-//   const response = await fetch('/auth/forgot-password', {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ email })
-//   });
 //
-//   if (response.ok) {
-//     const data = await response.json();
-//     // Her zaman aynı mesaj
-//     alert(data.message);
-//     // Kullanıcıyı bilgilendir
-//     showNotification(
-//       'Şifre sıfırlama linki gönderildi',
-//       'Email adresinizi kontrol edin. Link 1 saat geçerlidir.'
-//     );
-//   }
-// };
+//	const forgotPassword = async (email) => {
+//	  const response = await fetch('/auth/forgot-password', {
+//	    method: 'POST',
+//	    headers: { 'Content-Type': 'application/json' },
+//	    body: JSON.stringify({ email })
+//	  });
+//
+//	  if (response.ok) {
+//	    const data = await response.json();
+//	    // Her zaman aynı mesaj
+//	    alert(data.message);
+//	    // Kullanıcıyı bilgilendir
+//	    showNotification(
+//	      'Şifre sıfırlama linki gönderildi',
+//	      'Email adresinizi kontrol edin. Link 1 saat geçerlidir.'
+//	    );
+//	  }
+//	};
 //
 // // Form submit handler
-// const handleSubmit = (e) => {
-//   e.preventDefault();
-//   const email = e.target.email.value;
-//   forgotPassword(email);
-// };
+//
+//	const handleSubmit = (e) => {
+//	  e.preventDefault();
+//	  const email = e.target.email.value;
+//	  forgotPassword(email);
+//	};
+//
 // ```
 //
 // # Email İçeriği Örneği
@@ -1220,29 +1295,29 @@ type ForgotPasswordRequest struct {
 // # Best Practices
 //
 // 1. **User Experience**:
-//    - Kullanıcıya net talimatlar verin
-//    - Email gelmezse spam klasörünü kontrol etmesini söyleyin
-//    - Token süresi hakkında bilgilendirin
-//    - Yeni istek gönderebileceğini belirtin
+//   - Kullanıcıya net talimatlar verin
+//   - Email gelmezse spam klasörünü kontrol etmesini söyleyin
+//   - Token süresi hakkında bilgilendirin
+//   - Yeni istek gönderebileceğini belirtin
 //
 // 2. **Security**:
-//    - Token'ları güvenli şekilde oluşturun (crypto/rand)
-//    - Token'ları hash'leyerek saklayın
-//    - Kısa süre için geçerli tutun (1 saat)
-//    - Rate limiting uygulayın
-//    - Email enumeration'a izin vermeyin
+//   - Token'ları güvenli şekilde oluşturun (crypto/rand)
+//   - Token'ları hash'leyerek saklayın
+//   - Kısa süre için geçerli tutun (1 saat)
+//   - Rate limiting uygulayın
+//   - Email enumeration'a izin vermeyin
 //
 // 3. **Email Delivery**:
-//    - Güvenilir email servisi kullanın (SendGrid, AWS SES)
-//    - Email template'leri profesyonel tutun
-//    - SPF, DKIM, DMARC ayarlarını yapın
-//    - Bounce ve complaint'leri takip edin
+//   - Güvenilir email servisi kullanın (SendGrid, AWS SES)
+//   - Email template'leri profesyonel tutun
+//   - SPF, DKIM, DMARC ayarlarını yapın
+//   - Bounce ve complaint'leri takip edin
 //
 // 4. **Monitoring**:
-//    - Başarısız email gönderimlerini loglayın
-//    - Şüpheli aktiviteleri tespit edin
-//    - Token kullanım oranlarını izleyin
-//    - Abuse pattern'lerini takip edin
+//   - Başarısız email gönderimlerini loglayın
+//   - Şüpheli aktiviteleri tespit edin
+//   - Token kullanım oranlarını izleyin
+//   - Abuse pattern'lerini takip edin
 //
 // # Güvenlik Uyarıları
 //

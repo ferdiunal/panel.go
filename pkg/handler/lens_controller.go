@@ -369,16 +369,11 @@ func HandleLens(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
-	resources := make([]map[string]interface{}, 0, len(result.Items))
-	for _, item := range result.Items {
-		res := h.resolveResourceFields(c.Ctx, c.Resource(), item, elements)
-		policy := map[string]bool{
-			"view":   h.Policy == nil || h.Policy.View(c, item),
-			"update": h.Policy == nil || h.Policy.Update(c, item),
-			"delete": h.Policy == nil || h.Policy.Delete(c, item),
-		}
-		res["policy"] = policy
-		resources = append(resources, res)
+	resources, err := resolveResourcesWithPolicy(h, c, result.Items, elements)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	headers := make([]map[string]interface{}, 0)

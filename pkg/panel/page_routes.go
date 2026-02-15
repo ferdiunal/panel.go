@@ -519,6 +519,10 @@ func (p *Panel) handlePageSave(c *context.Context) error {
 		_ = p.LoadSettings()
 	}
 
+	if slug == "api-settings" {
+		p.refreshAPIKeyAuthFromSettings()
+	}
+
 	/// Başarılı kaydetme mesajı döndür
 	return c.JSON(fiber.Map{
 		"message": "Settings saved",

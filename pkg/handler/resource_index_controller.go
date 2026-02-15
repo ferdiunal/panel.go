@@ -7,6 +7,7 @@ import (
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/ferdiunal/panel.go/pkg/query"
+	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -124,6 +125,7 @@ import (
 //	    "per_page": 15,
 //	    "total": 100,
 //	    "dialog_type": "modal",
+//	    "dialog_size": "md",
 //	    "title": "Users",
 //	    "headers": [
 //	      {
@@ -376,18 +378,11 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	}
 
 	// Map items to resources with fields extracted
-	resources := make([]map[string]interface{}, 0)
-
-	for _, item := range result.Items {
-		res := h.resolveResourceFields(c.Ctx, c.Resource(), item, elements)
-		// Inject per-item policy
-		policy := map[string]bool{
-			"view":   h.Policy == nil || h.Policy.View(c, item),
-			"update": h.Policy == nil || h.Policy.Update(c, item),
-			"delete": h.Policy == nil || h.Policy.Delete(c, item),
-		}
-		res["policy"] = policy
-		resources = append(resources, res)
+	resources, err := resolveResourcesWithPolicy(h, c, result.Items, elements)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	// Generate headers for frontend table order
@@ -415,12 +410,18 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 	return c.JSON(fiber.Map{
 		"data": resources,
 		"meta": fiber.Map{
-			"current_page": result.Page,
-			"per_page":     result.PerPage,
-			"total":        result.Total,
-			"dialog_type":  h.DialogType,
-			"title":        h.Resource.TitleWithContext(c.Ctx),
-			"headers":      headers,
+			"current_page":     result.Page,
+			"per_page":         result.PerPage,
+			"total":            result.Total,
+			"dialog_type":      h.DialogType,
+			"dialog_size":      h.DialogSize,
+			"row_click_action": string(resource.NormalizeIndexRowClickAction(h.IndexRowClickAction)),
+			"reorder": fiber.Map{
+				"enabled": h.IndexReorderConfig.Enabled,
+				"column":  h.IndexReorderConfig.Column,
+			},
+			"title":   h.Resource.TitleWithContext(c.Ctx),
+			"headers": headers,
 			"policy": fiber.Map{
 				"create":   h.Policy == nil || h.Policy.Create(c),
 				"view_any": h.Policy == nil || h.Policy.ViewAny(c),

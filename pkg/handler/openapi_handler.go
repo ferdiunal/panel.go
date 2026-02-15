@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/ferdiunal/panel.go/pkg/openapi"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/gofiber/fiber/v2"
 )
+
+const docsCSP = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none';"
 
 // OpenAPIHandler, OpenAPI spesifikasyonu ve dokümantasyon endpoint'lerini yönetir.
 //
@@ -79,9 +83,10 @@ func (h *OpenAPIHandler) GetSpec(c *fiber.Ctx) error {
 //	app.Get("/api/docs", handler.SwaggerUI)
 func (h *OpenAPIHandler) SwaggerUI(c *fiber.Ctx) error {
 	// Spec URL'ini oluştur
-	specURL := "/api/openapi.json"
+	specURL := buildSpecURL(c)
 
 	html := openapi.SwaggerUIHTML(specURL, h.config.Title)
+	c.Set("Content-Security-Policy", docsCSP)
 	c.Type("html")
 	return c.SendString(html)
 }
@@ -99,9 +104,10 @@ func (h *OpenAPIHandler) SwaggerUI(c *fiber.Ctx) error {
 //	app.Get("/api/docs/redoc", handler.ReDocUI)
 func (h *OpenAPIHandler) ReDocUI(c *fiber.Ctx) error {
 	// Spec URL'ini oluştur
-	specURL := "/api/openapi.json"
+	specURL := buildSpecURL(c)
 
 	html := openapi.ReDocHTML(specURL, h.config.Title)
+	c.Set("Content-Security-Policy", docsCSP)
 	c.Type("html")
 	return c.SendString(html)
 }
@@ -119,9 +125,10 @@ func (h *OpenAPIHandler) ReDocUI(c *fiber.Ctx) error {
 //	app.Get("/api/docs/rapidoc", handler.RapidocUI)
 func (h *OpenAPIHandler) RapidocUI(c *fiber.Ctx) error {
 	// Spec URL'ini oluştur
-	specURL := "/api/openapi.json"
+	specURL := buildSpecURL(c)
 
 	html := openapi.RapidocHTML(specURL, h.config.Title)
+	c.Set("Content-Security-Policy", docsCSP)
 	c.Type("html")
 	return c.SendString(html)
 }
@@ -133,4 +140,17 @@ func (h *OpenAPIHandler) RapidocUI(c *fiber.Ctx) error {
 //	handler.RefreshSpec()
 func (h *OpenAPIHandler) RefreshSpec() {
 	h.generator.InvalidateCache()
+}
+
+func buildSpecURL(c *fiber.Ctx) string {
+	if c == nil {
+		return "/api/openapi.json"
+	}
+
+	lang := strings.TrimSpace(c.Params("lang"))
+	if lang == "" {
+		return "/api/openapi.json"
+	}
+
+	return "/api/" + lang + "/openapi.json"
 }

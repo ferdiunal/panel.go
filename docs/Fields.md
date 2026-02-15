@@ -540,6 +540,88 @@ fields.KeyValue("Meta Veriler", "metadata").
 }
 ```
 
+### Matrix Alanı (Matrix)
+
+Satır-sütun bazlı dinamik veri girişi için kullanılır. Özellikle varyant/opsiyon gibi
+çoklu satır senaryolarında uygundur.
+
+```go
+fields.Matrix("Variant Matrix", "variant_matrix").
+	OnForm().
+	WithProps("options", map[string]interface{}{
+		"columns": []map[string]interface{}{
+			{
+				"key":   "product_option_id",
+				"label": "Product Option",
+				"type":  "select",
+				"options": map[string]interface{}{
+					"1": "Color",
+					"2": "Size",
+				},
+			},
+			{
+				"key":       "product_option_value_id",
+				"label":     "Product Option Value",
+				"type":      "select",
+				"dependsOn": "product_option_id",
+				"optionsByDependency": map[string]interface{}{
+					"1": map[string]interface{}{"10": "Red", "11": "Blue"},
+					"2": map[string]interface{}{"20": "S", "21": "M"},
+				},
+			},
+			{
+				"key":   "is_variant",
+				"label": "Variant Option Value",
+				"type":  "radio",
+			},
+		},
+		"allowAddingRows":   true,
+		"allowDeletingRows": true,
+		"addButtonText":     "Satır Ekle",
+		"emptyMessage":      "Henüz satır yok",
+	}),
+	WithProps("keys", map[string]interface{}{
+		"option":       "product_option_id",
+		"option_value": "product_option_value_id",
+		"variant":      "is_variant",
+	})
+```
+
+**Desteklenen hücre tipleri:**
+- `text` (varsayılan)
+- `number`
+- `textarea`
+- `select`
+- `checkbox`
+- `radio`
+
+**Önemli Notlar:**
+- `columns[].type` verilmezse varsayılan olarak `text` kullanılır.
+- `columns[].key` backend tarafındaki veri anahtarıdır; payload bu anahtarla gelir.
+- Satır bazlı `+` ve silme aksiyonları ile alt kısımda ekle butonu desteklenir.
+- `dependsOn + optionsByDependency` ile bağımlı select akışı kurulabilir.
+- `radio` için `options` verilmezse satır-seçici gibi çalışır (tek satır true kalır).
+
+**Gönderilen payload örneği:**
+```json
+{
+  "variant_matrix": {
+    "rows": [
+      {
+        "product_option_id": "1",
+        "product_option_value_id": "10",
+        "is_variant": true
+      }
+    ],
+    "keys": {
+      "option": "product_option_id",
+      "option_value": "product_option_value_id",
+      "variant": "is_variant"
+    }
+  }
+}
+```
+
 ### Combobox Alanı
 
 Arama yapılabilir seçim listesi için kullanılır.
