@@ -858,8 +858,8 @@ func (h *HasOneField) Extract(resource interface{}) {
 		return
 	}
 
-	// RecordTitle ile başlığı al
-	recordTitle := res.RecordTitle(record)
+	// RecordTitle ile başlığı al (gerekirse struct field fallback kullan)
+	recordTitle := resolveRelationshipRecordTitle(res, record, idValue)
 
 	// Minimal format: {"id": ..., "title": ...}
 	h.Schema.Data = map[string]interface{}{

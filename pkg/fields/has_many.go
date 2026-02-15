@@ -657,8 +657,8 @@ func (h *HasManyField) Extract(resource interface{}) {
 			continue
 		}
 
-		// RecordTitle ile başlığı al
-		recordTitle := res.RecordTitle(record)
+		// RecordTitle ile başlığı al (gerekirse struct field fallback kullan)
+		recordTitle := resolveRelationshipRecordTitle(res, record, idValue)
 
 		// Format seçimi: Minimal veya Full
 		if h.FullDataMode {

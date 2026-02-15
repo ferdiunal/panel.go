@@ -402,8 +402,8 @@ func (b *BelongsToManyField) Extract(resource interface{}) {
 			continue
 		}
 
-		// RecordTitle ile başlığı al
-		recordTitle := res.RecordTitle(record)
+		// RecordTitle ile başlığı al (gerekirse struct field fallback kullan)
+		recordTitle := resolveRelationshipRecordTitle(res, record, idValue)
 
 		// Minimal format: {"id": ..., "title": ...}
 		serializedRecords = append(serializedRecords, map[string]interface{}{

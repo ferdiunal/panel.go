@@ -714,8 +714,8 @@ func (b *BelongsToField) Extract(record any) {
 		return
 	}
 
-	// İlişkili kaydın title'ını al
-	recordTitle := res.RecordTitle(relatedRecord)
+	// İlişkili kaydın title'ını al (gerekirse struct field fallback kullan)
+	recordTitle := resolveRelationshipRecordTitle(res, relatedRecord, foreignKeyValue)
 
 	// Minimal format: {"id": foreignKey, "title": recordTitle}
 	b.Data = map[string]any{

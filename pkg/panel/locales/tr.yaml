@@ -32,11 +32,6 @@ form:
   tooShort: "Çok kısa"
   tooLong: "Çok uzun"
 
-fields:
-  created_at: "Oluşturulma Tarihi"
-  updated_at: "Güncellenme Tarihi"
-  deleted_at: "Silinme Tarihi"
-
 # Navigasyon
 navigation:
   dashboard: "Kontrol Paneli"
@@ -106,11 +101,11 @@ auth:
     description: "Panele erişmek için bilgilerinizi girin"
     email: "E-posta"
     emailPlaceholder: "m@example.com"
-    password: "Parola"
-    passwordPlaceholder: "Parolayı girin"
+    password: "Şifre"
+    passwordPlaceholder: "Şifrenizi girin"
     submit: "Giriş Yap"
     submitting: "Giriş yapılıyor..."
-    forgotPassword: "Parolayı Unuttum"
+    forgotPassword: "Şifremi Unuttum"
     noAccount: "Hesabınız yok mu?"
     register: "Kayıt Ol"
     fillAllFields: "Lütfen tüm alanları doldurun"
@@ -124,16 +119,16 @@ auth:
     email: "E-posta"
     emailPlaceholder: "m@example.com"
     emailInvalid: "Geçerli bir e-posta adresi girin"
-    password: "Parola"
-    passwordMinLength: "Parola en az 6 karakter olmalı"
+    password: "Şifre"
+    passwordMinLength: "Şifre en az 6 karakter olmalı"
     submit: "Hesap Oluştur"
     success: "Hesap oluşturuldu! Giriş yapabilirsiniz."
     failed: "Kayıt başarısız"
     hasAccount: "Zaten hesabınız var mı?"
     login: "Giriş Yap"
   forgotPassword:
-    title: "Parolayı Unuttum"
-    description: "Parolayı sıfırlamak için e-posta adresinizi girin"
+    title: "Şifremi Unuttum"
+    description: "Şifrenizi sıfırlamak için e-posta adresinizi girin"
     email: "E-posta"
     emailPlaceholder: "m@example.com"
     emailInvalid: "Geçerli bir e-posta adresi giriniz."

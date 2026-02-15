@@ -5,9 +5,12 @@
 package panel
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -16,6 +19,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gopkg.in/yaml.v3"
 )
+
+// embeddedLocalesFS, SDK ile gelen varsayılan locale dosyalarını içerir.
+// Kullanıcı locale dosyaları bunların üzerine override edilir.
+//
+//go:embed locales/*.yaml
+var embeddedLocalesFS embed.FS
 
 // HTMLPlaceholders, index.html'de kullanılan placeholder'lar.
 const (
@@ -78,27 +87,96 @@ func GetHTMLInjectionData(c *fiber.Ctx, config Config) HTMLInjectionData {
 // loadTranslations, belirtilen dil için YAML locale dosyasını okur
 // ve tüm key'leri "dot notation" (nested.key.path) olarak flat bir map'e çevirir.
 func loadTranslations(config Config, lang string) map[string]interface{} {
+	merged := make(map[string]interface{})
+	mergeTranslationMaps(merged, loadEmbeddedTranslations(lang))
+	mergeTranslationMaps(merged, loadUserTranslations(config, lang))
+	return merged
+}
+
+func loadEmbeddedTranslations(lang string) map[string]interface{} {
+	translations := make(map[string]interface{})
+
+	for _, fileName := range localeFileCandidates(lang) {
+		filePath := path.Join("locales", fileName)
+		data, err := fs.ReadFile(embeddedLocalesFS, filePath)
+		if err != nil {
+			continue
+		}
+
+		flat, err := parseAndFlattenLocaleYAML(data)
+		if err != nil {
+			continue
+		}
+
+		mergeTranslationMaps(translations, flat)
+	}
+
+	return translations
+}
+
+func loadUserTranslations(config Config, lang string) map[string]interface{} {
+	translations := make(map[string]interface{})
+
 	rootPath := config.I18n.RootPath
 	if rootPath == "" {
 		rootPath = "./locales"
 	}
 
-	filePath := filepath.Join(rootPath, lang+".yaml")
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		// Dosya yoksa boş map dön
-		return map[string]interface{}{}
+	for _, fileName := range localeFileCandidates(lang) {
+		filePath := filepath.Join(rootPath, fileName)
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+
+		flat, err := parseAndFlattenLocaleYAML(data)
+		if err != nil {
+			continue
+		}
+
+		mergeTranslationMaps(translations, flat)
 	}
 
+	return translations
+}
+
+func parseAndFlattenLocaleYAML(data []byte) (map[string]interface{}, error) {
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return map[string]interface{}{}
+		return nil, err
 	}
 
-	// Nested YAML'ı flat dot notation'a çevir
 	flat := make(map[string]interface{})
 	flattenMap("", raw, flat)
-	return flat
+	return flat, nil
+}
+
+func mergeTranslationMaps(dest map[string]interface{}, src map[string]interface{}) {
+	for key, value := range src {
+		dest[key] = value
+	}
+}
+
+func localeFileCandidates(lang string) []string {
+	normalized := strings.TrimSpace(strings.ReplaceAll(lang, "_", "-"))
+	if normalized == "" {
+		return nil
+	}
+
+	normalized = strings.ToLower(normalized)
+	base := normalized
+	if idx := strings.Index(normalized, "-"); idx > 0 {
+		base = normalized[:idx]
+	}
+
+	// Base -> Exact sırası:
+	// tr.yaml + tr-tr.yaml gibi dosyalar varsa exact locale base'i override eder.
+	candidates := []string{base + ".yaml"}
+	if normalized != base {
+		candidates = append(candidates, normalized+".yaml")
+	}
+
+	return candidates
 }
 
 // flattenMap, nested map'i dot notation'a çevirir.

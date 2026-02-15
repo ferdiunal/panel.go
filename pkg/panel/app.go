@@ -268,11 +268,17 @@ func New(config Config) *Panel {
 
 	// I18n Middleware
 	if config.I18n.Enabled {
+		rootPath := config.I18n.RootPath
+		if rootPath == "" {
+			rootPath = "./locales"
+		}
+
 		app.Use(fiberi18n.New(&fiberi18n.Config{
-			RootPath:         config.I18n.RootPath,
+			RootPath:         rootPath,
 			AcceptLanguages:  config.I18n.AcceptLanguages,
 			DefaultLanguage:  config.I18n.DefaultLanguage,
 			FormatBundleFile: config.I18n.FormatBundleFile,
+			Loader:           newMergedLocaleLoader(rootPath),
 		}))
 		app.Use(langMiddleware(config))
 	}
@@ -381,6 +387,7 @@ func New(config Config) *Panel {
 			AcceptLanguages:  acceptLanguages,
 			DefaultLanguage:  defaultLanguage,
 			FormatBundleFile: formatBundleFile,
+			Loader:           newMergedLocaleLoader(rootPath),
 		}))
 	}
 

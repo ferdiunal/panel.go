@@ -710,8 +710,13 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	// Apply Eager Loading with GORM Preload
 	// WORKAROUND: Direkt olarak WithRelationships kullan çünkü relationshipFields boş olabilir
 	// (field type detection sorunu nedeniyle)
+	relationshipTableByName := p.relationshipTableByName()
 	fmt.Printf("[DEBUG] Index - Preloading relationships: %v\n", p.WithRelationships)
 	for _, relName := range p.WithRelationships {
+		if shouldSkipPreloadForViaResource(relName, req.ViaResource, relationshipTableByName) {
+			fmt.Printf("[DEBUG] Index - Skip preload in via context: %s (via=%s)\n", relName, req.ViaResource)
+			continue
+		}
 		fmt.Printf("[DEBUG] Index - Preload: %s\n", relName)
 		db = db.Preload(relName)
 	}
@@ -726,7 +731,7 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 			for _, rel := range stmt.Schema.Relationships.Relations {
 				if rel.Type == schema.BelongsTo {
 					// İlişkili tablo adını kontrol et (örn: "organizations")
-					if rel.FieldSchema.Table == req.ViaResource {
+					if normalizeResourceTableIdentifier(rel.FieldSchema.Table) == normalizeResourceTableIdentifier(req.ViaResource) {
 						// İlişkiyi bulduk! Foreign key'i alıp filtre ekle.
 						for _, ref := range rel.References {
 							if !ref.OwnPrimaryKey { // Child tablodaki FK (örn: organization_id)
@@ -863,6 +868,57 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		Page:    req.Page,
 		PerPage: req.PerPage,
 	}, nil
+}
+
+func (p *GormDataProvider) relationshipTableByName() map[string]string {
+	tableByRelation := make(map[string]string)
+
+	stmt := &gorm.Statement{DB: p.DB}
+	if err := stmt.Parse(p.Model); err != nil || stmt.Schema == nil {
+		return tableByRelation
+	}
+
+	for relationName, rel := range stmt.Schema.Relationships.Relations {
+		if rel == nil || rel.FieldSchema == nil || strings.TrimSpace(rel.FieldSchema.Table) == "" {
+			continue
+		}
+
+		tableByRelation[relationName] = rel.FieldSchema.Table
+		tableByRelation[strings.ToLower(relationName)] = rel.FieldSchema.Table
+	}
+
+	return tableByRelation
+}
+
+func shouldSkipPreloadForViaResource(preloadName string, viaResource string, relationTableByName map[string]string) bool {
+	if strings.TrimSpace(preloadName) == "" || strings.TrimSpace(viaResource) == "" || len(relationTableByName) == 0 {
+		return false
+	}
+
+	rootRelation := preloadName
+	if dotIndex := strings.Index(rootRelation, "."); dotIndex >= 0 {
+		rootRelation = rootRelation[:dotIndex]
+	}
+	rootRelation = strings.TrimSpace(rootRelation)
+	if rootRelation == "" {
+		return false
+	}
+
+	relationTable := relationTableByName[rootRelation]
+	if relationTable == "" {
+		relationTable = relationTableByName[strings.ToLower(rootRelation)]
+	}
+	if relationTable == "" {
+		return false
+	}
+
+	return normalizeResourceTableIdentifier(relationTable) == normalizeResourceTableIdentifier(viaResource)
+}
+
+func normalizeResourceTableIdentifier(value string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	return normalized
 }
 
 // / # Show

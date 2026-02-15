@@ -281,7 +281,7 @@ func HandleResourceEdit(h *FieldHandler, c *context.Context) error {
 	return c.JSON(fiber.Map{
 		"fields": orderedFields,
 		"meta": fiber.Map{
-			"title": h.Title,
+			"title": h.Resource.TitleWithContext(c.Ctx),
 		},
 	})
 }

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/data"
 	"github.com/ferdiunal/panel.go/pkg/fields"
@@ -337,6 +339,19 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 		ViaRelationship: queryParams.ViaRelationship,
 	}
 
+	// In nested relationship context, hide reverse relationship fields that point
+	// back to parent resource (prevents products->variants->products style 3rd breakouts).
+	if req.ViaResource != "" {
+		filtered := make([]fields.Element, 0, len(elements))
+		for _, element := range elements {
+			if shouldSkipViaBackReferenceField(element, req.ViaResource) {
+				continue
+			}
+			filtered = append(filtered, element)
+		}
+		elements = filtered
+	}
+
 	// Extract relationship fields from elements and set to provider
 	relationshipFields := []fields.RelationshipField{}
 	for _, element := range elements {
@@ -414,4 +429,40 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			},
 		},
 	})
+}
+
+func shouldSkipViaBackReferenceField(element fields.Element, viaResource string) bool {
+	if strings.TrimSpace(viaResource) == "" {
+		return false
+	}
+
+	relationshipField, isRelationship := fields.IsRelationshipField(element)
+	if !isRelationship {
+		return false
+	}
+
+	relatedSlug := ""
+	if relationshipField != nil {
+		relatedSlug = relationshipField.GetRelatedResourceSlug()
+	}
+
+	if strings.TrimSpace(relatedSlug) == "" {
+		serialized := element.JsonSerialize()
+		props, _ := serialized["props"].(map[string]interface{})
+		if slug, ok := props["related_resource"].(string); ok {
+			relatedSlug = slug
+		}
+	}
+
+	if strings.TrimSpace(relatedSlug) == "" {
+		return false
+	}
+
+	return normalizeResourceIdentifier(relatedSlug) == normalizeResourceIdentifier(viaResource)
+}
+
+func normalizeResourceIdentifier(value string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	return normalized
 }
