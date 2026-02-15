@@ -4,6 +4,20 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### 🛡️ Dependency Resolver CSRF 403 Düzeltmesi
+
+Dependency resolver endpoint'ine giden isteklerde CSRF header eksikliği nedeniyle oluşan `403` hatası giderildi.
+
+#### Frontend
+
+- `web/src/hooks/useFormDependencies.ts` içinde dependency çözümleme çağrısı `fetch` yerine axios tabanlı `resourceService.resolveDependencies(...)` üzerinden çalışacak şekilde güncellendi.
+- Böylece `/api/resource/:resource/fields/resolve-dependencies` çağrılarında session + CSRF akışı diğer API çağrılarıyla aynı hale getirildi.
+- `target_type` gibi dependency tetikleyen alan değişimlerinde görülen 403 sorunu çözüldü.
+
+#### Doğrulama
+
+- ✅ `bun run build` (`web/`)
+
 ### 🎨 Dashboard Kart Grid Width Desteği (Frontend)
 
 Dashboard ve resource/lens kart grid yerleşimlerinde `card.width` değerinin gerçekten uygulanması sağlandı.
@@ -78,6 +92,13 @@ Resource bazında index sayfası pagination davranışı yönetilebilir hale get
 - ✅ `go test ./pkg/handler ./pkg/resource`
 - ✅ `bun run test src/components/views/Pagination.test.tsx` (`web/`)
 - ✅ `bun run build` (`web/`)
+
+#### 🔧 Varsayılan Per Page Güncellemesi
+
+- Resource index için varsayılan `per_page` değeri `15` yerine `10` olarak güncellendi.
+- Backend query parser varsayılanı güncellendi: `pkg/query/parser.go`
+- Frontend URL param varsayılanı güncellendi: `web/src/lib/resource-params.ts`
+- Sonuç: İlk yüklemede pagination select varsayılan olarak `10` gösterir.
 
 ### ⚡ Full-Repo Concurrency, Sync, Channel Refactor (Güvenli Kademeli)
 

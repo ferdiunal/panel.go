@@ -84,10 +84,15 @@ Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) he
     "current": 320,
     "target": 1000,
     "percentage": 32,
+    "activeSeries": "siparis",
+    "series": {
+      "desktop": { "key": "siparis", "label": "Sipariş", "color": "var(--chart-1)", "enabled": true },
+      "mobile": { "key": "hedef", "label": "Hedef", "color": "var(--chart-2)", "enabled": true }
+    },
     "chartData": [
-      { "date": "2026-02-01", "desktop": 120, "mobile": 1000 },
-      { "date": "2026-02-02", "desktop": 180, "mobile": 1000 },
-      { "date": "2026-02-03", "desktop": 220, "mobile": 1000 }
+      { "date": "2026-02-01", "siparis": 120, "hedef": 1000 },
+      { "date": "2026-02-02", "siparis": 180, "hedef": 1000 },
+      { "date": "2026-02-03", "siparis": 220, "hedef": 1000 }
     ]
   }
 }
@@ -95,20 +100,26 @@ Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) he
 
 ### Notlar
 
-- `desktop` ve `mobile` iki farklı çizgi serisi olarak kullanılır.
+- `series.desktop.key` ve `series.mobile.key` değerleri line chart `dataKey` alanlarını belirler.
+- `activeSeries` değeri alias (`desktop/mobile`) veya data key (`siparis/hedef`) olabilir.
 - `History(...)` verilmezse backend, `current/target` değerlerinden 30 günlük fallback `chartData` üretir.
 
 ## Önerilen Backend Kullanımı
 
 ```go
 metric.NewProgress("Aylık Hedef", 1000).
+  SetSeriesKey("desktop", "siparis").
+  SetSeriesLabel("desktop", "Sipariş").
+  SetSeriesKey("mobile", "hedef").
+  SetSeriesLabel("mobile", "Hedef").
+  SetActiveSeries("siparis").
   Current(func(db *gorm.DB) (int64, error) {
     return metric.CountWhere(db, &Order{}, "created_at >= ?", startOfMonth)
   }).
   History(func(db *gorm.DB) ([]map[string]interface{}, error) {
     return []map[string]interface{}{
-      {"date": "2026-02-01", "desktop": 120, "mobile": 1000},
-      {"date": "2026-02-02", "desktop": 180, "mobile": 1000},
+      {"date": "2026-02-01", "siparis": 120, "hedef": 1000},
+      {"date": "2026-02-02", "siparis": 180, "hedef": 1000},
     }, nil
   })
 ```

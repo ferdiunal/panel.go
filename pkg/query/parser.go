@@ -61,7 +61,7 @@ type ResourceQueryParams struct {
 	Sorts   []Sort   // Sıralama konfigürasyonları (birden fazla sütuna göre sıralama desteklenir)
 	Filters []Filter // Filtreleme koşulları (alan, operatör ve değer kombinasyonları)
 	Page    int      // Sayfa numarası (1'den başlar, varsayılan: 1)
-	PerPage int      // Sayfa başına kayıt sayısı (varsayılan: 15, maksimum: 100)
+	PerPage int      // Sayfa başına kayıt sayısı (varsayılan: 10, maksimum: 100)
 
 	// Relationship parametreleri
 	ViaResource     string // İlişkili olduğu ana kaynak (örn: "organizations")
@@ -80,7 +80,7 @@ type ResourceQueryParams struct {
 // Dönüş Değeri:
 // - *ResourceQueryParams: Varsayılan değerlerle yapılandırılmış pointer'ı
 //   - Page: 1 (ilk sayfa)
-//   - PerPage: 15 (sayfa başına 15 kayıt)
+//   - PerPage: 10 (sayfa başına 10 kayıt)
 //   - Filters: Boş slice
 //   - Sorts: Boş slice
 //   - Search: Boş string
@@ -97,7 +97,7 @@ type ResourceQueryParams struct {
 func DefaultParams() *ResourceQueryParams {
 	return &ResourceQueryParams{
 		Page:    1,
-		PerPage: 15,
+		PerPage: 10,
 		Filters: make([]Filter, 0),
 		Sorts:   make([]Sort, 0),
 	}
@@ -429,7 +429,7 @@ func parseFilterParam(inner, value string, params *ResourceQueryParams) {
 //
 // Desteklenen Legacy Parametreler:
 // - page: Sayfa numarası (varsayılan: 1)
-// - per_page: Sayfa başına kayıt sayısı (varsayılan: 15, maksimum: 100)
+// - per_page: Sayfa başına kayıt sayısı (varsayılan: 10, maksimum: 100)
 // - search: Arama sorgusu
 // - sort_column: Sıralanacak sütun adı
 // - sort_direction: Sıralama yönü (asc/desc, varsayılan: asc)

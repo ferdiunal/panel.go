@@ -28,6 +28,9 @@ import (
 type Trend struct {
 	// Title: Widget'ın başlığı, UI'da gösterilecek metin
 	Title string
+	// Subtitle: Widget alt başlığı/açıklaması.
+	// Frontend chart kartında CardDescription olarak gösterilir.
+	Subtitle string
 	// Ranges: Kullanıcının seçebileceği gün aralıkları (örn: 30, 60, 90 gün)
 	Ranges []int
 	// QueryFunc: Veritabanından trend verilerini çeken özel sorgu fonksiyonu.
@@ -111,7 +114,14 @@ func (w *Trend) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error) 
 		"data":      data,
 		"chartData": chartData,
 		"title":     w.Title,
+		"subtitle":  w.Subtitle,
 	}, nil
+}
+
+// SetSubtitle, trend kartı için frontend'de gösterilecek alt başlığı ayarlar.
+func (w *Trend) SetSubtitle(subtitle string) *Trend {
+	w.Subtitle = subtitle
+	return w
 }
 
 func normalizeAreaChartData(data []interface{}) []map[string]interface{} {
@@ -237,13 +247,17 @@ func (w *Trend) HandleError(err error) map[string]interface{} {
 // - Widget'ın özelliklerini dinamik olarak okumak için
 // - Admin panelinde widget ayarlarını göstermek için
 func (w *Trend) GetMetadata() map[string]interface{} {
-	return map[string]interface{}{
+	metadata := map[string]interface{}{
 		"name":      w.Title,
 		"component": "trend-metric",
 		"width":     "1/3",
 		"type":      CardTypeTrend,
 		"ranges":    w.Ranges,
 	}
+	if w.Subtitle != "" {
+		metadata["subtitle"] = w.Subtitle
+	}
+	return metadata
 }
 
 // Bu metod, widget'ı JSON formatında serileştirir.
@@ -268,13 +282,17 @@ func (w *Trend) GetMetadata() map[string]interface{} {
 // - GetMetadata() ile benzer ancak farklı alanlar içerebilir
 // - JSON serileştirme için optimize edilmiştir
 func (w *Trend) JsonSerialize() map[string]interface{} {
-	return map[string]interface{}{
+	serialized := map[string]interface{}{
 		"component": "trend-metric",
 		"title":     w.Title,
 		"width":     "1/3",
 		"type":      CardTypeTrend,
 		"ranges":    w.Ranges,
 	}
+	if w.Subtitle != "" {
+		serialized["subtitle"] = w.Subtitle
+	}
+	return serialized
 }
 
 // Bu yapı, trend grafiğindeki tek bir veri noktasını temsil eder.

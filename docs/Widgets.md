@@ -63,14 +63,19 @@ func (r *OrderResource) Cards() []widget.Card {
 func (r *OrderResource) Cards() []widget.Card {
 	return []widget.Card{
 		metric.NewProgress("Aylık Hedef", 1000).
+			SetSeriesKey("desktop", "siparis").
+			SetSeriesLabel("desktop", "Sipariş").
+			SetSeriesKey("mobile", "hedef").
+			SetSeriesLabel("mobile", "Hedef").
+			SetActiveSeries("siparis").
 			Current(func(db *gorm.DB) (int64, error) {
 				return metric.CountWhere(db, &Order{}, "created_at >= ?", startOfMonth())
 			}).
 			History(func(db *gorm.DB) ([]map[string]interface{}, error) {
-				// date, desktop, mobile alanları beklenir
+				// date + SetSeriesKey ile tanımlanan data key alanları beklenir
 				return []map[string]interface{}{
-					{"date": "2026-02-01", "desktop": 120, "mobile": 1000},
-					{"date": "2026-02-02", "desktop": 180, "mobile": 1000},
+					{"date": "2026-02-01", "siparis": 120, "hedef": 1000},
+					{"date": "2026-02-02", "siparis": 180, "hedef": 1000},
 				}, nil
 			}),
 	}
@@ -103,5 +108,5 @@ Detaylı alan yapıları ve JSON örnekleri için:
 
 - Kart görünmüyor: `component` adı frontend switch ile eşleşmeli.
 - Pie chart renkleri yanlış: `SetColors(...)` anahtarlarıyla kategori isimlerini eşleştirin.
-- Line chart düz çizgi: `History(...)` çıktısında `date/desktop/mobile` alanlarını doğrulayın.
+- Line chart düz çizgi: `History(...)` çıktısında `date` ve `SetSeriesKey(...)` ile tanımlı seri key alanlarını doğrulayın.
 - Area chart boş: trend sorgusunun tarih alanı (`created_at` vb.) doğru ve dolu olmalı.
