@@ -177,13 +177,13 @@ func TestPanel_DynamicRouting(t *testing.T) {
 	regBody, _ := json.Marshal(map[string]string{"name": "Panel Tester", "email": "panel@example.com", "password": "password"})
 	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
-	app.Fiber.Test(regReq)
+	testFiberRequest(app.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "panel@example.com", "password": "password"})
 	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, _ := app.Fiber.Test(loginReq)
+	loginResp, _ := testFiberRequest(app.Fiber, loginReq)
 
 	var sessionCookie *http.Cookie
 	for _, cookie := range loginResp.Cookies() {
@@ -199,7 +199,7 @@ func TestPanel_DynamicRouting(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, err := app.Fiber.Test(req)
+	resp, err := testFiberRequest(app.Fiber, req)
 	if err != nil {
 		t.Fatalf("Request failed: %v", err)
 	}
@@ -242,13 +242,13 @@ func TestPanel_ResourceNotFound(t *testing.T) {
 	regBody, _ := json.Marshal(map[string]string{"name": "RNF", "email": "rnf@example.com", "password": "password"})
 	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
-	app.Fiber.Test(regReq)
+	testFiberRequest(app.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "rnf@example.com", "password": "password"})
 	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, _ := app.Fiber.Test(loginReq)
+	loginResp, _ := testFiberRequest(app.Fiber, loginReq)
 
 	var sessionCookie *http.Cookie
 	for _, cookie := range loginResp.Cookies() {
@@ -263,7 +263,7 @@ func TestPanel_ResourceNotFound(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, _ := app.Fiber.Test(req)
+	resp, _ := testFiberRequest(app.Fiber, req)
 
 	if resp.StatusCode != 404 {
 		t.Errorf("Expected status 404, got %d", resp.StatusCode)
@@ -292,13 +292,13 @@ func TestPanel_CRUD(t *testing.T) {
 	regBody, _ := json.Marshal(map[string]string{"name": "CRUD", "email": "crud@example.com", "password": "password"})
 	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
-	app.Fiber.Test(regReq)
+	testFiberRequest(app.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "crud@example.com", "password": "password"})
 	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, _ := app.Fiber.Test(loginReq)
+	loginResp, _ := testFiberRequest(app.Fiber, loginReq)
 
 	var sessionCookie *http.Cookie
 	for _, cookie := range loginResp.Cookies() {
@@ -317,7 +317,7 @@ func TestPanel_CRUD(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, err := app.Fiber.Test(req)
+	resp, err := testFiberRequest(app.Fiber, req)
 	if err != nil {
 		t.Fatalf("Create request failed: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestPanel_CRUD(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, _ = app.Fiber.Test(req)
+	resp, _ = testFiberRequest(app.Fiber, req)
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected status 200 Show, got %d", resp.StatusCode)
 	}
@@ -353,7 +353,7 @@ func TestPanel_CRUD(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, _ = app.Fiber.Test(req)
+	resp, _ = testFiberRequest(app.Fiber, req)
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected status 200 Update, got %d", resp.StatusCode)
 	}
@@ -363,7 +363,7 @@ func TestPanel_CRUD(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, _ = app.Fiber.Test(req)
+	resp, _ = testFiberRequest(app.Fiber, req)
 	body, _ := io.ReadAll(resp.Body)
 	var showResp map[string]interface{}
 	if err := json.Unmarshal(body, &showResp); err != nil {
@@ -383,7 +383,7 @@ func TestPanel_CRUD(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, _ = app.Fiber.Test(req)
+	resp, _ = testFiberRequest(app.Fiber, req)
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected status 200 Delete, got %d", resp.StatusCode)
 	}
@@ -393,8 +393,32 @@ func TestPanel_CRUD(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, _ = app.Fiber.Test(req)
+	resp, _ = testFiberRequest(app.Fiber, req)
 	if resp.StatusCode != 404 {
 		t.Errorf("Expected status 404 after delete, got %d", resp.StatusCode)
+	}
+}
+
+func TestPanel_RegisterIgnoredAfterFreeze(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to connect db: %v", err)
+	}
+
+	p := New(Config{
+		Database:    DatabaseConfig{Instance: db},
+		Environment: "test",
+	})
+
+	p.freezeRegistrations("unit test")
+	p.Register("runtime-resource", &UserResource{})
+
+	snapshot := p.loadRegistrySnapshot()
+	if snapshot == nil {
+		t.Fatalf("expected registry snapshot")
+	}
+
+	if _, exists := snapshot.resources["runtime-resource"]; exists {
+		t.Fatalf("expected runtime resource registration to be ignored after freeze")
 	}
 }

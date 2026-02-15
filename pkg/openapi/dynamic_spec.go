@@ -8,10 +8,13 @@
 package openapi
 
 import (
+	stdcontext "context"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/ferdiunal/panel.go/pkg/core"
+	internalconcurrency "github.com/ferdiunal/panel.go/pkg/internal/concurrency"
 	"github.com/ferdiunal/panel.go/pkg/resource"
 )
 
@@ -67,6 +70,60 @@ func (g *DynamicSpecGenerator) GenerateResourcePaths(resources map[string]resour
 		for _, action := range res.GetActions() {
 			actionPath := fmt.Sprintf("/api/resources/%s/actions/%s", slug, action.GetSlug())
 			paths[actionPath] = *g.generateActionPathItem(res, action)
+		}
+	}
+
+	return paths
+}
+
+// GenerateResourcePathsParallel builds resource paths using a bounded worker pool.
+// When worker count is 0, it auto-tunes via internal concurrency defaults.
+func (g *DynamicSpecGenerator) GenerateResourcePathsParallel(resources map[string]resource.Resource, workers int) Paths {
+	if len(resources) == 0 {
+		return make(Paths)
+	}
+
+	slugs := make([]string, 0, len(resources))
+	for slug := range resources {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+
+	resolvedWorkers := internalconcurrency.ClampWorkers(workers, len(slugs))
+	batches, err := internalconcurrency.MapOrdered(
+		stdcontext.Background(),
+		slugs,
+		resolvedWorkers,
+		true,
+		func(_ stdcontext.Context, _ int, slug string) (map[string]PathItem, error) {
+			res := resources[slug]
+			if res == nil || !res.OpenAPIEnabled() {
+				return map[string]PathItem{}, nil
+			}
+
+			result := make(map[string]PathItem, 2+len(res.GetActions()))
+			collectionPath := fmt.Sprintf("/api/resources/%s", slug)
+			result[collectionPath] = *g.generateCollectionPathItem(res)
+
+			itemPath := fmt.Sprintf("/api/resources/%s/{id}", slug)
+			result[itemPath] = *g.generateItemPathItem(res)
+
+			for _, action := range res.GetActions() {
+				actionPath := fmt.Sprintf("/api/resources/%s/actions/%s", slug, action.GetSlug())
+				result[actionPath] = *g.generateActionPathItem(res, action)
+			}
+
+			return result, nil
+		},
+	)
+	if err != nil {
+		return g.GenerateResourcePaths(resources)
+	}
+
+	paths := make(Paths)
+	for _, batch := range batches {
+		for path, item := range batch {
+			paths[path] = item
 		}
 	}
 
@@ -380,6 +437,64 @@ func (g *DynamicSpecGenerator) GenerateResourceSchemas(resources map[string]reso
 
 		// Input schema (sadece form field'ları)
 		schemas[schemaName+"Input"] = g.generateResourceSchema(res, true)
+	}
+
+	return schemas
+}
+
+// GenerateResourceSchemasParallel builds resource schemas using a bounded worker pool.
+// When worker count is 0, it auto-tunes via internal concurrency defaults.
+func (g *DynamicSpecGenerator) GenerateResourceSchemasParallel(resources map[string]resource.Resource, workers int) map[string]*Schema {
+	if len(resources) == 0 {
+		return map[string]*Schema{}
+	}
+
+	slugs := make([]string, 0, len(resources))
+	for slug := range resources {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+
+	resolvedWorkers := internalconcurrency.ClampWorkers(workers, len(slugs))
+	batches, err := internalconcurrency.MapOrdered(
+		stdcontext.Background(),
+		slugs,
+		resolvedWorkers,
+		true,
+		func(_ stdcontext.Context, _ int, slug string) (map[string]*Schema, error) {
+			res := resources[slug]
+			if res == nil || !res.OpenAPIEnabled() {
+				return map[string]*Schema{}, nil
+			}
+
+			schemaName := g.getSchemaName(res)
+			return map[string]*Schema{
+				schemaName:           g.generateResourceSchema(res, false),
+				schemaName + "Input": g.generateResourceSchema(res, true),
+			}, nil
+		},
+	)
+	if err != nil {
+		return g.GenerateResourceSchemas(resources)
+	}
+
+	schemas := make(map[string]*Schema)
+	schemas["PaginationMeta"] = &Schema{
+		Type: "object",
+		Properties: map[string]Schema{
+			"current_page": {Type: "integer"},
+			"from":         {Type: "integer"},
+			"last_page":    {Type: "integer"},
+			"per_page":     {Type: "integer"},
+			"to":           {Type: "integer"},
+			"total":        {Type: "integer"},
+		},
+	}
+
+	for _, batch := range batches {
+		for name, schema := range batch {
+			schemas[name] = schema
+		}
 	}
 
 	return schemas

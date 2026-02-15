@@ -75,6 +75,7 @@ func TestAuthRateLimiting(t *testing.T) {
 // TestAccountLockout tests account lockout mechanism
 func TestAccountLockout(t *testing.T) {
 	lockout := middleware.NewAccountLockout(3, 5*time.Minute)
+	t.Cleanup(lockout.Close)
 
 	email := "test@example.com"
 
@@ -100,6 +101,7 @@ func TestAccountLockout(t *testing.T) {
 // TestAccountLockoutExpiration tests that lockout expires after duration
 func TestAccountLockoutExpiration(t *testing.T) {
 	lockout := middleware.NewAccountLockout(2, 100*time.Millisecond)
+	t.Cleanup(lockout.Close)
 
 	email := "test@example.com"
 
@@ -334,6 +336,7 @@ func (l *testAuditLogger) Log(event middleware.AuditEvent) error {
 // TestAccountLockoutConcurrency tests account lockout under concurrent access
 func TestAccountLockoutConcurrency(t *testing.T) {
 	lockout := middleware.NewAccountLockout(5, 1*time.Minute)
+	t.Cleanup(lockout.Close)
 	email := "concurrent@example.com"
 
 	// Simulate concurrent failed login attempts
@@ -406,6 +409,7 @@ func BenchmarkRateLimiter(b *testing.B) {
 // BenchmarkAccountLockout benchmarks account lockout performance
 func BenchmarkAccountLockout(b *testing.B) {
 	lockout := middleware.NewAccountLockout(5, 15*time.Minute)
+	b.Cleanup(lockout.Close)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -38,7 +38,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 	enableReq := httptest.NewRequest("POST", "/api/pages/api-settings", bytes.NewReader(enableBody))
 	enableReq.Header.Set("Content-Type", "application/json")
 	enableReq.AddCookie(sessionCookie)
-	enableResp, err := p.Fiber.Test(enableReq)
+	enableResp, err := testFiberRequest(p.Fiber, enableReq)
 	if err != nil {
 		t.Fatalf("failed to enable api key auth: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 	createReq.Header.Set("Content-Type", "application/json")
 	createReq.AddCookie(sessionCookie)
 
-	createResp, err := p.Fiber.Test(createReq)
+	createResp, err := testFiberRequest(p.Fiber, createReq)
 	if err != nil {
 		t.Fatalf("create api key request failed: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 
 	listReq := httptest.NewRequest("GET", "/api/api-keys", nil)
 	listReq.AddCookie(sessionCookie)
-	listResp, err := p.Fiber.Test(listReq)
+	listResp, err := testFiberRequest(p.Fiber, listReq)
 	if err != nil {
 		t.Fatalf("list api keys request failed: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 
 	validResourceReq := httptest.NewRequest("GET", "/api/resource/users", nil)
 	validResourceReq.Header.Set("X-API-Key", created.Key)
-	validResourceResp, err := p.Fiber.Test(validResourceReq)
+	validResourceResp, err := testFiberRequest(p.Fiber, validResourceReq)
 	if err != nil {
 		t.Fatalf("resource request with managed key failed: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 	// API key-authenticated requests should not manage API keys.
 	forbiddenMgmtReq := httptest.NewRequest("GET", "/api/api-keys", nil)
 	forbiddenMgmtReq.Header.Set("X-API-Key", created.Key)
-	forbiddenMgmtResp, err := p.Fiber.Test(forbiddenMgmtReq)
+	forbiddenMgmtResp, err := testFiberRequest(p.Fiber, forbiddenMgmtReq)
 	if err != nil {
 		t.Fatalf("managed route request with api key failed: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 
 	revokeReq := httptest.NewRequest("DELETE", fmt.Sprintf("/api/api-keys/%d", created.Data.ID), nil)
 	revokeReq.AddCookie(sessionCookie)
-	revokeResp, err := p.Fiber.Test(revokeReq)
+	revokeResp, err := testFiberRequest(p.Fiber, revokeReq)
 	if err != nil {
 		t.Fatalf("revoke api key request failed: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 
 	revokedReq := httptest.NewRequest("GET", "/api/resource/users", nil)
 	revokedReq.Header.Set("X-API-Key", created.Key)
-	revokedResp, err := p.Fiber.Test(revokedReq)
+	revokedResp, err := testFiberRequest(p.Fiber, revokedReq)
 	if err != nil {
 		t.Fatalf("resource request with revoked api key failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestOpenAPIDocsEndpointsPublic(t *testing.T) {
 	})
 
 	docsReq := httptest.NewRequest("GET", "/api/docs", nil)
-	docsResp, err := p.Fiber.Test(docsReq)
+	docsResp, err := testFiberRequest(p.Fiber, docsReq)
 	if err != nil {
 		t.Fatalf("docs request failed: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestOpenAPIDocsEndpointsPublic(t *testing.T) {
 	}
 
 	redocReq := httptest.NewRequest("GET", "/api/docs/redoc", nil)
-	redocResp, err := p.Fiber.Test(redocReq)
+	redocResp, err := testFiberRequest(p.Fiber, redocReq)
 	if err != nil {
 		t.Fatalf("redoc request failed: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestOpenAPISpec_ExcludesSystemResources(t *testing.T) {
 	})
 
 	specReq := httptest.NewRequest("GET", "/api/openapi.json", nil)
-	specResp, err := p.Fiber.Test(specReq)
+	specResp, err := testFiberRequest(p.Fiber, specReq)
 	if err != nil {
 		t.Fatalf("openapi spec request failed: %v", err)
 	}

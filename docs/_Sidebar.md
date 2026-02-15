@@ -19,6 +19,7 @@
 - [Action'lar](Actions)
 - [Lensler](Lenses)
 - [Widgets](Widgets)
+  - [Charts Data Contract](Charts-Data-Contract)
 - [Sayfalar](Pages)
   - [Settings Page](SETTINGS_PAGE)
   - [Account Page](ACCOUNT_PAGE)

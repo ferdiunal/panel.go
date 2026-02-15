@@ -8,11 +8,13 @@
 package openapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/resource"
+	"golang.org/x/sync/singleflight"
 )
 
 // SpecGenerator, OpenAPI spesifikasyonu oluşturan ve yöneten yapıdır.
@@ -43,6 +45,7 @@ type SpecGenerator struct {
 	mapper    *FieldTypeMapper
 	cache     *specCache
 	mu        sync.RWMutex
+	builds    singleflight.Group
 }
 
 // SpecGeneratorConfig, SpecGenerator yapılandırmasını içerir.
@@ -56,14 +59,16 @@ type SpecGenerator struct {
 //   - CacheTTL: Cache süresi (0 = cache yok, development için önerilir)
 //   - CustomMappings: Özel field type mapping'leri
 type SpecGeneratorConfig struct {
-	Title             string                 // API başlığı
-	Version           string                 // API versiyonu
-	Description       string                 // API açıklaması
-	ServerURL         string                 // API sunucu URL'i
-	ServerDescription string                 // Sunucu açıklaması
-	APIKeyHeader      string                 // API key header adı (Swagger authorize için)
-	CacheTTL          time.Duration          // Cache süresi (0 = cache yok)
-	CustomMappings    *CustomMappingRegistry // Özel field type mapping'leri
+	Title               string                 // API başlığı
+	Version             string                 // API versiyonu
+	Description         string                 // API açıklaması
+	ServerURL           string                 // API sunucu URL'i
+	ServerDescription   string                 // Sunucu açıklaması
+	APIKeyHeader        string                 // API key header adı (Swagger authorize için)
+	CacheTTL            time.Duration          // Cache süresi (0 = cache yok)
+	CustomMappings      *CustomMappingRegistry // Özel field type mapping'leri
+	EnableParallelBuild bool                   // Dinamik path/schema üretimi bounded parallel çalıştır
+	ParallelWorkers     int                    // Parallel build worker limiti (0 = auto-tune)
 }
 
 // specCache, OpenAPI spec cache'ini yönetir.
@@ -157,23 +162,31 @@ func (g *SpecGenerator) GetSpec() (*OpenAPISpec, error) {
 		return cached, nil
 	}
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	value, err, _ := g.builds.Do("openapi-spec", func() (interface{}, error) {
+		// Double-check: başka bir goroutine cache'i doldurmuş olabilir.
+		if cached := g.cache.get(); cached != nil {
+			return cached, nil
+		}
 
-	// Double-check locking: başka bir goroutine cache'i doldurmuş olabilir
-	if cached := g.cache.get(); cached != nil {
-		return cached, nil
-	}
+		// Yeni spec oluştur
+		spec, buildErr := g.generateSpec()
+		if buildErr != nil {
+			return nil, buildErr
+		}
 
-	// Yeni spec oluştur
-	spec, err := g.generateSpec()
+		// Cache'e kaydet
+		g.cache.set(spec)
+
+		return spec, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Cache'e kaydet
-	g.cache.set(spec)
-
+	spec, _ := value.(*OpenAPISpec)
+	if spec == nil {
+		return nil, fmt.Errorf("failed to generate OpenAPI spec")
+	}
 	return spec, nil
 }
 
@@ -300,6 +313,9 @@ func (g *SpecGenerator) addDynamicEndpoints(spec *OpenAPISpec) error {
 
 	// Tüm resource'lar için path'leri oluştur
 	paths := dynamicGen.GenerateResourcePaths(g.resources)
+	if g.config.EnableParallelBuild {
+		paths = dynamicGen.GenerateResourcePathsParallel(g.resources, g.config.ParallelWorkers)
+	}
 
 	// Path'leri spec'e ekle
 	for path, pathItem := range paths {
@@ -308,6 +324,9 @@ func (g *SpecGenerator) addDynamicEndpoints(spec *OpenAPISpec) error {
 
 	// Tüm resource'lar için schema'ları oluştur
 	schemas := dynamicGen.GenerateResourceSchemas(g.resources)
+	if g.config.EnableParallelBuild {
+		schemas = dynamicGen.GenerateResourceSchemasParallel(g.resources, g.config.ParallelWorkers)
+	}
 
 	// Schema'ları ve tag'leri ekle
 	for slug, res := range g.resources {
@@ -429,6 +448,9 @@ func (c *specCache) get() *OpenAPISpec {
 		return nil
 	}
 
+	if cloned := cloneSpec(c.spec); cloned != nil {
+		return cloned
+	}
 	return c.spec
 }
 
@@ -440,7 +462,11 @@ func (c *specCache) set(spec *OpenAPISpec) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.spec = spec
+	if cloned := cloneSpec(spec); cloned != nil {
+		c.spec = cloned
+	} else {
+		c.spec = spec
+	}
 	c.timestamp = time.Now()
 }
 
@@ -484,4 +510,22 @@ func toPascalCase(s string) string {
 	}
 
 	return result
+}
+
+func cloneSpec(spec *OpenAPISpec) *OpenAPISpec {
+	if spec == nil {
+		return nil
+	}
+
+	raw, err := json.Marshal(spec)
+	if err != nil {
+		return nil
+	}
+
+	var cloned OpenAPISpec
+	if err := json.Unmarshal(raw, &cloned); err != nil {
+		return nil
+	}
+
+	return &cloned
 }

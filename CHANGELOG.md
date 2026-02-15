@@ -4,6 +4,108 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### ⚡ Full-Repo Concurrency, Sync, Channel Refactor (Güvenli Kademeli)
+
+Repo genelinde request-path concurrency standardı, cancellation zinciri ve goroutine lifecycle yönetimi güçlendirildi. Değişiklikler kademeli rollout için feature flag yaklaşımı ile eklendi.
+
+#### 🧩 Concurrency Config Genişletmesi
+
+`pkg/panel/config.go` içindeki `ConcurrencyConfig` genişletildi:
+
+- `EnableDataPipelineV2`
+- `DataWorkers`
+- `EnableMiddlewareV2`
+- `EnableOpenAPIV2`
+- `OpenAPIWorkers`
+
+Mevcut handler alanları (`EnablePipelineV2`, `FailFast`, `MaxWorkers`, `CardWorkers`, `FieldWorkers`) korunarak backward-compatible şekilde genişletildi.
+
+#### 🗃️ Data Katmanı (GORM Provider)
+
+`pkg/data/gorm_provider.go` içinde relationship lazy-load akışı bounded worker-pool ve cancellation-aware hale getirildi:
+
+- Yeni additive yapı: `RelationshipConcurrencyConfig`
+- Yeni additive metod: `SetRelationshipConcurrencyConfig(...)`
+- Lazy relationship load işlemleri v2 açıkken bounded pipeline ile çalışır
+- Fail-fast davranışı flag üzerinden yönetilir
+- V2 kapalıyken legacy davranış korunur
+
+#### 🛡️ Middleware Concurrency/Lifecycle
+
+`pkg/middleware/api_key.go`:
+
+- API key doğrulama için lock-free immutable snapshot modu eklendi
+- Yeni additive metod: `SetAtomicSnapshotEnabled(bool)`
+- Runtime config güncellemeleri snapshot atomik state üzerinden request-path'e taşınır
+
+`pkg/middleware/security.go`:
+
+- `AccountLockout` için stop edilebilir lifecycle eklendi
+- Yeni additive metod: `(*AccountLockout).Close()`
+- Cleanup goroutine artık kontrollü şekilde sonlandırılabiliyor
+
+#### 🧭 Panel State Concurrency (Startup-Only Register)
+
+`pkg/panel/app.go` + `pkg/panel/resource_scope.go`:
+
+- Resource/Page registry erişimleri immutable snapshot modeli ile request-path'e taşındı
+- Startup sonrası registration freeze davranışı eklendi
+- Freeze sonrası `Register` / `RegisterPage` çağrıları no-op + warning log
+- `Panel.Start()` başlangıcında freeze uygulanır, `BootPlugins()` sonunda da freeze finalize edilir
+- `Panel.Close()` ile background lifecycle cleanup (lockout close) eklendi
+
+`pkg/panel/page_routes.go` ve navigation path'lerinde doğrudan mutable map yerine snapshot okumaları kullanıldı.
+
+#### 🧱 Core Field Clone Altyapısı
+
+`pkg/core/clone.go` eklendi:
+
+- Yeni additive interface: `ElementCloner` (`Clone() Element`)
+- `CloneElement` helper (cloner varsa onu kullanır, yoksa güvenli reflection fallback)
+
+`pkg/core/context.go`:
+
+- `GetOrCloneField(...)` içindeki TODO kaldırıldı
+- Gerçek clone + cache akışı aktif hale getirildi
+
+`pkg/handler/field_handler.go`:
+
+- Field izolasyon clone helper'ı `core.CloneElement(...)` ile standardize edildi
+
+#### 📘 OpenAPI Concurrency ve Cache Güvenliği
+
+`pkg/openapi/spec.go`:
+
+- Spec generation için singleflight eklendi (tek üretim)
+- Cache get/set immutable clone mantığına taşındı
+- Paralel dynamic build opsiyonu config ile bağlandı
+
+`pkg/openapi/dynamic_spec.go`:
+
+- Bounded parallel path/schema üretimi için parallel generator metodları eklendi
+- V2 açık değilse mevcut serial üretim davranışı korunur
+
+#### 🧪 Testler ve Stabilizasyon
+
+Eklenen/güncellenen testler:
+
+- `pkg/core/clone_test.go`
+- `pkg/middleware/api_key_test.go`
+- `pkg/middleware/security_test.go`
+- `pkg/openapi/spec_cache_test.go`
+- `pkg/panel/panel_test.go`
+
+Panel integration timeout stabilizasyonu için:
+
+- `pkg/panel/test_http_helper_test.go` eklendi
+- Panel testlerinde merkezi `testFiberRequest(...)` helper'ı ile timeout standardı artırıldı
+
+Doğrulama:
+
+- ✅ `go test ./pkg/core ./pkg/middleware ./pkg/openapi ./pkg/data ./pkg/handler ./pkg/panel`
+- ✅ `go test -race ./pkg/handler ./pkg/data ./pkg/middleware ./pkg/panel ./pkg/internal/concurrency`
+- ⚠️ `go test -race ./...` tam repo koşusunda refactor dışı mevcut build sorunu (`pkg/metric/metric.go` unused import) nedeniyle kırılmaya devam ediyor
+
 ### ✨ Yeni Özellikler (Frontend & Backend)
 
 #### 🚀 Detail View İyileştirmeleri (Laravel Nova Benzeri)

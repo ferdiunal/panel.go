@@ -9,11 +9,18 @@ import (
 
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	internalconcurrency "github.com/ferdiunal/panel.go/pkg/internal/concurrency"
 	"github.com/ferdiunal/panel.go/pkg/query"
 	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
+
+type RelationshipConcurrencyConfig struct {
+	EnablePipelineV2 bool
+	FailFast         bool
+	MaxWorkers       int
+}
 
 // / # GormDataProvider
 // /
@@ -117,6 +124,8 @@ type GormDataProvider struct {
 	relationshipLoader fields.RelationshipLoader
 	/// Yüklenecek ilişki field'ları
 	relationshipFields []fields.RelationshipField
+	/// Relationship lazy-load concurrency ayarları
+	relationshipConcurrency RelationshipConcurrencyConfig
 }
 
 // / # NewGormDataProvider
@@ -182,6 +191,9 @@ func NewGormDataProvider(db *gorm.DB, model interface{}) *GormDataProvider {
 		Model:              model,
 		columnValidator:    validator,
 		relationshipLoader: NewGormRelationshipLoader(db),
+		relationshipConcurrency: RelationshipConcurrencyConfig{
+			FailFast: true,
+		},
 	}
 }
 
@@ -362,6 +374,10 @@ func (p *GormDataProvider) SetSearchColumns(cols []string) {
 // / - Tüm CRUD operasyonlarında (Index, Show, Create, Update) geçerlidir
 func (p *GormDataProvider) SetWith(rels []string) {
 	p.WithRelationships = rels
+}
+
+func (p *GormDataProvider) SetRelationshipConcurrencyConfig(cfg RelationshipConcurrencyConfig) {
+	p.relationshipConcurrency = cfg
 }
 
 // SetBaseQuery, tüm sorgulara uygulanacak taban query callback'ini ayarlar.
@@ -853,16 +869,8 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 	// NOT: relationshipFields boş olabilir (field type detection sorunu nedeniyle)
 	// Bu durumda lazy loading çalışmayacak, sadece eager loading çalışacak
 	relationshipFields := p.getRelationshipFields()
-	if len(items) > 0 {
-		for _, field := range relationshipFields {
-			if field.GetLoadingStrategy() == fields.LAZY_LOADING {
-				for _, item := range items {
-					if _, err := p.relationshipLoader.LazyLoad(stdCtx, item, field); err != nil {
-						p.warnf(stdCtx, "warn: failed to lazy load %s: %v", field.GetRelationshipName(), err)
-					}
-				}
-			}
-		}
+	if err := p.loadLazyRelationshipsForItemsContext(stdCtx, items, relationshipFields); err != nil {
+		return nil, err
 	}
 
 	return &QueryResponse{
@@ -922,6 +930,125 @@ func normalizeResourceTableIdentifier(value string) string {
 	normalized := strings.TrimSpace(strings.ToLower(value))
 	normalized = strings.ReplaceAll(normalized, "-", "_")
 	return normalized
+}
+
+func (p *GormDataProvider) shouldUseRelationshipPipelineV2() bool {
+	return p != nil && p.relationshipConcurrency.EnablePipelineV2
+}
+
+func (p *GormDataProvider) relationshipFailFast() bool {
+	if !p.shouldUseRelationshipPipelineV2() {
+		return false
+	}
+	return p.relationshipConcurrency.FailFast
+}
+
+func (p *GormDataProvider) relationshipWorkers(total int) int {
+	if p == nil {
+		return internalconcurrency.ClampWorkers(0, total)
+	}
+	return internalconcurrency.ClampWorkers(p.relationshipConcurrency.MaxWorkers, total)
+}
+
+func lazyRelationshipFields(fieldsList []fields.RelationshipField) []fields.RelationshipField {
+	if len(fieldsList) == 0 {
+		return nil
+	}
+
+	lazy := make([]fields.RelationshipField, 0, len(fieldsList))
+	for _, field := range fieldsList {
+		if field.GetLoadingStrategy() == fields.LAZY_LOADING {
+			lazy = append(lazy, field)
+		}
+	}
+	return lazy
+}
+
+func (p *GormDataProvider) loadLazyRelationshipsForItemsContext(
+	stdCtx stdcontext.Context,
+	items []interface{},
+	relationshipFields []fields.RelationshipField,
+) error {
+	if len(items) == 0 || p.relationshipLoader == nil {
+		return nil
+	}
+	if stdCtx == nil {
+		stdCtx = stdcontext.Background()
+	}
+
+	lazyFields := lazyRelationshipFields(relationshipFields)
+	if len(lazyFields) == 0 {
+		return nil
+	}
+
+	if !p.shouldUseRelationshipPipelineV2() {
+		for _, field := range lazyFields {
+			for _, item := range items {
+				if _, err := p.relationshipLoader.LazyLoad(stdCtx, item, field); err != nil {
+					p.warnf(stdCtx, "warn: failed to lazy load %s: %v", field.GetRelationshipName(), err)
+				}
+			}
+		}
+		return nil
+	}
+
+	workers := p.relationshipWorkers(len(items))
+	failFast := p.relationshipFailFast()
+
+	for _, field := range lazyFields {
+		_, err := internalconcurrency.MapOrdered(stdCtx, items, workers, failFast, func(workerCtx stdcontext.Context, _ int, item interface{}) (struct{}, error) {
+			if _, lazyErr := p.relationshipLoader.LazyLoad(workerCtx, item, field); lazyErr != nil {
+				return struct{}{}, fmt.Errorf("failed to lazy load %s: %w", field.GetRelationshipName(), lazyErr)
+			}
+			return struct{}{}, nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *GormDataProvider) loadLazyRelationshipsForItemContext(
+	stdCtx stdcontext.Context,
+	item interface{},
+	relationshipFields []fields.RelationshipField,
+) error {
+	if item == nil || p.relationshipLoader == nil {
+		return nil
+	}
+	if stdCtx == nil {
+		stdCtx = stdcontext.Background()
+	}
+
+	lazyFields := lazyRelationshipFields(relationshipFields)
+	if len(lazyFields) == 0 {
+		return nil
+	}
+
+	if !p.shouldUseRelationshipPipelineV2() {
+		for _, field := range lazyFields {
+			if _, err := p.relationshipLoader.LazyLoad(stdCtx, item, field); err != nil {
+				p.warnf(stdCtx, "warn: failed to lazy load %s: %v", field.GetRelationshipName(), err)
+			}
+		}
+		return nil
+	}
+
+	workers := p.relationshipWorkers(len(lazyFields))
+	failFast := p.relationshipFailFast()
+	_, err := internalconcurrency.MapOrdered(stdCtx, lazyFields, workers, failFast, func(workerCtx stdcontext.Context, _ int, field fields.RelationshipField) (struct{}, error) {
+		if _, lazyErr := p.relationshipLoader.LazyLoad(workerCtx, item, field); lazyErr != nil {
+			return struct{}{}, fmt.Errorf("failed to lazy load %s: %w", field.GetRelationshipName(), lazyErr)
+		}
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // / # Show
@@ -1048,12 +1175,8 @@ func (p *GormDataProvider) Show(ctx *context.Context, id string) (interface{}, e
 	// NOT: relationshipFields boş olabilir (field type detection sorunu nedeniyle)
 	// Bu durumda lazy loading çalışmayacak, sadece eager loading çalışacak
 	relationshipFields := p.getRelationshipFields()
-	for _, field := range relationshipFields {
-		if field.GetLoadingStrategy() == fields.LAZY_LOADING {
-			if _, err := p.relationshipLoader.LazyLoad(stdCtx, result, field); err != nil {
-				p.warnf(stdCtx, "warn: failed to lazy load %s: %v", field.GetRelationshipName(), err)
-			}
-		}
+	if err := p.loadLazyRelationshipsForItemContext(stdCtx, result, relationshipFields); err != nil {
+		return nil, err
 	}
 
 	return result, nil
@@ -2276,11 +2399,15 @@ func (p *GormDataProvider) BeginTx(ctx *context.Context) (DataProvider, error) {
 	}
 
 	return &GormDataProvider{
-		DB:                 tx,
-		Model:              p.Model,
-		SearchColumns:      p.SearchColumns,
-		WithRelationships:  p.WithRelationships,
-		relationshipFields: p.relationshipFields,
+		DB:                      tx,
+		Model:                   p.Model,
+		BaseQuery:               p.BaseQuery,
+		SearchColumns:           p.SearchColumns,
+		WithRelationships:       p.WithRelationships,
+		columnValidator:         p.columnValidator,
+		relationshipLoader:      NewGormRelationshipLoader(tx),
+		relationshipFields:      p.relationshipFields,
+		relationshipConcurrency: p.relationshipConcurrency,
 	}, nil
 }
 

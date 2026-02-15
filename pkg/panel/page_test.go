@@ -92,7 +92,7 @@ func TestPageAPI(t *testing.T) {
 
 	// 1. Test List
 	req := httptest.NewRequest("GET", "/pages", nil)
-	resp, _ := testApp.Test(req)
+	resp, _ := testFiberRequest(testApp, req)
 
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected 200, got %d", resp.StatusCode)
@@ -114,7 +114,7 @@ func TestPageAPI(t *testing.T) {
 
 	// 2. Test Detail
 	req = httptest.NewRequest("GET", "/pages/mock-dashboard", nil)
-	resp, _ = testApp.Test(req)
+	resp, _ = testFiberRequest(testApp, req)
 
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected 200 for detail, got %d", resp.StatusCode)

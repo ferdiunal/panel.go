@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,11 +16,20 @@ const (
 
 // APIKeyAuth validates incoming API key headers.
 type APIKeyAuth struct {
-	mu               sync.RWMutex
-	enabled          bool
-	header           string
-	keys             []string
-	dynamicValidator APIKeyValidator
+	mu                sync.RWMutex
+	enabled           bool
+	header            string
+	keys              []string
+	dynamicValidator  APIKeyValidator
+	useAtomicSnapshot bool
+	snapshotState     atomic.Value // *apiKeyAuthSnapshot
+}
+
+type apiKeyAuthSnapshot struct {
+	enabled   bool
+	header    string
+	keys      []string
+	validator APIKeyValidator
 }
 
 // APIKeyValidator validates managed/dynamic keys (e.g. DB-backed keys).
@@ -55,6 +65,7 @@ func (a *APIKeyAuth) SetConfig(enabled bool, header string, keys []string) {
 	a.enabled = enabled
 	a.header = normalizedHeader
 	a.keys = normalizedKeys
+	a.storeSnapshotLocked()
 	a.mu.Unlock()
 }
 
@@ -66,6 +77,22 @@ func (a *APIKeyAuth) SetDynamicValidator(validator APIKeyValidator) {
 
 	a.mu.Lock()
 	a.dynamicValidator = validator
+	a.storeSnapshotLocked()
+	a.mu.Unlock()
+}
+
+// SetAtomicSnapshotEnabled toggles lock-free request-path reads.
+// When disabled, middleware uses the legacy RWMutex-backed snapshot path.
+func (a *APIKeyAuth) SetAtomicSnapshotEnabled(enabled bool) {
+	if a == nil {
+		return
+	}
+
+	a.mu.Lock()
+	a.useAtomicSnapshot = enabled
+	if enabled {
+		a.storeSnapshotLocked()
+	}
 	a.mu.Unlock()
 }
 
@@ -119,12 +146,59 @@ func (a *APIKeyAuth) snapshot() (bool, string, []string, APIKeyValidator) {
 	}
 
 	a.mu.RLock()
+	useAtomic := a.useAtomicSnapshot
+	if !useAtomic {
+		keys := make([]string, len(a.keys))
+		copy(keys, a.keys)
+		enabled := a.enabled
+		header := a.header
+		validator := a.dynamicValidator
+		a.mu.RUnlock()
+		return enabled, header, keys, validator
+	}
+	a.mu.RUnlock()
+
+	if snap := a.loadAtomicSnapshot(); snap != nil {
+		return snap.enabled, snap.header, snap.keys, snap.validator
+	}
+
+	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	keys := make([]string, len(a.keys))
 	copy(keys, a.keys)
 
 	return a.enabled, a.header, keys, a.dynamicValidator
+}
+
+func (a *APIKeyAuth) loadAtomicSnapshot() *apiKeyAuthSnapshot {
+	if a == nil {
+		return nil
+	}
+
+	raw := a.snapshotState.Load()
+	if raw == nil {
+		return nil
+	}
+
+	snap, _ := raw.(*apiKeyAuthSnapshot)
+	return snap
+}
+
+func (a *APIKeyAuth) storeSnapshotLocked() {
+	if a == nil {
+		return
+	}
+
+	keys := make([]string, len(a.keys))
+	copy(keys, a.keys)
+
+	a.snapshotState.Store(&apiKeyAuthSnapshot{
+		enabled:   a.enabled,
+		header:    a.header,
+		keys:      keys,
+		validator: a.dynamicValidator,
+	})
 }
 
 func isValidAPIKey(incoming string, keys []string) bool {

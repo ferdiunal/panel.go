@@ -2,6 +2,8 @@ package metric
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
@@ -55,10 +57,11 @@ type PartitionMetric struct {
 // Döndürür: Yapılandırılmış PartitionMetric pointer'ı
 //
 // Kullanım örneği:
-//   metric := NewPartition("Satış Dağılımı")
-//   metric.Query(func(db *gorm.DB) (map[string]int64, error) {
-//       // Veritabanından veri çek
-//   })
+//
+//	metric := NewPartition("Satış Dağılımı")
+//	metric.Query(func(db *gorm.DB) (map[string]int64, error) {
+//	    // Veritabanından veri çek
+//	})
 func NewPartition(title string) *PartitionMetric {
 	return &PartitionMetric{
 		BaseCard: widget.BaseCard{
@@ -75,9 +78,9 @@ func NewPartition(title string) *PartitionMetric {
 // Bu metod, veri çekme fonksiyonunu ayarlar.
 //
 // Parametreler:
-// - fn: Veritabanından veri çeken fonksiyon
-//       Giriş: *gorm.DB (veritabanı bağlantısı)
-//       Çıkış: map[string]int64 (segment adı -> değer), error
+//   - fn: Veritabanından veri çeken fonksiyon
+//     Giriş: *gorm.DB (veritabanı bağlantısı)
+//     Çıkış: map[string]int64 (segment adı -> değer), error
 //
 // Döndürür: Yapılandırılmış PartitionMetric pointer'ı (method chaining için)
 //
@@ -86,12 +89,13 @@ func NewPartition(title string) *PartitionMetric {
 // - Fonksiyon nil olmamalıdır
 //
 // Kullanım örneği:
-//   metric.Query(func(db *gorm.DB) (map[string]int64, error) {
-//       var result map[string]int64
-//       db.Table("sales").Select("category, COUNT(*) as count").
-//           Group("category").Scan(&result)
-//       return result, nil
-//   })
+//
+//	metric.Query(func(db *gorm.DB) (map[string]int64, error) {
+//	    var result map[string]int64
+//	    db.Table("sales").Select("category, COUNT(*) as count").
+//	        Group("category").Scan(&result)
+//	    return result, nil
+//	})
 func (m *PartitionMetric) Query(fn func(db *gorm.DB) (map[string]int64, error)) *PartitionMetric {
 	m.QueryFunc = fn
 	return m
@@ -100,17 +104,18 @@ func (m *PartitionMetric) Query(fn func(db *gorm.DB) (map[string]int64, error)) 
 // Bu metod, her segment için özel renkler ayarlar.
 //
 // Parametreler:
-// - colors: Segment adı -> hex renk kodu eşlemesi
-//           Örnek: map[string]string{"Elektronik": "#FF5733", "Giyim": "#33FF57"}
+//   - colors: Segment adı -> hex renk kodu eşlemesi
+//     Örnek: map[string]string{"Elektronik": "#FF5733", "Giyim": "#33FF57"}
 //
 // Döndürür: Yapılandırılmış PartitionMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.SetColors(map[string]string{
-//       "Elektronik": "#FF5733",
-//       "Giyim": "#33FF57",
-//       "Yiyecek": "#3357FF",
-//   })
+//
+//	metric.SetColors(map[string]string{
+//	    "Elektronik": "#FF5733",
+//	    "Giyim": "#33FF57",
+//	    "Yiyecek": "#3357FF",
+//	})
 func (m *PartitionMetric) SetColors(colors map[string]string) *PartitionMetric {
 	m.Colors = colors
 	return m
@@ -124,8 +129,9 @@ func (m *PartitionMetric) SetColors(colors map[string]string) *PartitionMetric {
 // Döndürür: Yapılandırılmış PartitionMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.SetFormat(FormatCurrency)  // Para birimi olarak göster
-//   metric.SetFormat(FormatPercentage) // Yüzde olarak göster
+//
+//	metric.SetFormat(FormatCurrency)  // Para birimi olarak göster
+//	metric.SetFormat(FormatPercentage) // Yüzde olarak göster
 func (m *PartitionMetric) SetFormat(format Format) *PartitionMetric {
 	m.FormatType = format
 	return m
@@ -139,8 +145,9 @@ func (m *PartitionMetric) SetFormat(format Format) *PartitionMetric {
 // Döndürür: Yapılandırılmış PartitionMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.SetWidth("1/2")  // Sayfanın yarısını kapla
-//   metric.SetWidth("full") // Sayfanın tamamını kapla
+//
+//	metric.SetWidth("1/2")  // Sayfanın yarısını kapla
+//	metric.SetWidth("full") // Sayfanın tamamını kapla
 func (m *PartitionMetric) SetWidth(width string) *PartitionMetric {
 	m.WidthStr = width
 	return m
@@ -161,11 +168,12 @@ func (m *PartitionMetric) SetWidth(width string) *PartitionMetric {
 // - Veritabanı sorgusu başarısız ise: Sorgu hatası
 //
 // Döndürülen veri yapısı:
-//   {
-//       "data": map[string]int64,    // Segment adı -> değer
-//       "colors": map[string]string, // Segment adı -> renk
-//       "format": Format,            // Görüntülenme formatı
-//   }
+//
+//	{
+//	    "data": map[string]int64,    // Segment adı -> değer
+//	    "colors": map[string]string, // Segment adı -> renk
+//	    "format": Format,            // Görüntülenme formatı
+//	}
 func (m *PartitionMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error) {
 	if m.QueryFunc == nil {
 		return nil, fmt.Errorf("query function not defined")
@@ -176,10 +184,14 @@ func (m *PartitionMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{
 		return nil, err
 	}
 
+	chartData, chartColors := buildPartitionChartData(data, m.Colors)
+
 	return map[string]interface{}{
-		"data":   data,
-		"colors": m.Colors,
-		"format": m.FormatType,
+		"data":        data,
+		"colors":      m.Colors,
+		"format":      m.FormatType,
+		"chartData":   chartData,
+		"chartColors": chartColors,
 	}, nil
 }
 
@@ -188,14 +200,15 @@ func (m *PartitionMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{
 // Döndürür: Metrik bilgilerini içeren map[string]interface{}
 //
 // Döndürülen veri yapısı:
-//   {
-//       "component": string,         // Bileşen adı ("partition-metric")
-//       "title": string,             // Metrik başlığı
-//       "width": string,             // Kartın genişliği
-//       "type": string,              // Kart türü ("partition")
-//       "format": Format,            // Görüntülenme formatı
-//       "colors": map[string]string, // Segment renkleri
-//   }
+//
+//	{
+//	    "component": string,         // Bileşen adı ("partition-metric")
+//	    "title": string,             // Metrik başlığı
+//	    "width": string,             // Kartın genişliği
+//	    "type": string,              // Kart türü ("partition")
+//	    "format": Format,            // Görüntülenme formatı
+//	    "colors": map[string]string, // Segment renkleri
+//	}
 //
 // Kullanım senaryosu:
 // - Frontend'e gönderilecek JSON yanıtı oluşturmak
@@ -227,6 +240,7 @@ func (m *PartitionMetric) JsonSerialize() map[string]interface{} {
 type ProgressMetric struct {
 	widget.BaseCard
 	CurrentFunc func(db *gorm.DB) (int64, error)
+	HistoryFunc func(db *gorm.DB) ([]map[string]interface{}, error)
 	Target      int64
 	FormatType  Format
 }
@@ -240,12 +254,13 @@ type ProgressMetric struct {
 // Döndürür: Yapılandırılmış ProgressMetric pointer'ı
 //
 // Kullanım örneği:
-//   metric := NewProgress("Satış Hedefi", 100000)
-//   metric.Current(func(db *gorm.DB) (int64, error) {
-//       var count int64
-//       db.Model(&Sale{}).Count(&count)
-//       return count, nil
-//   })
+//
+//	metric := NewProgress("Satış Hedefi", 100000)
+//	metric.Current(func(db *gorm.DB) (int64, error) {
+//	    var count int64
+//	    db.Model(&Sale{}).Count(&count)
+//	    return count, nil
+//	})
 func NewProgress(title string, target int64) *ProgressMetric {
 	return &ProgressMetric{
 		BaseCard: widget.BaseCard{
@@ -262,9 +277,9 @@ func NewProgress(title string, target int64) *ProgressMetric {
 // Bu metod, mevcut değeri çeken fonksiyonu ayarlar.
 //
 // Parametreler:
-// - fn: Mevcut değeri veritabanından çeken fonksiyon
-//       Giriş: *gorm.DB (veritabanı bağlantısı)
-//       Çıkış: int64 (mevcut değer), error
+//   - fn: Mevcut değeri veritabanından çeken fonksiyon
+//     Giriş: *gorm.DB (veritabanı bağlantısı)
+//     Çıkış: int64 (mevcut değer), error
 //
 // Döndürür: Yapılandırılmış ProgressMetric pointer'ı (method chaining için)
 //
@@ -274,13 +289,25 @@ func NewProgress(title string, target int64) *ProgressMetric {
 // - Döndürülen değer Target ile karşılaştırılarak yüzde hesaplanır
 //
 // Kullanım örneği:
-//   metric.Current(func(db *gorm.DB) (int64, error) {
-//       var current int64
-//       db.Table("sales").Where("status = ?", "completed").Count(&current)
-//       return current, nil
-//   })
+//
+//	metric.Current(func(db *gorm.DB) (int64, error) {
+//	    var current int64
+//	    db.Table("sales").Where("status = ?", "completed").Count(&current)
+//	    return current, nil
+//	})
 func (m *ProgressMetric) Current(fn func(db *gorm.DB) (int64, error)) *ProgressMetric {
 	m.CurrentFunc = fn
+	return m
+}
+
+// History, line chart için zaman serisi verisi döndüren sorgu fonksiyonunu ayarlar.
+//
+// Dönen veri, aşağıdaki alanları içermelidir:
+// - date (string, YYYY-MM-DD)
+// - desktop (number)
+// - mobile (number)
+func (m *ProgressMetric) History(fn func(db *gorm.DB) ([]map[string]interface{}, error)) *ProgressMetric {
+	m.HistoryFunc = fn
 	return m
 }
 
@@ -292,8 +319,9 @@ func (m *ProgressMetric) Current(fn func(db *gorm.DB) (int64, error)) *ProgressM
 // Döndürür: Yapılandırılmış ProgressMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.SetFormat(FormatCurrency)  // Para birimi olarak göster
-//   metric.SetFormat(FormatPercentage) // Yüzde olarak göster
+//
+//	metric.SetFormat(FormatCurrency)  // Para birimi olarak göster
+//	metric.SetFormat(FormatPercentage) // Yüzde olarak göster
 func (m *ProgressMetric) SetFormat(format Format) *ProgressMetric {
 	m.FormatType = format
 	return m
@@ -307,8 +335,9 @@ func (m *ProgressMetric) SetFormat(format Format) *ProgressMetric {
 // Döndürür: Yapılandırılmış ProgressMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.SetWidth("1/2")  // Sayfanın yarısını kapla
-//   metric.SetWidth("full") // Sayfanın tamamını kapla
+//
+//	metric.SetWidth("1/2")  // Sayfanın yarısını kapla
+//	metric.SetWidth("full") // Sayfanın tamamını kapla
 func (m *ProgressMetric) SetWidth(width string) *ProgressMetric {
 	m.WidthStr = width
 	return m
@@ -329,12 +358,13 @@ func (m *ProgressMetric) SetWidth(width string) *ProgressMetric {
 // - Veritabanı sorgusu başarısız ise: Sorgu hatası
 //
 // Döndürülen veri yapısı:
-//   {
-//       "current": int64,      // Mevcut değer
-//       "target": int64,       // Hedef değer
-//       "percentage": float64, // Yüzde (0-100 arası)
-//       "format": Format,      // Görüntülenme formatı
-//   }
+//
+//	{
+//	    "current": int64,      // Mevcut değer
+//	    "target": int64,       // Hedef değer
+//	    "percentage": float64, // Yüzde (0-100 arası)
+//	    "format": Format,      // Görüntülenme formatı
+//	}
 //
 // Önemli notlar:
 // - Yüzde otomatik olarak hesaplanır: (current / target) * 100
@@ -354,11 +384,23 @@ func (m *ProgressMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}
 		percentage = (float64(current) / float64(m.Target)) * 100
 	}
 
+	chartData := make([]map[string]interface{}, 0)
+	if m.HistoryFunc != nil {
+		historyData, err := m.HistoryFunc(db)
+		if err != nil {
+			return nil, err
+		}
+		chartData = normalizeLineChartData(historyData, current, m.Target)
+	} else {
+		chartData = buildProgressFallbackChartData(current, m.Target)
+	}
+
 	return map[string]interface{}{
 		"current":    current,
 		"target":     m.Target,
 		"percentage": percentage,
 		"format":     m.FormatType,
+		"chartData":  chartData,
 	}, nil
 }
 
@@ -367,14 +409,15 @@ func (m *ProgressMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}
 // Döndürür: Metrik bilgilerini içeren map[string]interface{}
 //
 // Döndürülen veri yapısı:
-//   {
-//       "component": string, // Bileşen adı ("progress-metric")
-//       "title": string,     // Metrik başlığı
-//       "width": string,     // Kartın genişliği
-//       "type": string,      // Kart türü ("progress")
-//       "target": int64,     // Hedef değer
-//       "format": Format,    // Görüntülenme formatı
-//   }
+//
+//	{
+//	    "component": string, // Bileşen adı ("progress-metric")
+//	    "title": string,     // Metrik başlığı
+//	    "width": string,     // Kartın genişliği
+//	    "type": string,      // Kart türü ("progress")
+//	    "target": int64,     // Hedef değer
+//	    "format": Format,    // Görüntülenme formatı
+//	}
 //
 // Kullanım senaryosu:
 // - Frontend'e gönderilecek JSON yanıtı oluşturmak
@@ -416,11 +459,12 @@ type TableMetric struct {
 // - Width: Sütun genişliği (CSS genişlik değeri, örn: "100px", "20%")
 //
 // Kullanım örneği:
-//   TableColumn{
-//       Key: "id",
-//       Label: "Kimlik",
-//       Width: "80px",
-//   }
+//
+//	TableColumn{
+//	    Key: "id",
+//	    Label: "Kimlik",
+//	    Width: "80px",
+//	}
 type TableColumn struct {
 	Key   string
 	Label string
@@ -435,12 +479,13 @@ type TableColumn struct {
 // Döndürür: Yapılandırılmış TableMetric pointer'ı
 //
 // Kullanım örneği:
-//   metric := NewTable("Son İşlemler")
-//   metric.AddColumn("id", "Kimlik", "80px")
-//   metric.AddColumn("name", "Ad", "200px")
-//   metric.Query(func(db *gorm.DB) ([]map[string]interface{}, error) {
-//       // Veritabanından veri çek
-//   })
+//
+//	metric := NewTable("Son İşlemler")
+//	metric.AddColumn("id", "Kimlik", "80px")
+//	metric.AddColumn("name", "Ad", "200px")
+//	metric.Query(func(db *gorm.DB) ([]map[string]interface{}, error) {
+//	    // Veritabanından veri çek
+//	})
 func NewTable(title string) *TableMetric {
 	return &TableMetric{
 		BaseCard: widget.BaseCard{
@@ -456,9 +501,9 @@ func NewTable(title string) *TableMetric {
 // Bu metod, veri çekme fonksiyonunu ayarlar.
 //
 // Parametreler:
-// - fn: Veritabanından veri çeken fonksiyon
-//       Giriş: *gorm.DB (veritabanı bağlantısı)
-//       Çıkış: []map[string]interface{} (satır verileri), error
+//   - fn: Veritabanından veri çeken fonksiyon
+//     Giriş: *gorm.DB (veritabanı bağlantısı)
+//     Çıkış: []map[string]interface{} (satır verileri), error
 //
 // Döndürür: Yapılandırılmış TableMetric pointer'ı (method chaining için)
 //
@@ -468,14 +513,15 @@ func NewTable(title string) *TableMetric {
 // - Döndürülen harita anahtarları Columns'daki Key değerleriyle eşleşmelidir
 //
 // Kullanım örneği:
-//   metric.Query(func(db *gorm.DB) ([]map[string]interface{}, error) {
-//       var transactions []map[string]interface{}
-//       db.Table("transactions").
-//           Select("id, user_name, amount, created_at").
-//           Limit(10).
-//           Scan(&transactions)
-//       return transactions, nil
-//   })
+//
+//	metric.Query(func(db *gorm.DB) ([]map[string]interface{}, error) {
+//	    var transactions []map[string]interface{}
+//	    db.Table("transactions").
+//	        Select("id, user_name, amount, created_at").
+//	        Limit(10).
+//	        Scan(&transactions)
+//	    return transactions, nil
+//	})
 func (m *TableMetric) Query(fn func(db *gorm.DB) ([]map[string]interface{}, error)) *TableMetric {
 	m.QueryFunc = fn
 	return m
@@ -493,12 +539,13 @@ func (m *TableMetric) Query(fn func(db *gorm.DB) ([]map[string]interface{}, erro
 // - AddColumn() ile tek tek sütun eklemek daha esnek olabilir
 //
 // Kullanım örneği:
-//   columns := []TableColumn{
-//       {Key: "id", Label: "Kimlik", Width: "80px"},
-//       {Key: "name", Label: "Ad", Width: "200px"},
-//       {Key: "email", Label: "E-posta", Width: "250px"},
-//   }
-//   metric.SetColumns(columns)
+//
+//	columns := []TableColumn{
+//	    {Key: "id", Label: "Kimlik", Width: "80px"},
+//	    {Key: "name", Label: "Ad", Width: "200px"},
+//	    {Key: "email", Label: "E-posta", Width: "250px"},
+//	}
+//	metric.SetColumns(columns)
 func (m *TableMetric) SetColumns(columns []TableColumn) *TableMetric {
 	m.Columns = columns
 	return m
@@ -514,9 +561,10 @@ func (m *TableMetric) SetColumns(columns []TableColumn) *TableMetric {
 // Döndürür: Yapılandırılmış TableMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.AddColumn("id", "Kimlik", "80px")
-//   metric.AddColumn("name", "Ad", "200px")
-//   metric.AddColumn("email", "E-posta", "250px")
+//
+//	metric.AddColumn("id", "Kimlik", "80px")
+//	metric.AddColumn("name", "Ad", "200px")
+//	metric.AddColumn("email", "E-posta", "250px")
 func (m *TableMetric) AddColumn(key, label, width string) *TableMetric {
 	m.Columns = append(m.Columns, TableColumn{
 		Key:   key,
@@ -534,7 +582,8 @@ func (m *TableMetric) AddColumn(key, label, width string) *TableMetric {
 // Döndürür: Yapılandırılmış TableMetric pointer'ı (method chaining için)
 //
 // Kullanım örneği:
-//   metric.SetWidth("full")  // Sayfanın tamamını kapla
+//
+//	metric.SetWidth("full")  // Sayfanın tamamını kapla
 func (m *TableMetric) SetWidth(width string) *TableMetric {
 	m.WidthStr = width
 	return m
@@ -555,10 +604,11 @@ func (m *TableMetric) SetWidth(width string) *TableMetric {
 // - Veritabanı sorgusu başarısız ise: Sorgu hatası
 //
 // Döndürülen veri yapısı:
-//   {
-//       "data": []map[string]interface{},  // Tablo satırları
-//       "columns": []TableColumn,          // Sütun tanımlamaları
-//   }
+//
+//	{
+//	    "data": []map[string]interface{},  // Tablo satırları
+//	    "columns": []TableColumn,          // Sütun tanımlamaları
+//	}
 //
 // Önemli notlar:
 // - Döndürülen veri satırlarının anahtarları Columns'daki Key değerleriyle eşleşmelidir
@@ -584,13 +634,14 @@ func (m *TableMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, e
 // Döndürür: Metrik bilgilerini içeren map[string]interface{}
 //
 // Döndürülen veri yapısı:
-//   {
-//       "component": string,      // Bileşen adı ("table-metric")
-//       "title": string,          // Metrik başlığı
-//       "width": string,          // Kartın genişliği
-//       "type": string,           // Kart türü ("table")
-//       "columns": []TableColumn, // Sütun tanımlamaları
-//   }
+//
+//	{
+//	    "component": string,      // Bileşen adı ("table-metric")
+//	    "title": string,          // Metrik başlığı
+//	    "width": string,          // Kartın genişliği
+//	    "type": string,           // Kart türü ("table")
+//	    "columns": []TableColumn, // Sütun tanımlamaları
+//	}
 //
 // Kullanım senaryosu:
 // - Frontend'e gönderilecek JSON yanıtı oluşturmak
@@ -602,6 +653,171 @@ func (m *TableMetric) JsonSerialize() map[string]interface{} {
 		"width":     m.Width(),
 		"type":      m.GetType(),
 		"columns":   m.Columns,
+	}
+}
+
+func buildPartitionChartData(data map[string]int64, colors map[string]string) ([]map[string]interface{}, map[string]string) {
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	chartData := make([]map[string]interface{}, 0, len(keys))
+	chartColors := make(map[string]string, len(keys))
+
+	for i, key := range keys {
+		normalizedKey := normalizeChartKey(key)
+		color := colors[key]
+		if color == "" {
+			color = colors[normalizedKey]
+		}
+		if color == "" {
+			color = defaultChartColor(i)
+		}
+
+		chartData = append(chartData, map[string]interface{}{
+			"month":   normalizedKey,
+			"label":   key,
+			"desktop": data[key],
+			"fill":    fmt.Sprintf("var(--color-%s)", normalizedKey),
+		})
+
+		chartColors[normalizedKey] = color
+	}
+
+	return chartData, chartColors
+}
+
+func normalizeLineChartData(rows []map[string]interface{}, current, target int64) []map[string]interface{} {
+	chartData := make([]map[string]interface{}, 0, len(rows))
+	for i, row := range rows {
+		date := firstString(row, "date", "month")
+		if date == "" {
+			date = time.Now().AddDate(0, 0, -(len(rows) - i - 1)).Format("2006-01-02")
+		}
+
+		desktop, ok := firstInt64(row, "desktop", "current", "value")
+		if !ok {
+			desktop = current
+		}
+
+		mobile, ok := firstInt64(row, "mobile", "target")
+		if !ok {
+			mobile = target
+		}
+
+		chartData = append(chartData, map[string]interface{}{
+			"date":    date,
+			"desktop": desktop,
+			"mobile":  mobile,
+		})
+	}
+
+	if len(chartData) == 0 {
+		return buildProgressFallbackChartData(current, target)
+	}
+
+	return chartData
+}
+
+func buildProgressFallbackChartData(current, target int64) []map[string]interface{} {
+	const days = 30
+	chartData := make([]map[string]interface{}, 0, days)
+	now := time.Now()
+
+	for i := 0; i < days; i++ {
+		date := now.AddDate(0, 0, -(days - i - 1)).Format("2006-01-02")
+		progressValue := int64(float64(current) * float64(i+1) / float64(days))
+
+		chartData = append(chartData, map[string]interface{}{
+			"date":    date,
+			"desktop": progressValue,
+			"mobile":  target,
+		})
+	}
+
+	return chartData
+}
+
+func defaultChartColor(index int) string {
+	return fmt.Sprintf("var(--chart-%d)", (index%5)+1)
+}
+
+func normalizeChartKey(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return "item"
+	}
+
+	builder := strings.Builder{}
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+
+		if !lastDash {
+			builder.WriteRune('-')
+			lastDash = true
+		}
+	}
+
+	result := strings.Trim(builder.String(), "-")
+	if result == "" {
+		return "item"
+	}
+	return result
+}
+
+func firstString(row map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := row[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstInt64(row map[string]interface{}, keys ...string) (int64, bool) {
+	for _, key := range keys {
+		if value, ok := toInt64(row[key]); ok {
+			return value, true
+		}
+	}
+	return 0, false
+}
+
+func toInt64(value interface{}) (int64, bool) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), true
+	case int8:
+		return int64(v), true
+	case int16:
+		return int64(v), true
+	case int32:
+		return int64(v), true
+	case int64:
+		return v, true
+	case uint:
+		return int64(v), true
+	case uint8:
+		return int64(v), true
+	case uint16:
+		return int64(v), true
+	case uint32:
+		return int64(v), true
+	case uint64:
+		return int64(v), true
+	case float32:
+		return int64(v), true
+	case float64:
+		return int64(v), true
+	default:
+		return 0, false
 	}
 }
 
@@ -623,11 +839,12 @@ func (m *TableMetric) JsonSerialize() map[string]interface{} {
 // - value: Sayısal değer
 //
 // Kullanım örneği:
-//   points := []TrendPoint{
-//       {Date: time.Now().AddDate(0, 0, -7), Value: 1000},
-//       {Date: time.Now().AddDate(0, 0, -6), Value: 1200},
-//       {Date: time.Now().AddDate(0, 0, -5), Value: 1100},
-//   }
+//
+//	points := []TrendPoint{
+//	    {Date: time.Now().AddDate(0, 0, -7), Value: 1000},
+//	    {Date: time.Now().AddDate(0, 0, -6), Value: 1200},
+//	    {Date: time.Now().AddDate(0, 0, -5), Value: 1100},
+//	}
 type TrendPoint struct {
 	// Date, veri noktasının tarihini temsil eder.
 	// JSON'da "date" anahtarı ile serileştirilir.

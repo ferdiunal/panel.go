@@ -22,8 +22,9 @@ import (
 // - QueryFunc: Veritabanından veri çeken özel sorgu fonksiyonu
 //
 // Örnek Kullanım:
-//   widget := NewTrendWidget("Yeni Kullanıcılar", &User{}, "created_at")
-//   data, err := widget.Resolve(ctx, db)
+//
+//	widget := NewTrendWidget("Yeni Kullanıcılar", &User{}, "created_at")
+//	data, err := widget.Resolve(ctx, db)
 type Trend struct {
 	// Title: Widget'ın başlığı, UI'da gösterilecek metin
 	Title string
@@ -39,8 +40,9 @@ type Trend struct {
 // Dönüş: Widget'ın başlığı (Title alanı)
 //
 // Örnek Kullanım:
-//   widget := NewTrendWidget("Yeni Kullanıcılar", &User{}, "created_at")
-//   name := widget.Name() // "Yeni Kullanıcılar"
+//
+//	widget := NewTrendWidget("Yeni Kullanıcılar", &User{}, "created_at")
+//	name := widget.Name() // "Yeni Kullanıcılar"
 func (w *Trend) Name() string {
 	return w.Title
 }
@@ -87,13 +89,14 @@ func (w *Trend) GetType() CardType {
 // 3. Frontend'e göndermek için hazır hale getirir
 //
 // Örnek Dönüş Değeri:
-//   {
-//     "data": [
-//       {"date": "2026-02-01", "value": 10},
-//       {"date": "2026-02-02", "value": 15}
-//     ],
-//     "title": "Yeni Kullanıcılar"
-//   }
+//
+//	{
+//	  "data": [
+//	    {"date": "2026-02-01", "value": 10},
+//	    {"date": "2026-02-02", "value": 15}
+//	  ],
+//	  "title": "Yeni Kullanıcılar"
+//	}
 //
 // Hata Durumu:
 // - QueryFunc hata döndürürse, nil ve hata döndürülür
@@ -102,10 +105,94 @@ func (w *Trend) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	chartData := normalizeAreaChartData(data)
 	return map[string]interface{}{
-		"data":  data,
-		"title": w.Title,
+		"data":      data,
+		"chartData": chartData,
+		"title":     w.Title,
 	}, nil
+}
+
+func normalizeAreaChartData(data []interface{}) []map[string]interface{} {
+	chartData := make([]map[string]interface{}, 0, len(data))
+
+	for i, item := range data {
+		row, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		desktop, hasDesktop := toInt64(row["desktop"])
+		if !hasDesktop {
+			desktop, _ = toInt64(row["value"])
+		}
+
+		mobile, hasMobile := toInt64(row["mobile"])
+		if !hasMobile {
+			mobile = 0
+		}
+
+		month := ""
+		if rawMonth, ok := row["month"].(string); ok && rawMonth != "" {
+			month = rawMonth
+		}
+
+		if month == "" {
+			if rawDate, ok := row["date"].(string); ok && rawDate != "" {
+				month = rawDate
+			}
+		}
+
+		if month == "" {
+			month = fmt.Sprintf("item-%d", i+1)
+		}
+
+		normalized := map[string]interface{}{
+			"month":   month,
+			"desktop": desktop,
+			"mobile":  mobile,
+		}
+
+		if rawDate, ok := row["date"].(string); ok && rawDate != "" {
+			normalized["date"] = rawDate
+		}
+
+		chartData = append(chartData, normalized)
+	}
+
+	return chartData
+}
+
+func toInt64(value interface{}) (int64, bool) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), true
+	case int8:
+		return int64(v), true
+	case int16:
+		return int64(v), true
+	case int32:
+		return int64(v), true
+	case int64:
+		return v, true
+	case uint:
+		return int64(v), true
+	case uint8:
+		return int64(v), true
+	case uint16:
+		return int64(v), true
+	case uint32:
+		return int64(v), true
+	case uint64:
+		return int64(v), true
+	case float32:
+		return int64(v), true
+	case float64:
+		return int64(v), true
+	default:
+		return 0, false
+	}
 }
 
 // Bu metod, hata durumunda frontend'e göndermek için hata bilgisini hazırlar.
@@ -114,11 +201,12 @@ func (w *Trend) Resolve(ctx *context.Context, db *gorm.DB) (interface{}, error) 
 // Dönüş: Hata bilgisini içeren map
 //
 // Dönüş Değeri Örneği:
-//   {
-//     "error": "database connection failed",
-//     "title": "Yeni Kullanıcılar",
-//     "type": "trend"
-//   }
+//
+//	{
+//	  "error": "database connection failed",
+//	  "title": "Yeni Kullanıcılar",
+//	  "type": "trend"
+//	}
 //
 // Kullanım Senaryosu:
 // - Resolve() sırasında hata oluştuğunda çağrılır
@@ -135,13 +223,14 @@ func (w *Trend) HandleError(err error) map[string]interface{} {
 // Dönüş: Widget'ın yapılandırma bilgilerini içeren map
 //
 // Dönüş Değeri Örneği:
-//   {
-//     "name": "Yeni Kullanıcılar",
-//     "component": "trend-metric",
-//     "width": "1/3",
-//     "type": "trend",
-//     "ranges": [30, 60, 90]
-//   }
+//
+//	{
+//	  "name": "Yeni Kullanıcılar",
+//	  "component": "trend-metric",
+//	  "width": "1/3",
+//	  "type": "trend",
+//	  "ranges": [30, 60, 90]
+//	}
 //
 // Kullanım Senaryosu:
 // - Dashboard'un widget'ları hakkında bilgi alması gerektiğinde
@@ -161,13 +250,14 @@ func (w *Trend) GetMetadata() map[string]interface{} {
 // Dönüş: Widget'ın JSON serileştirilebilir map gösterimi
 //
 // Dönüş Değeri Örneği:
-//   {
-//     "component": "trend-metric",
-//     "title": "Yeni Kullanıcılar",
-//     "width": "1/3",
-//     "type": "trend",
-//     "ranges": [30, 60, 90]
-//   }
+//
+//	{
+//	  "component": "trend-metric",
+//	  "title": "Yeni Kullanıcılar",
+//	  "width": "1/3",
+//	  "type": "trend",
+//	  "ranges": [30, 60, 90]
+//	}
 //
 // Kullanım Senaryosu:
 // - Widget'ı JSON olarak kaydetmek
@@ -199,10 +289,11 @@ func (w *Trend) JsonSerialize() map[string]interface{} {
 // - Tarih boşluklarını doldurmadan önce veriyi organize etmek
 //
 // Örnek:
-//   TrendValue{
-//     Date: "2026-02-01",
-//     Value: 42,
-//   }
+//
+//	TrendValue{
+//	  Date: "2026-02-01",
+//	  Value: 42,
+//	}
 type TrendValue struct {
 	// Date: Veri noktasının tarihi (RFC3339 formatında: "YYYY-MM-DD")
 	Date string `json:"date"`
@@ -226,17 +317,18 @@ type TrendValue struct {
 // 4. Sonuçları kronolojik sırada (eski -> yeni) döndürür
 //
 // Örnek Kullanım:
-//   results := []TrendValue{
-//     {Date: "2026-02-01", Value: 10},
-//     {Date: "2026-02-03", Value: 15}, // 02-02 eksik
-//   }
-//   filled := fillGaps(results, 3)
-//   // Dönüş:
-//   // [
-//   //   {date: "2026-02-01", value: 10},
-//   //   {date: "2026-02-02", value: 0},   // Boşluk dolduruldu
-//   //   {date: "2026-02-03", value: 15},
-//   // ]
+//
+//	results := []TrendValue{
+//	  {Date: "2026-02-01", Value: 10},
+//	  {Date: "2026-02-03", Value: 15}, // 02-02 eksik
+//	}
+//	filled := fillGaps(results, 3)
+//	// Dönüş:
+//	// [
+//	//   {date: "2026-02-01", value: 10},
+//	//   {date: "2026-02-02", value: 0},   // Boşluk dolduruldu
+//	//   {date: "2026-02-03", value: 15},
+//	// ]
 //
 // Önemli Notlar:
 // - Grafik kütüphaneleri genellikle kronolojik sırada veri bekler
@@ -289,13 +381,13 @@ func fillGaps(results []TrendValue, days int) []map[string]interface{} {
 // Dönüş: Yapılandırılmış Trend widget'ı pointer'ı
 //
 // Akış:
-// 1. Trend yapısını başlık ve aralıklarla oluşturur
-// 2. QueryFunc'u tanımlar:
-//    a. Query parametresinden aralık alır (varsayılan: 30)
-//    b. Aralığı izin verilen değerlere karşı doğrular
-//    c. Veritabanından günlük sayıları sorgular
-//    d. Tarih boşluklarını doldurur
-//    e. Sonuçları döndürür
+//  1. Trend yapısını başlık ve aralıklarla oluşturur
+//  2. QueryFunc'u tanımlar:
+//     a. Query parametresinden aralık alır (varsayılan: 30)
+//     b. Aralığı izin verilen değerlere karşı doğrular
+//     c. Veritabanından günlük sayıları sorgular
+//     d. Tarih boşluklarını doldurur
+//     e. Sonuçları döndürür
 //
 // Kullanım Senaryoları:
 // - Yeni kullanıcı kayıtlarının trendini göstermek
@@ -303,18 +395,19 @@ func fillGaps(results []TrendValue, days int) []map[string]interface{} {
 // - Sistem etkinliklerinin günlük dağılımını görselleştirmek
 //
 // Örnek Kullanım:
-//   // Yeni kullanıcılar için trend widget'ı oluştur
-//   widget := NewTrendWidget("Yeni Kullanıcılar", &User{}, "created_at")
 //
-//   // Widget'ı dashboard'a ekle
-//   dashboard.AddWidget(widget)
+//	// Yeni kullanıcılar için trend widget'ı oluştur
+//	widget := NewTrendWidget("Yeni Kullanıcılar", &User{}, "created_at")
 //
-//   // Veriyi çöz ve frontend'e gönder
-//   data, err := widget.Resolve(ctx, db)
-//   if err != nil {
-//     errorData := widget.HandleError(err)
-//     // Hata mesajını frontend'e gönder
-//   }
+//	// Widget'ı dashboard'a ekle
+//	dashboard.AddWidget(widget)
+//
+//	// Veriyi çöz ve frontend'e gönder
+//	data, err := widget.Resolve(ctx, db)
+//	if err != nil {
+//	  errorData := widget.HandleError(err)
+//	  // Hata mesajını frontend'e gönder
+//	}
 //
 // Önemli Notlar:
 // - Şu anda SQLite strftime() fonksiyonunu kullanır
@@ -324,11 +417,12 @@ func fillGaps(results []TrendValue, days int) []map[string]interface{} {
 // - Geçersiz aralık istekleri otomatik olarak 30 güne sıfırlanır
 //
 // SQL Sorgusu Örneği (SQLite):
-//   SELECT strftime('%Y-%m-%d', created_at) as date, count(*) as value
-//   FROM users
-//   WHERE created_at BETWEEN ? AND ?
-//   GROUP BY date
-//   ORDER BY date ASC
+//
+//	SELECT strftime('%Y-%m-%d', created_at) as date, count(*) as value
+//	FROM users
+//	WHERE created_at BETWEEN ? AND ?
+//	GROUP BY date
+//	ORDER BY date ASC
 //
 // Veritabanı Uyumluluğu:
 // - SQLite: strftime('%Y-%m-%d', column)

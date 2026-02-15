@@ -112,9 +112,10 @@ func (p *Panel) handlePages(c *context.Context) error {
 	}
 
 	items := []PageItem{}
+	pages := p.pagesSnapshot()
 
 	/// Tüm kayıtlı sayfaları döngüyle kontrol et
-	for slug, pg := range p.pages {
+	for slug, pg := range pages {
 		/// Sayfanın görünür olup olmadığını ve kullanıcının erişim yetkisini kontrol et
 		/// - Gizli sayfalar atlanır
 		/// - Erişim izni olmayan sayfalar atlanır
@@ -247,7 +248,7 @@ func (p *Panel) handlePageDetail(c *context.Context) error {
 	slug := c.Params("slug")
 
 	/// Slug'a göre sayfayı panelden bul
-	pg, ok := p.pages[slug]
+	pg, ok := p.pagesSnapshot()[slug]
 	if !ok {
 		/// Sayfa bulunamadı, 404 hatası döndür
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -445,7 +446,7 @@ func (p *Panel) handlePageSave(c *context.Context) error {
 	slug := c.Params("slug")
 
 	/// Slug'a göre sayfayı panelden bul
-	pg, ok := p.pages[slug]
+	pg, ok := p.pagesSnapshot()[slug]
 	if !ok {
 		/// Sayfa bulunamadı, 404 hatası döndür
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{

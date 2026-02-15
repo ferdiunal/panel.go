@@ -415,7 +415,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	})
 	registerReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(registerBody))
 	registerReq.Header.Set("Content-Type", "application/json")
-	registerResp, err := p.Fiber.Test(registerReq)
+	registerResp, err := testFiberRequest(p.Fiber, registerReq)
 	if err != nil {
 		t.Fatalf("Register failed: %v", err)
 	}
@@ -432,7 +432,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	})
 	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, err := p.Fiber.Test(loginReq)
+	loginResp, err := testFiberRequest(p.Fiber, loginReq)
 	if err != nil {
 		t.Fatalf("Login failed: %v", err)
 	}
@@ -452,7 +452,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
-	resp, err := p.Fiber.Test(req)
+	resp, err := testFiberRequest(p.Fiber, req)
 	if err != nil {
 		t.Fatalf("API Request failed: %v", err)
 	}
@@ -505,7 +505,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if sessionCookie != nil {
 		reqBlog.AddCookie(sessionCookie)
 	}
-	respBlog, _ := p.Fiber.Test(reqBlog)
+	respBlog, _ := testFiberRequest(p.Fiber, reqBlog)
 	if respBlog.StatusCode != 200 {
 		t.Fatalf("Get Blogs failed with status: %d", respBlog.StatusCode)
 	}
@@ -540,7 +540,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if sessionCookie != nil {
 		reqLens.AddCookie(sessionCookie)
 	}
-	respLens, _ := p.Fiber.Test(reqLens)
+	respLens, _ := testFiberRequest(p.Fiber, reqLens)
 	if respLens.StatusCode != 200 {
 		t.Errorf("Expected 200 for Lens, got %d", respLens.StatusCode)
 	}
@@ -566,7 +566,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if sessionCookie != nil {
 		reqLensActions.AddCookie(sessionCookie)
 	}
-	respLensActions, _ := p.Fiber.Test(reqLensActions)
+	respLensActions, _ := testFiberRequest(p.Fiber, reqLensActions)
 	if respLensActions.StatusCode != 200 {
 		t.Fatalf("Expected 200 for lens actions list, got %d", respLensActions.StatusCode)
 	}
@@ -609,7 +609,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if sessionCookie != nil {
 		reqLensActionExec.AddCookie(sessionCookie)
 	}
-	respLensActionExec, _ := p.Fiber.Test(reqLensActionExec)
+	respLensActionExec, _ := testFiberRequest(p.Fiber, reqLensActionExec)
 	if respLensActionExec.StatusCode != 200 {
 		bodyExec, _ := io.ReadAll(respLensActionExec.Body)
 		t.Fatalf("Expected 200 for lens action execute, got %d body=%s", respLensActionExec.StatusCode, string(bodyExec))
@@ -640,13 +640,13 @@ func TestIntegration_Navigation(t *testing.T) {
 	regBody, _ := json.Marshal(map[string]string{"name": "Nav", "email": "nav@example.com", "password": "password"})
 	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
-	p.Fiber.Test(regReq)
+	testFiberRequest(p.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "nav@example.com", "password": "password"})
 	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
-	loginResp, _ := p.Fiber.Test(loginReq)
+	loginResp, _ := testFiberRequest(p.Fiber, loginReq)
 
 	var sessionCookie *http.Cookie
 	for _, cookie := range loginResp.Cookies() {
@@ -661,7 +661,7 @@ func TestIntegration_Navigation(t *testing.T) {
 	if sessionCookie != nil {
 		reqNav.AddCookie(sessionCookie)
 	}
-	respNav, _ := p.Fiber.Test(reqNav)
+	respNav, _ := testFiberRequest(p.Fiber, reqNav)
 	if respNav.StatusCode != 200 {
 		t.Errorf("Expected 200 for Navigation, got %d", respNav.StatusCode)
 	}

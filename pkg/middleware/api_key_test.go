@@ -177,3 +177,49 @@ func TestAPIKeyAuthMiddleware_DynamicValidator(t *testing.T) {
 		t.Fatalf("expected status 401, got %d", invalidResp.StatusCode)
 	}
 }
+
+func TestAPIKeyAuthMiddleware_AtomicSnapshotMode(t *testing.T) {
+	auth := NewAPIKeyAuth(true, "", []string{"secret-key"})
+	auth.SetAtomicSnapshotEnabled(true)
+
+	app := fiber.New()
+	app.Use(auth.Middleware())
+	app.Get("/", func(c *fiber.Ctx) error {
+		if authed, ok := c.Locals(APIKeyAuthenticatedLocalKey).(bool); !ok || !authed {
+			return c.Status(fiber.StatusUnauthorized).SendString("missing api key auth marker")
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest(fiber.MethodGet, "/", nil)
+	req.Header.Set("X-API-Key", "secret-key")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	auth.SetConfig(true, "X-App-Key", []string{"next-key"})
+
+	oldReq := httptest.NewRequest(fiber.MethodGet, "/", nil)
+	oldReq.Header.Set("X-API-Key", "secret-key")
+	oldResp, err := app.Test(oldReq)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	if oldResp.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", oldResp.StatusCode)
+	}
+
+	newReq := httptest.NewRequest(fiber.MethodGet, "/", nil)
+	newReq.Header.Set("X-App-Key", "next-key")
+	newResp, err := app.Test(newReq)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	if newResp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected status 200, got %d", newResp.StatusCode)
+	}
+}

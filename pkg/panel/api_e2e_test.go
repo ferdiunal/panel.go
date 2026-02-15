@@ -39,7 +39,7 @@ func TestE2EInitEndpoint(t *testing.T) {
 
 	// Test /api/init endpoint
 	req := httptest.NewRequest("GET", "/api/init", nil)
-	resp, err := p.Fiber.Test(req)
+	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
 		t.Errorf("Failed to test /api/init: %v", err)
@@ -74,7 +74,7 @@ func TestE2ENavigationEndpoint(t *testing.T) {
 
 	// Test /api/navigation endpoint
 	req := httptest.NewRequest("GET", "/api/navigation", nil)
-	resp, err := p.Fiber.Test(req)
+	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
 		t.Errorf("Failed to test /api/navigation: %v", err)
@@ -106,7 +106,7 @@ func TestE2EResourceListEndpoint(t *testing.T) {
 
 	// Test /api/resource/users endpoint
 	req := httptest.NewRequest("GET", "/api/resource/users", nil)
-	resp, err := p.Fiber.Test(req)
+	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
 		t.Errorf("Failed to test /api/resource/users: %v", err)
@@ -137,7 +137,7 @@ func TestE2EResourceCreateEndpoint(t *testing.T) {
 
 	// Test /api/resource/users/create endpoint
 	req := httptest.NewRequest("GET", "/api/resource/users/create", nil)
-	resp, err := p.Fiber.Test(req)
+	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
 		t.Errorf("Failed to test /api/resource/users/create: %v", err)

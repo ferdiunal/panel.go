@@ -107,18 +107,23 @@ Kayıtlı sayfalara aşağıdaki endpointler üzerinden erişilebilir:
   "meta": {
     "cards": [
       {
-        "component": "value-metric",
-        "title": "Toplam Kullanıcı",
+        "component": "trend-metric",
+        "title": "Kayıt Trendi",
+        "width": "1/3",
         "data": {
-            "value": 150
-        },
-        "width": "1/3"
+          "chartData": [
+            { "month": "2026-02-01", "desktop": 120, "mobile": 90 },
+            { "month": "2026-02-02", "desktop": 180, "mobile": 110 }
+          ]
+        }
       },
       // ... diğer widget'lar
     ]
   }
 }
 ```
+
+> Chart kartları için detaylı payload sözleşmesi: [Charts Data Contract](Charts-Data-Contract)
 
 ## Sık Hata Kontrolü (Pages)
 

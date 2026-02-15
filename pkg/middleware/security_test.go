@@ -39,6 +39,7 @@ func TestRateLimiter(t *testing.T) {
 
 func TestAccountLockout(t *testing.T) {
 	lockout := NewAccountLockout(3, 5*time.Minute)
+	t.Cleanup(lockout.Close)
 
 	email := "test@example.com"
 
@@ -67,6 +68,12 @@ func TestAccountLockout(t *testing.T) {
 	// Should not be locked anymore
 	assert.False(t, lockout.IsLocked(email))
 	assert.Equal(t, 3, lockout.GetRemainingAttempts(email))
+}
+
+func TestAccountLockoutClose_Idempotent(t *testing.T) {
+	lockout := NewAccountLockout(2, time.Minute)
+	lockout.Close()
+	lockout.Close()
 }
 
 func TestSecurityHeaders(t *testing.T) {

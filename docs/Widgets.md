@@ -1,94 +1,107 @@
-# Widget'lar (Cards) - Legacy Teknik Akış
+# Widget'lar (Cards)
 
-Widget'lar (veya Cards), resource'larınızın özet bilgilerini, grafiklerini ve metriklerini göstermenize olanak tanır.
+Widget'lar (Cards), resource ve page ekranlarında metrik/özet verileri göstermek için kullanılır.
 
-## Bu Doküman Ne Zaman Okunmalı?
+## Hızlı Akış
 
-Önerilen sıra:
-1. [Başlarken](Getting-Started)
-2. [Kaynaklar (Resource)](Resources)
-3. [Lensler (Lenses)](Lenses)
-4. Bu doküman (`Widgets`)
+1. Kart tipini seç (`value`, `trend`, `partition`, `progress`, `table`).
+2. Resource veya Page içinde `Cards()` metodunda kartları döndür.
+3. Kart verisini `Resolve(...)` içinde üret.
+4. Frontend, `component` adına göre doğru chart/UI bileşenini otomatik render eder.
 
-## Hızlı Widget Akışı
+## Desteklenen Kart Tipleri
 
-1. İhtiyaca göre kart tipi seç (`Value` veya `Trend`).
-2. Resource veya Page üzerinde `Cards()` metodunda kartları döndür.
-3. Kart verisini mümkün olduğunca hafif sorgularla üret.
-4. Büyük veri setlerinde widget hesaplarını cache stratejisiyle destekle.
+1. `value-metric`: Tekil sayı/metin gösterimi.
+2. `trend-metric`: `Area Chart - Axes` (shadcn/ui örneği).
+3. `partition-metric`: `Pie Chart - Interactive` (shadcn/ui örneği).
+4. `progress-metric`: `Line Chart - Interactive` (shadcn/ui örneği).
+5. `table-metric`: Tablo metrik görünümü.
 
-## Kullanılabilir Kart Tipleri
+## Kart Oluşturma Örnekleri
 
-Şu an için iki temel kart tipi desteklenmektedir:
-
-1.  **Value**: Tek bir sayısal değer ve (opsiyonel) değişim gösterir (örn. Toplam Kullanıcı Sayısı).
-2.  **Trend**: Zaman içindeki değişimi çizgi grafik olarak gösterir (örn. Son 30 gündeki kayıtlar).
-
-## Kart Oluşturma
-
-### 1. Value Card
-
-`widget.NewCountWidget` helper'ını kullanarak hızlıca bir sayaç oluşturabilirsiniz:
+### Value
 
 ```go
-import "github.com/ferdiunal/panel.go/pkg/widget"
-
-func (u *UserResource) Cards() []widget.Card {
-    return []widget.Card{
-        widget.NewCountWidget("Toplam Kullanıcı", &User{}),
-        
-        // Veya manuel tanımlama (Custom Card)
-        widget.NewCard("Aktif Aboneler", "value-metric").
-            SetContent(calculateSubscribers()),
-    }
+func (r *UserResource) Cards() []widget.Card {
+	return []widget.Card{
+		widget.NewCountWidget("Toplam Kullanıcı", &User{}),
+	}
 }
 ```
 
-### 2. Trend Card
-
-Trend widget'ları, verilerin zaman içindeki dağılımını gösterir.
+### Trend (Area Chart - Axes)
 
 ```go
-func (u *UserResource) Cards() []widget.Card {
-    return []widget.Card{
-        widget.NewTrendWidget("Günlük Kayıtlar", &User{}, "created_at"),
-    }
+func (r *UserResource) Cards() []widget.Card {
+	return []widget.Card{
+		widget.NewTrendWidget("Kayıt Trendi", &User{}, "created_at"),
+	}
 }
 ```
 
-## Resource'a Ekleme
-
-Kartları resource'unuza eklemek için `Cards()` metodunu implemente etmeniz yeterlidir:
+### Partition (Pie Chart - Interactive)
 
 ```go
-func (u *UserResource) Cards() []widget.Card {
-    return []widget.Card{
-        widget.NewCountWidget("Toplam Kullanıcı", &User{}),
-    }
+func (r *OrderResource) Cards() []widget.Card {
+	return []widget.Card{
+		metric.NewPartition("Sipariş Durumları").
+			Query(func(db *gorm.DB) (map[string]int64, error) {
+				return metric.GroupByColumn(db, &Order{}, "status")
+			}).
+			SetColors(map[string]string{
+				"pending":   "var(--chart-1)",
+				"completed": "var(--chart-2)",
+				"cancelled": "var(--chart-3)",
+			}),
+	}
 }
 ```
 
-## Sayfalara Ekleme (Dashboard)
-
-Kartlar sadece resource'larda değil, `Page` (Sayfa) yapılarında da kullanılabilir. Örneğin Dashboard sayfasında:
+### Progress (Line Chart - Interactive)
 
 ```go
-func (d *Dashboard) Cards() []widget.Card {
-    return []widget.Card{
-        widget.NewCountWidget("Toplam Kullanıcı", &user.User{}),
-    }
+func (r *OrderResource) Cards() []widget.Card {
+	return []widget.Card{
+		metric.NewProgress("Aylık Hedef", 1000).
+			Current(func(db *gorm.DB) (int64, error) {
+				return metric.CountWhere(db, &Order{}, "created_at >= ?", startOfMonth())
+			}).
+			History(func(db *gorm.DB) ([]map[string]interface{}, error) {
+				// date, desktop, mobile alanları beklenir
+				return []map[string]interface{}{
+					{"date": "2026-02-01", "desktop": 120, "mobile": 1000},
+					{"date": "2026-02-02", "desktop": 180, "mobile": 1000},
+				}, nil
+			}),
+	}
 }
 ```
 
-## Sık Hata Kontrolü (Widget)
+> `History(...)` verilmezse backend, `current/target` değerlerinden 30 günlük fallback `chartData` üretir.
 
-- Kart görünmüyor: `Cards()` metodunun ilgili resource/page üzerinde gerçekten implement edildiğini kontrol edin.
-- Değer yanlış: widget içinde kullanılan model/sorgu alan eşleşmelerini doğrulayın.
-- Trend boş: zaman alanı (`created_at` vb.) yanlış veya null olabilir.
-- Performans düşüyor: ağır metrik hesaplarını istek anında değil cache/ön-hesaplama ile çalıştırın.
+## Frontend Bileşen Eşleşmesi
 
-## Sonraki Adım
+- `trend-metric` -> `/web/src/components/widgets/trend-metric.tsx`
+- `partition-metric` -> `/web/src/components/metrics/PartitionMetric.tsx`
+- `progress-metric` -> `/web/src/components/metrics/ProgressMetric.tsx`
+- Router: `/web/src/components/widget-renderer.tsx`
 
-- Lens ile birlikte kullanım için: [Lensler (Lenses)](Lenses)
-- Toplu aksiyon + metrik kombinasyonu için: [Action'lar](Actions)
-- Sayfa entegrasyonu için: [Sayfalar (Pages)](Pages)
+## Veri Sözleşmesi (Data Contract)
+
+Chart kartları için backend, legacy alanları koruyup ek olarak `chartData` üretir.
+Detaylı alan yapıları ve JSON örnekleri için:
+
+- [Charts Data Contract](Charts-Data-Contract)
+
+## Migration Notları
+
+- Eski kartlar (sadece `data.value`, `data.current`, `data.target`) çalışmaya devam eder.
+- Yeni interaktif chart deneyimi için backend tarafında `chartData` üretmeniz önerilir.
+- `trend-metric` için `widget.NewTrendWidget(...)` kullanımıyla `chartData` otomatik normalize edilir.
+
+## Sorun Giderme
+
+- Kart görünmüyor: `component` adı frontend switch ile eşleşmeli.
+- Pie chart renkleri yanlış: `SetColors(...)` anahtarlarıyla kategori isimlerini eşleştirin.
+- Line chart düz çizgi: `History(...)` çıktısında `date/desktop/mobile` alanlarını doğrulayın.
+- Area chart boş: trend sorgusunun tarih alanı (`created_at` vb.) doğru ve dolu olmalı.

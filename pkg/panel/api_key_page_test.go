@@ -38,7 +38,7 @@ func TestAPIKeyPageSave_RefreshesMiddleware(t *testing.T) {
 	saveReq.Header.Set("Content-Type", "application/json")
 	saveReq.AddCookie(sessionCookie)
 
-	saveResp, err := p.Fiber.Test(saveReq)
+	saveResp, err := testFiberRequest(p.Fiber, saveReq)
 	if err != nil {
 		t.Fatalf("api settings save request failed: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestAPIKeyPageSave_RefreshesMiddleware(t *testing.T) {
 	validKeyReq := httptest.NewRequest("GET", "/api/resource/users", nil)
 	validKeyReq.Header.Set("X-App-Key", "client-secret-key")
 
-	validKeyResp, err := p.Fiber.Test(validKeyReq)
+	validKeyResp, err := testFiberRequest(p.Fiber, validKeyReq)
 	if err != nil {
 		t.Fatalf("resource request with valid api key failed: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestAPIKeyPageSave_RefreshesMiddleware(t *testing.T) {
 	invalidKeyReq := httptest.NewRequest("GET", "/api/resource/users", nil)
 	invalidKeyReq.Header.Set("X-App-Key", "wrong-key")
 
-	invalidKeyResp, err := p.Fiber.Test(invalidKeyReq)
+	invalidKeyResp, err := testFiberRequest(p.Fiber, invalidKeyReq)
 	if err != nil {
 		t.Fatalf("resource request with invalid api key failed: %v", err)
 	}
@@ -80,7 +80,7 @@ func registerAndLoginTestUser(t *testing.T, p *Panel, email string) *http.Cookie
 	registerReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(registerBody))
 	registerReq.Header.Set("Content-Type", "application/json")
 
-	if _, err := p.Fiber.Test(registerReq); err != nil {
+	if _, err := testFiberRequest(p.Fiber, registerReq); err != nil {
 		t.Fatalf("register request failed: %v", err)
 	}
 
@@ -95,7 +95,7 @@ func registerAndLoginTestUser(t *testing.T, p *Panel, email string) *http.Cookie
 	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 
-	loginResp, err := p.Fiber.Test(loginReq)
+	loginResp, err := testFiberRequest(p.Fiber, loginReq)
 	if err != nil {
 		t.Fatalf("login request failed: %v", err)
 	}

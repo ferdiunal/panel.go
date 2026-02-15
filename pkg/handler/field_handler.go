@@ -663,20 +663,10 @@ func (h *FieldHandler) resolveFieldWorkers(total int) int {
 }
 
 func cloneElementForIsolation(element fields.Element) fields.Element {
-	value := reflect.ValueOf(element)
-	if !value.IsValid() || value.Kind() != reflect.Ptr || value.IsNil() {
+	if element == nil {
 		return element
 	}
-
-	elemType := value.Elem().Type()
-	cloned := reflect.New(elemType)
-	cloned.Elem().Set(value.Elem())
-
-	clonedElement, ok := cloned.Interface().(fields.Element)
-	if !ok {
-		return element
-	}
-	return clonedElement
+	return core.CloneElement(element)
 }
 
 func cloneElementsForIsolation(elements []fields.Element) []fields.Element {

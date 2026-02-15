@@ -255,6 +255,21 @@ type ConcurrencyConfig struct {
 
 	// FieldWorkers overrides worker count for index/lens field mapping.
 	FieldWorkers int
+
+	// EnableDataPipelineV2 enables bounded relationship lazy-load workers in data provider hot paths.
+	EnableDataPipelineV2 bool
+
+	// DataWorkers overrides worker count for data provider relationship loading.
+	DataWorkers int
+
+	// EnableMiddlewareV2 enables middleware concurrency optimizations (atomic snapshot paths).
+	EnableMiddlewareV2 bool
+
+	// EnableOpenAPIV2 enables parallel OpenAPI generation and immutable cache snapshots.
+	EnableOpenAPIV2 bool
+
+	// OpenAPIWorkers overrides worker count for OpenAPI dynamic generation.
+	OpenAPIWorkers int
 }
 
 // / # Config - Panel Genel Yapılandırması

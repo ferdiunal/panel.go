@@ -26,6 +26,7 @@
 package panel
 
 import (
+	stdcontext "context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -34,6 +35,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
@@ -100,14 +103,19 @@ type Panel struct {
 	Db                    *gorm.DB
 	Fiber                 *fiber.App
 	Auth                  *auth.Service
+	registryMu            sync.RWMutex
 	resources             map[string]resource.Resource
 	publicResources       map[string]resource.Resource
 	internalResourceSlugs map[string]struct{}
 	pages                 map[string]page.Page
+	registrySnapshot      atomic.Value // *registrySnapshot
+	registrationFrozen    uint32
 	plugins               []interface{} // Registered plugins
 	http2PushResources    []string      // Cached list of critical assets for HTTP/2 push
 	openAPIHandler        *handler.OpenAPIHandler
 	apiKeyAuth            *middleware.APIKeyAuth
+	accountLockout        *middleware.AccountLockout
+	closeOnce             sync.Once
 }
 
 // / # New Fonksiyonu
@@ -612,7 +620,12 @@ func New(config Config) *Panel {
 		internalResourceSlugs: make(map[string]struct{}),
 		pages:                 make(map[string]page.Page),
 		plugins:               make([]interface{}, 0),
+		accountLockout:        accountLockout,
 	}
+
+	p.registryMu.Lock()
+	p.publishRegistrySnapshotLocked()
+	p.registryMu.Unlock()
 
 	// Load Dynamic Settings (veritabanından)
 	_ = p.LoadSettings()
@@ -664,18 +677,27 @@ func New(config Config) *Panel {
 	// /api/resource/:resource -> List/Index
 	// /api/resource/:resource/:id -> Detail/Show/Update/Delete
 
+	// Freeze registration as soon as the app starts serving traffic.
+	app.Use(func(c *fiber.Ctx) error {
+		p.freezeRegistrations("first request")
+		return c.Next()
+	})
+
 	api := app.Group("/api")
 	apiKeyConfig := p.resolveAPIKeyRuntimeConfig()
 	p.apiKeyAuth = middleware.NewAPIKeyAuth(apiKeyConfig.Enabled, apiKeyConfig.Header, apiKeyConfig.Keys)
+	p.apiKeyAuth.SetAtomicSnapshotEnabled(config.Concurrency.EnableMiddlewareV2)
 	p.apiKeyAuth.SetDynamicValidator(p.validateManagedAPIKey)
 
 	// Public OpenAPI routes (must stay outside API auth middleware).
 	openAPIConfig := openapi.SpecGeneratorConfig{
-		Title:        "Panel.go Admin Panel",
-		Version:      "1.0.0",
-		Description:  "Panel.go Admin Panel API",
-		ServerURL:    "",
-		APIKeyHeader: apiKeyConfig.Header,
+		Title:               "Panel.go Admin Panel",
+		Version:             "1.0.0",
+		Description:         "Panel.go Admin Panel API",
+		ServerURL:           "",
+		APIKeyHeader:        apiKeyConfig.Header,
+		EnableParallelBuild: config.Concurrency.EnableOpenAPIV2,
+		ParallelWorkers:     config.Concurrency.OpenAPIWorkers,
 	}
 	p.openAPIHandler = handler.NewOpenAPIHandler(p.publicResources, openAPIConfig)
 	app.Get("/api/openapi.json", p.openAPIHandler.GetSpec)
@@ -1030,6 +1052,13 @@ func parseBoolValue(val interface{}) bool {
 // / - Diyalog türü her zaman Sheet olarak ayarlanır
 // / - Slug benzersiz olmalıdır
 func (p *Panel) Register(slug string, res resource.Resource) {
+	if p == nil || res == nil || strings.TrimSpace(slug) == "" {
+		return
+	}
+	if p.registrationsFrozen() {
+		p.warnRuntimeRegistration("resource", slug)
+		return
+	}
 	p.registerResourceWithScope(slug, res, false)
 }
 
@@ -1092,7 +1121,21 @@ func (p *Panel) RegisterResource(res resource.Resource) {
 // / - Sayfanın Slug() metodu benzersiz bir değer döndürmelidir
 // / - Sayfalar API yönlendirmelerine otomatik olarak eklenir
 func (p *Panel) RegisterPage(pg page.Page) {
+	if p == nil || pg == nil || strings.TrimSpace(pg.Slug()) == "" {
+		return
+	}
+	if p.registrationsFrozen() {
+		p.warnRuntimeRegistration("page", pg.Slug())
+		return
+	}
+
+	p.registryMu.Lock()
+	if p.pages == nil {
+		p.pages = make(map[string]page.Page)
+	}
 	p.pages[pg.Slug()] = pg
+	p.publishRegistrySnapshotLocked()
+	p.registryMu.Unlock()
 }
 
 // / # Start Metodu
@@ -1129,8 +1172,62 @@ func (p *Panel) RegisterPage(pg page.Page) {
 // / - Sunucuyu durdurmak için SIGINT (Ctrl+C) sinyali gönderilebilir
 // / - Tüm middleware'ler ve yönlendirmeler bu noktada aktif hale gelir
 func (p *Panel) Start() error {
+	p.freezeRegistrations("panel start")
 	addr := fmt.Sprintf("%s:%s", p.Config.Server.Host, p.Config.Server.Port)
-	return p.Fiber.Listen(addr)
+	err := p.Fiber.Listen(addr)
+	p.closeBackgroundWorkers()
+	return err
+}
+
+func (p *Panel) Close() {
+	p.closeBackgroundWorkers()
+}
+
+func (p *Panel) closeBackgroundWorkers() {
+	if p == nil {
+		return
+	}
+
+	p.closeOnce.Do(func() {
+		if p.accountLockout != nil {
+			p.accountLockout.Close()
+		}
+	})
+}
+
+func (p *Panel) registrationsFrozen() bool {
+	return p != nil && atomic.LoadUint32(&p.registrationFrozen) == 1
+}
+
+func (p *Panel) freezeRegistrations(reason string) {
+	if p == nil {
+		return
+	}
+
+	if !atomic.CompareAndSwapUint32(&p.registrationFrozen, 0, 1) {
+		return
+	}
+
+	p.registryMu.Lock()
+	p.publishRegistrySnapshotLocked()
+	p.registryMu.Unlock()
+
+	if p.Db != nil && p.Db.Logger != nil {
+		p.Db.Logger.Info(stdcontext.Background(), "panel registration frozen: %s", reason)
+	}
+}
+
+func (p *Panel) warnRuntimeRegistration(kind string, slug string) {
+	if p == nil {
+		return
+	}
+
+	msg := fmt.Sprintf("runtime %s registration ignored after startup freeze: %s", kind, slug)
+	if p.Db != nil && p.Db.Logger != nil {
+		p.Db.Logger.Warn(stdcontext.Background(), msg)
+		return
+	}
+	fmt.Println("warning:", msg)
 }
 
 // / # withResourceHandler Metodu
@@ -1189,7 +1286,25 @@ func (p *Panel) withResourceHandler(c *context.Context, fn func(*handler.FieldHa
 		CardWorkers:      p.Config.Concurrency.CardWorkers,
 		FieldWorkers:     p.Config.Concurrency.FieldWorkers,
 	})
+	p.configureProviderConcurrency(h.Provider)
 	return fn(h)
+}
+
+func (p *Panel) configureProviderConcurrency(provider data.DataProvider) {
+	if provider == nil {
+		return
+	}
+
+	// Additive runtime opt-in for data-layer parallel lazy-load pipelines.
+	if configurable, ok := provider.(interface {
+		SetRelationshipConcurrencyConfig(data.RelationshipConcurrencyConfig)
+	}); ok {
+		configurable.SetRelationshipConcurrencyConfig(data.RelationshipConcurrencyConfig{
+			EnablePipelineV2: p.Config.Concurrency.EnableDataPipelineV2,
+			FailFast:         p.Config.Concurrency.FailFast,
+			MaxWorkers:       p.Config.Concurrency.DataWorkers,
+		})
+	}
 }
 
 // / # handleResourceIndex Metodu
@@ -1651,6 +1766,7 @@ func (p *Panel) withLensHandler(c *context.Context, fn func(*handler.FieldHandle
 		CardWorkers:      p.Config.Concurrency.CardWorkers,
 		FieldWorkers:     p.Config.Concurrency.FieldWorkers,
 	})
+	p.configureProviderConcurrency(h.Provider)
 
 	return fn(h)
 }
@@ -1848,7 +1964,14 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 	}
 
 	items := []NavItem{}
-	for slug, res := range p.resources {
+	snapshot := p.loadRegistrySnapshot()
+	if snapshot == nil {
+		return c.JSON(fiber.Map{
+			"data": items,
+		})
+	}
+
+	for slug, res := range snapshot.resources {
 		if !p.isResourceAccessibleForRequest(c, slug) {
 			continue
 		}
@@ -1866,7 +1989,7 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 		})
 	}
 
-	for slug, pg := range p.pages {
+	for slug, pg := range snapshot.pages {
 		if !pg.Visible() || !pg.CanAccess(c) {
 			continue
 		}
@@ -2265,5 +2388,6 @@ func (p *Panel) BootPlugins() error {
 			}
 		}
 	}
+	p.freezeRegistrations("plugin boot completed")
 	return nil
 }
