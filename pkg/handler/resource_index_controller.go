@@ -416,6 +416,9 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			"dialog_type":      h.DialogType,
 			"dialog_size":      h.DialogSize,
 			"row_click_action": string(resource.NormalizeIndexRowClickAction(h.IndexRowClickAction)),
+			"pagination": fiber.Map{
+				"type": string(resource.NormalizeIndexPaginationType(h.IndexPaginationType)),
+			},
 			"reorder": fiber.Map{
 				"enabled": h.IndexReorderConfig.Enabled,
 				"column":  h.IndexReorderConfig.Column,

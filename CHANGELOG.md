@@ -4,6 +4,81 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### 🎨 Dashboard Kart Grid Width Desteği (Frontend)
+
+Dashboard ve resource/lens kart grid yerleşimlerinde `card.width` değerinin gerçekten uygulanması sağlandı.
+
+#### Frontend
+
+- Ortak helper eklendi: `web/src/lib/card-grid.ts`
+  - Yeni fonksiyon: `getCardGridSpan(width?: string): string`
+  - Desteklenen width mapping:
+    - `full` → `col-span-1 md:col-span-2 lg:col-span-6 xl:col-span-12`
+    - `3/4` → `col-span-1 md:col-span-2 lg:col-span-5 xl:col-span-9`
+    - `2/3` → `col-span-1 md:col-span-2 lg:col-span-4 xl:col-span-8`
+    - `1/2` → `col-span-1 md:col-span-1 lg:col-span-3 xl:col-span-6`
+    - `1/4` → `col-span-1 md:col-span-1 lg:col-span-2 xl:col-span-3`
+    - varsayılan (`1/3`) → `col-span-1 md:col-span-1 lg:col-span-2 xl:col-span-4`
+- Aşağıdaki ekranlarda hardcoded kart span kaldırıldı ve helper kullanıldı:
+  - `web/src/pages/common/page-viewer.tsx`
+  - `web/src/pages/resource/index.tsx`
+  - `web/src/components/views/LensView.tsx`
+- Üç ekranda da kart grid container sınıfı `grid-cols-1 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-12` olacak şekilde standardize edildi.
+
+#### Doğrulama
+
+- ✅ `bun run build` (`web/`)
+
+### ✨ Resource Index Pagination Tipleri (Links / Simple / Load More)
+
+Resource bazında index sayfası pagination davranışı yönetilebilir hale getirildi.
+
+#### Backend
+
+- Yeni pagination tipi enum'u eklendi:
+  - `resource.IndexPaginationTypeLinks` (varsayılan)
+  - `resource.IndexPaginationTypeSimple`
+  - `resource.IndexPaginationTypeLoadMore`
+- `Base` ve `OptimizedBase` için yeni metodlar:
+  - `SetIndexPaginationType(...)`
+  - `GetIndexPaginationType()`
+- Handler seviyesinde pagination tipi resolve edilip varsayılanı `links` olacak şekilde normalize edildi.
+- `GET /api/resource/:resource` index yanıtına `meta.pagination.type` alanı eklendi.
+
+Örnek API meta:
+
+```json
+{
+  "meta": {
+    "pagination": {
+      "type": "links"
+    }
+  }
+}
+```
+
+#### Frontend
+
+- `web/src/components/views/Pagination.tsx` üç modu destekleyecek şekilde genişletildi:
+  - `links`: klasik sayılı pagination
+  - `simple`: sadece ileri/geri
+  - `load_more`: daha fazla yükle
+- Resource index sayfası (`web/src/pages/resource/index.tsx`) artık `meta.pagination.type` değerine göre doğru pagination modunu render ediyor.
+- `load_more` modunda sayfalar birleştirilerek (append) listede gösteriliyor.
+- İlgili type tanımı güncellendi: `web/src/types.ts`
+- Pagination testleri güncellendi: `web/src/components/views/Pagination.test.tsx`
+
+#### Dokümantasyon
+
+- `docs/Resources.md` dosyasında **Index Pagination Tipi (`pagination.type`)** bölümü eklendi.
+- Desteklenen değerler, kullanım örnekleri ve meta çıktısı dökümante edildi.
+
+#### Doğrulama
+
+- ✅ `go test ./pkg/handler ./pkg/resource`
+- ✅ `bun run test src/components/views/Pagination.test.tsx` (`web/`)
+- ✅ `bun run build` (`web/`)
+
 ### ⚡ Full-Repo Concurrency, Sync, Channel Refactor (Güvenli Kademeli)
 
 Repo genelinde request-path concurrency standardı, cancellation zinciri ve goroutine lifecycle yönetimi güçlendirildi. Değişiklikler kademeli rollout için feature flag yaklaşımı ile eklendi.

@@ -95,6 +95,7 @@ type FieldHandler struct {
 	DialogType          resource.DialogType
 	DialogSize          resource.DialogSize
 	IndexRowClickAction resource.IndexRowClickAction
+	IndexPaginationType resource.IndexPaginationType
 	IndexReorderConfig  resource.IndexReorderConfig
 	NotificationService *notification.Service
 	Concurrency         ConcurrencyConfig
@@ -262,11 +263,22 @@ type indexReorderConfigProvider interface {
 	GetIndexReorderConfig() resource.IndexReorderConfig
 }
 
+type indexPaginationTypeProvider interface {
+	GetIndexPaginationType() resource.IndexPaginationType
+}
+
 func resolveIndexRowClickAction(res resource.Resource) resource.IndexRowClickAction {
 	if provider, ok := res.(indexRowClickActionProvider); ok {
 		return resource.NormalizeIndexRowClickAction(provider.GetIndexRowClickAction())
 	}
 	return resource.IndexRowClickActionEdit
+}
+
+func resolveIndexPaginationType(res resource.Resource) resource.IndexPaginationType {
+	if provider, ok := res.(indexPaginationTypeProvider); ok {
+		return resource.NormalizeIndexPaginationType(provider.GetIndexPaginationType())
+	}
+	return resource.IndexPaginationTypeLinks
 }
 
 func resolveIndexReorderConfig(res resource.Resource) resource.IndexReorderConfig {
@@ -324,6 +336,7 @@ func NewFieldHandler(provider data.DataProvider) *FieldHandler {
 	return &FieldHandler{
 		Provider:            provider,
 		IndexRowClickAction: resource.IndexRowClickActionEdit,
+		IndexPaginationType: resource.IndexPaginationTypeLinks,
 		IndexReorderConfig: resource.IndexReorderConfig{
 			Enabled: false,
 			Column:  "",
@@ -497,6 +510,7 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 		DialogType:          res.GetDialogType(),
 		DialogSize:          res.GetDialogSize(),
 		IndexRowClickAction: resolveIndexRowClickAction(res),
+		IndexPaginationType: resolveIndexPaginationType(res),
 		IndexReorderConfig:  resolveIndexReorderConfig(res),
 		NotificationService: notificationService,
 		Concurrency: ConcurrencyConfig{
@@ -616,6 +630,7 @@ func NewLensHandler(client interface{}, res resource.Resource, lens resource.Len
 		DialogType:          res.GetDialogType(),
 		DialogSize:          res.GetDialogSize(),
 		IndexRowClickAction: resolveIndexRowClickAction(res),
+		IndexPaginationType: resolveIndexPaginationType(res),
 		IndexReorderConfig:  resolveIndexReorderConfig(res),
 		Concurrency: ConcurrencyConfig{
 			FailFast: true,

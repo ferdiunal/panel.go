@@ -65,9 +65,61 @@ func TestHandleResourceIndex_Success(t *testing.T) {
 		t.Errorf("Expected default row_click_action=edit, got %v", meta["row_click_action"])
 	}
 
+	paginationMeta := meta["pagination"].(map[string]interface{})
+	if paginationMeta["type"] != string(resource.IndexPaginationTypeLinks) {
+		t.Errorf("Expected default pagination.type=links, got %v", paginationMeta["type"])
+	}
+
 	reorderMeta := meta["reorder"].(map[string]interface{})
 	if reorderMeta["enabled"] != false {
 		t.Errorf("Expected reorder.enabled=false, got %v", reorderMeta["enabled"])
+	}
+}
+
+func TestHandleResourceIndex_CustomPaginationType(t *testing.T) {
+	app := fiber.New()
+
+	mockProvider := &MockDataProvider{
+		Items: []interface{}{
+			User{ID: 1, FullName: "John Doe", Email: "john@example.com"},
+		},
+		Total: 1,
+	}
+
+	fieldDefs := []fields.Element{
+		fields.ID(),
+		fields.Text("Full Name", "full_name"),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+	h.Elements = fieldDefs
+	h.IndexPaginationType = resource.IndexPaginationTypeLoadMore
+
+	app.Get("/users", FieldContextMiddleware(nil, nil, core.ContextIndex, fieldDefs), appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceIndex(h, c)
+	}))
+
+	req := httptest.NewRequest("GET", "/users", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	meta := response["meta"].(map[string]interface{})
+	paginationMeta := meta["pagination"].(map[string]interface{})
+	if paginationMeta["type"] != string(resource.IndexPaginationTypeLoadMore) {
+		t.Errorf("Expected pagination.type=load_more, got %v", paginationMeta["type"])
 	}
 }
 

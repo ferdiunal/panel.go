@@ -130,6 +130,9 @@ type Base struct {
 	/// Index görünümünde satıra tıklanınca açılacak varsayılan aksiyon
 	IndexRowClickAction IndexRowClickAction
 
+	/// Index görünümünde kullanılacak pagination tipi
+	IndexPaginationType IndexPaginationType
+
 	/// Index görünümünde drag-drop reorder özelliği açık mı?
 	IndexReorderEnabled bool
 
@@ -836,6 +839,18 @@ func (r Base) GetIndexRowClickAction() IndexRowClickAction {
 // SetIndexRowClickAction, index satır tıklama aksiyonunu ayarlar.
 func (r *Base) SetIndexRowClickAction(action IndexRowClickAction) Resource {
 	r.IndexRowClickAction = NormalizeIndexRowClickAction(action)
+	return r
+}
+
+// GetIndexPaginationType, index sayfasında kullanılacak pagination tipini döner.
+// Varsayılan değer "links" olarak normalize edilir.
+func (r Base) GetIndexPaginationType() IndexPaginationType {
+	return NormalizeIndexPaginationType(r.IndexPaginationType)
+}
+
+// SetIndexPaginationType, index sayfasında kullanılacak pagination tipini ayarlar.
+func (r *Base) SetIndexPaginationType(paginationType IndexPaginationType) Resource {
+	r.IndexPaginationType = NormalizeIndexPaginationType(paginationType)
 	return r
 }
 

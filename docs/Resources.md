@@ -183,7 +183,43 @@ Desteklenen değerler:
 - `edit`
 - `detail`
 
-### 2) Satır Drag-Drop Reorder
+### 2) Index Pagination Tipi (`pagination.type`)
+
+Resource bazında index sayfasında hangi pagination UI'nin kullanılacağını belirleyebilirsiniz.
+
+```go
+// Klasik sayfa numaraları (varsayılan)
+r.SetIndexPaginationType(resource.IndexPaginationTypeLinks)
+
+// Sadece İleri / Geri
+r.SetIndexPaginationType(resource.IndexPaginationTypeSimple)
+
+// Daha fazla yükle
+r.SetIndexPaginationType(resource.IndexPaginationTypeLoadMore)
+```
+
+Frontend tarafına `GET /api/resource/:resource` yanıtında şu meta alanı gelir:
+
+```json
+{
+  "meta": {
+    "pagination": {
+      "type": "links"
+    }
+  }
+}
+```
+
+Desteklenen değerler:
+- `links`: Klasik sayılı pagination
+- `simple`: İleri / geri butonları
+- `load_more`: Daha fazla yükle davranışı (append)
+
+Notlar:
+- Varsayılan değer `links` olarak normalize edilir.
+- Frontend, `type` değerine göre otomatik uygun pagination component'ini render eder.
+
+### 3) Satır Drag-Drop Reorder
 
 Tablo satırlarının sürükle-bırak ile yeniden sıralanması için resource bazında bir order kolonu tanımlanır.
 
@@ -215,7 +251,7 @@ Notlar:
 - `enabled=true` olsa bile `column` boşsa reorder kapalı kabul edilir.
 - Reorder güncellemesi, listede görünen sıraya göre `1..n` şeklinde yazılır.
 
-### 3) Reorder API Endpoint'i
+### 4) Reorder API Endpoint'i
 
 Satır sıralaması değiştiğinde frontend aşağıdaki endpoint'i çağırır:
 
@@ -248,7 +284,7 @@ Olası hata durumları:
 - `400 Bad Request`: reorder aktif değil / geçersiz body / `ids` boş
 - `403 Forbidden`: update yetkisi yok
 
-### 4) Edit ↔ Detail Modal Geçişi
+### 5) Edit ↔ Detail Modal Geçişi
 
 Kaynak index sayfasında modal akışı şu şekilde çalışır:
 

@@ -1009,6 +1009,7 @@ type Navigable struct {
 	dialogSize      DialogSize
 	sortable        []Sortable
 	rowClickAction  IndexRowClickAction
+	paginationType  IndexPaginationType
 	reorderEnabled  bool
 	reorderColumn   string
 }
@@ -1196,6 +1197,17 @@ func (n *Navigable) SetIndexRowClickAction(action IndexRowClickAction) {
 // GetIndexRowClickAction, index satır tıklama aksiyonunu döner.
 func (n *Navigable) GetIndexRowClickAction() IndexRowClickAction {
 	return NormalizeIndexRowClickAction(n.rowClickAction)
+}
+
+// SetIndexPaginationType, index pagination tipini ayarlar.
+func (n *Navigable) SetIndexPaginationType(paginationType IndexPaginationType) {
+	n.paginationType = NormalizeIndexPaginationType(paginationType)
+}
+
+// GetIndexPaginationType, index pagination tipini döner.
+// Varsayılan değer "links" olarak normalize edilir.
+func (n *Navigable) GetIndexPaginationType() IndexPaginationType {
+	return NormalizeIndexPaginationType(n.paginationType)
 }
 
 // SetIndexReorder, index reorder ayarlarını günceller.
@@ -1794,6 +1806,17 @@ func (b *OptimizedBase) GetIndexRowClickAction() IndexRowClickAction {
 // SetIndexRowClickAction, index satır tıklama aksiyonunu ayarlar.
 func (b *OptimizedBase) SetIndexRowClickAction(action IndexRowClickAction) Resource {
 	b.Navigable.SetIndexRowClickAction(action)
+	return b
+}
+
+// GetIndexPaginationType, index sayfasında kullanılacak pagination tipini döner.
+func (b *OptimizedBase) GetIndexPaginationType() IndexPaginationType {
+	return b.Navigable.GetIndexPaginationType()
+}
+
+// SetIndexPaginationType, index sayfasında kullanılacak pagination tipini ayarlar.
+func (b *OptimizedBase) SetIndexPaginationType(paginationType IndexPaginationType) Resource {
+	b.Navigable.SetIndexPaginationType(paginationType)
 	return b
 }
 

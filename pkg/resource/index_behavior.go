@@ -10,6 +10,18 @@ const (
 	IndexRowClickActionDetail IndexRowClickAction = "detail"
 )
 
+// IndexPaginationType defines which pagination UI should be used on index pages.
+type IndexPaginationType string
+
+const (
+	// IndexPaginationTypeLinks renders classic pagination with page numbers.
+	IndexPaginationTypeLinks IndexPaginationType = "links"
+	// IndexPaginationTypeSimple renders previous/next controls only.
+	IndexPaginationTypeSimple IndexPaginationType = "simple"
+	// IndexPaginationTypeLoadMore renders an incremental "load more" action.
+	IndexPaginationTypeLoadMore IndexPaginationType = "load_more"
+)
+
 // IndexReorderConfig defines drag-drop reorder behavior for index tables.
 type IndexReorderConfig struct {
 	Enabled bool   `json:"enabled"`
@@ -27,4 +39,15 @@ func NormalizeIndexRowClickAction(action IndexRowClickAction) IndexRowClickActio
 
 func NormalizeIndexReorderColumn(column string) string {
 	return strings.TrimSpace(column)
+}
+
+func NormalizeIndexPaginationType(paginationType IndexPaginationType) IndexPaginationType {
+	switch strings.ToLower(strings.TrimSpace(string(paginationType))) {
+	case string(IndexPaginationTypeSimple):
+		return IndexPaginationTypeSimple
+	case string(IndexPaginationTypeLoadMore), "load-more", "loadmore":
+		return IndexPaginationTypeLoadMore
+	default:
+		return IndexPaginationTypeLinks
+	}
 }
