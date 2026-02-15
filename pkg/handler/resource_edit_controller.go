@@ -233,6 +233,19 @@ func HandleResourceEdit(h *FieldHandler, c *context.Context) error {
 	// Filter for Update
 	var updateElements []fields.Element
 	elements := h.getElements(c)
+
+	// Nested relationship context'inde parent kaynağa geri dönen ilişki alanlarını gizle.
+	if viaResource := strings.TrimSpace(c.Query("viaResource")); viaResource != "" {
+		filtered := make([]fields.Element, 0, len(elements))
+		for _, element := range elements {
+			if shouldSkipViaBackReferenceField(element, viaResource) {
+				continue
+			}
+			filtered = append(filtered, element)
+		}
+		elements = filtered
+	}
+
 	for _, element := range elements {
 		if !element.IsVisible(c.Resource()) {
 			continue

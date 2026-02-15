@@ -16,15 +16,19 @@ package core
 //
 // ```go
 // field := fields.Text("title").
-//     SetType(core.TYPE_TEXT)
+//
+//	SetType(core.TYPE_TEXT)
 //
 // // Zengin metin editörü için
 // field := fields.Text("content").
-//     SetType(core.TYPE_RICHTEXT)
+//
+//	SetType(core.TYPE_RICHTEXT)
 //
 // // İlişki alanı için
 // field := fields.BelongsTo("user").
-//     SetType(core.TYPE_LINK)
+//
+//	SetType(core.TYPE_LINK)
+//
 // ```
 //
 // # Önemli Notlar
@@ -66,20 +70,25 @@ type ElementType string
 // ```go
 // // Sadece liste görünümünde göster
 // field := fields.Text("title").
-//     ShowOn(core.ONLY_ON_LIST)
+//
+//	ShowOn(core.ONLY_ON_LIST)
 //
 // // Oluşturma formunda gizle (genellikle ID gibi alanlar için)
 // field := fields.ID("id").
-//     HideOn(core.HIDE_ON_CREATE)
+//
+//	HideOn(core.HIDE_ON_CREATE)
 //
 // // Sadece detay sayfasında göster
 // field := fields.Text("created_at").
-//     ShowOn(core.ONLY_ON_DETAIL)
+//
+//	ShowOn(core.ONLY_ON_DETAIL)
 //
 // // Birden fazla context kullanımı
 // field := fields.Text("internal_notes").
-//     HideOn(core.HIDE_ON_LIST).
-//     ShowOn(core.SHOW_ON_DETAIL)
+//
+//	HideOn(core.HIDE_ON_LIST).
+//	ShowOn(core.SHOW_ON_DETAIL)
+//
 // ```
 //
 // # Avantajlar
@@ -129,19 +138,24 @@ type ElementContext string
 // ```go
 // // Visibility kontrolü ile alan tanımlama
 // field := fields.Text("title").
-//     SetVisibleOn(core.ContextIndex, core.ContextDetail)
+//
+//	SetVisibleOn(core.ContextIndex, core.ContextDetail)
 //
 // // Sadece oluşturma formunda görünür
 // field := fields.Text("initial_value").
-//     SetVisibleOn(core.ContextCreate)
+//
+//	SetVisibleOn(core.ContextCreate)
 //
 // // Güncelleme ve detay sayfasında görünür
 // field := fields.Text("updated_info").
-//     SetVisibleOn(core.ContextUpdate, core.ContextDetail)
+//
+//	SetVisibleOn(core.ContextUpdate, core.ContextDetail)
 //
 // // Önizleme modunda gizle
 // field := fields.Text("internal_data").
-//     SetHiddenOn(core.ContextPreview)
+//
+//	SetHiddenOn(core.ContextPreview)
+//
 // ```
 //
 // # ElementContext ile Farkları
@@ -368,6 +382,13 @@ const (
 	// - Ondalık basamak sayısı ayarlanabilir
 	// - Artır/azalt butonları
 	TYPE_NUMBER ElementType = "number"
+
+	// TYPE_MONEY, para tutarı girişi/gösterimi için kullanılan alan tipidir.
+	//
+	// Bu alan tipi, sayısal bir değeri bir para birimi (currency) ile birlikte
+	// formda toplamak ve list/detail ekranlarında locale-aware olarak göstermek
+	// için kullanılır.
+	TYPE_MONEY ElementType = "money"
 
 	// TYPE_TEL, telefon numarası girişi için kullanılan alan tipidir.
 	//
@@ -1090,6 +1111,13 @@ const (
 	// - Görsel hiyerarşi
 	TYPE_TABS ElementType = "tabs"
 
+	// TYPE_STACK, birden fazla alanı tek hücrede/bölgede birlikte göstermek için
+	// kullanılan konteyner alan tipidir.
+	//
+	// Özellikle Display callback içinde birden fazla küçük bileşeni (örn. badge)
+	// yan yana veya alt alta döndürmek için kullanılır.
+	TYPE_STACK ElementType = "stack"
+
 	// TYPE_RELATIONSHIP, genel ilişki alanı için kullanılan alan tipidir.
 	//
 	// Bu alan tipi, tüm ilişki tiplerini (BelongsTo, HasMany, BelongsToMany, vb.) destekleyen
@@ -1776,15 +1804,19 @@ const (
 // ```go
 // // Birden fazla context ile kullanım
 // field := fields.Text("title").
-//     SetVisibleOn(core.ContextIndex, core.ContextDetail)
+//
+//	SetVisibleOn(core.ContextIndex, core.ContextDetail)
 //
 // // Tek context ile kullanım
 // field := fields.Text("internal_notes").
-//     SetVisibleOn(core.ContextCreate)
+//
+//	SetVisibleOn(core.ContextCreate)
 //
 // // Gizleme için
 // field := fields.Text("sensitive_data").
-//     SetHiddenOn(core.ContextPreview)
+//
+//	SetHiddenOn(core.ContextPreview)
+//
 // ```
 //
 // # Önemli Notlar

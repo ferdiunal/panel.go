@@ -53,10 +53,10 @@ func NewFieldTypeMapper() *FieldTypeMapper {
 //   - Schema: OpenAPI schema
 //
 // ## Davranış
-//   1. Custom mapping kontrolü yapar
-//   2. Yoksa varsayılan mapping kullanır
-//   3. Validation rules ekler
-//   4. Field özelliklerini (description, example vb.) ekler
+//  1. Custom mapping kontrolü yapar
+//  2. Yoksa varsayılan mapping kullanır
+//  3. Validation rules ekler
+//  4. Field özelliklerini (description, example vb.) ekler
 //
 // ## Kullanım Örneği
 //
@@ -136,7 +136,7 @@ func (m *FieldTypeMapper) getDefaultMapping(field fields.Element) Schema {
 		}
 
 	// Number types
-	case core.TYPE_NUMBER:
+	case core.TYPE_NUMBER, core.TYPE_MONEY:
 		return Schema{
 			Type:   "number",
 			Format: "double",
@@ -441,7 +441,7 @@ func (m *FieldTypeMapper) GetFieldExample(fieldType core.ElementType) interface{
 		return "user@example.com"
 	case core.TYPE_TEL:
 		return "+90 555 123 4567"
-	case core.TYPE_NUMBER:
+	case core.TYPE_NUMBER, core.TYPE_MONEY:
 		return 123.45
 	case core.TYPE_DATE:
 		return "2026-02-08"

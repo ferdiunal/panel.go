@@ -89,10 +89,10 @@ type Schema struct {
 	CustomValidators []ValidatorFunc  `json:"-"`
 
 	// Display (Kategori 2)
-	DisplayCallback        func(interface{}) string `json:"-"`
-	DisplayedAs            string                   `json:"displayed_as"`
-	DisplayUsingLabelsFlag bool                     `json:"display_using_labels"`
-	ResolveHandleValue     string                   `json:"resolve_handle"`
+	DisplayCallback        func(value interface{}, item interface{}) interface{} `json:"-"`
+	DisplayedAs            string                                                `json:"displayed_as"`
+	DisplayUsingLabelsFlag bool                                                  `json:"display_using_labels"`
+	ResolveHandleValue     string                                                `json:"resolve_handle"`
 
 	// Dependencies (Kategori 3)
 	DependsOnFields            []string               `json:"depends_on"`
@@ -1310,6 +1310,61 @@ func (s *Schema) Options(options interface{}) Element {
 	return s
 }
 
+// Currency, money field için para birimi kodunu ayarlar (örn: "USD", "TRY").
+func (s *Schema) Currency(currency string) *Schema {
+	s.Props["currency"] = strings.ToUpper(strings.TrimSpace(currency))
+	return s
+}
+
+// CurrencyEnum, money field için para birimini enum ile ayarlar.
+func (s *Schema) CurrencyEnum(currency Currency) *Schema {
+	s.Props["currency"] = string(currency)
+	return s
+}
+
+// Currencies, money field için izin verilen para birimi enum listesini ayarlar.
+func (s *Schema) Currencies(currencies ...Currency) *Schema {
+	s.Props["currencies"] = currencyCodes(currencies)
+	return s
+}
+
+// CustomCurrencies, money field için ek özel para birimi kodları tanımlar.
+func (s *Schema) CustomCurrencies(currencies ...string) *Schema {
+	normalized := make([]string, 0, len(currencies))
+	for _, currency := range currencies {
+		code := strings.ToUpper(strings.TrimSpace(currency))
+		if code != "" {
+			normalized = append(normalized, code)
+		}
+	}
+	s.Props["customCurrencies"] = normalized
+	return s
+}
+
+// AllowCustomCurrency, money field için custom currency girişine izin verip vermeyeceğini ayarlar.
+func (s *Schema) AllowCustomCurrency(allow bool) *Schema {
+	s.Props["allowCustomCurrency"] = allow
+	return s
+}
+
+// ShowCurrency, money field için currency etiketinin formda gösterilip gösterilmeyeceğini ayarlar.
+func (s *Schema) ShowCurrency(show bool) *Schema {
+	s.Props["showCurrency"] = show
+	return s
+}
+
+// Mask, input mask desenini ayarlar.
+func (s *Schema) Mask(mask string) *Schema {
+	s.Props["mask"] = mask
+	return s
+}
+
+// MaskChar, input mask'te boş karakter yer tutucusunu ayarlar.
+func (s *Schema) MaskChar(maskChar string) *Schema {
+	s.Props["maskChar"] = maskChar
+	return s
+}
+
 // AutoOptions, alan için otomatik seçenek yükleme ayarlar.
 //
 // Bu metod, ilişkili model'den otomatik olarak seçeneklerin yüklenmesini sağlar.
@@ -1981,11 +2036,16 @@ func (s *Schema) Exists(table, column string) core.Element {
 // Display, alan için özel görüntüleme callback'i ayarlar.
 //
 // Bu metod, alanın değerinin nasıl görüntüleneceğini özelleştirmeye olanak tanır.
-// Callback, değeri alır ve görüntülenecek string'i döner.
+// Callback, alan değerini ve ilgili kaydı alır; görüntülenecek değeri döner.
 //
 // # Parametreler
 //
-//   - fn: Görüntüleme işlemini yapan fonksiyon (interface{} -> string)
+//   - fn: Görüntüleme işlemini yapan fonksiyon.
+//     Desteklenen imzalar:
+//   - func(value interface{}) string
+//   - func(value interface{}) interface{}
+//   - func(value interface{}, item interface{}) string
+//   - func(value interface{}, item interface{}) interface{}
 //
 // # Döndürür
 //
@@ -2000,14 +2060,40 @@ func (s *Schema) Exists(table, column string) core.Element {
 //
 // # Örnek
 //
-//	field := Boolean("is_active", "Aktif").Display(func(value interface{}) string {
+//	field := Boolean("is_active", "Aktif").Display(func(value interface{}, item interface{}) interface{} {
 //	    if value.(bool) {
 //	        return "Aktif ✓"
 //	    }
 //	    return "Pasif ✗"
 //	})
-func (s *Schema) Display(fn func(interface{}) string) core.Element {
-	s.DisplayCallback = fn
+func (s *Schema) Display(fn interface{}) core.Element {
+	switch callback := fn.(type) {
+	case func(value interface{}) string:
+		s.DisplayCallback = func(value interface{}, _ interface{}) interface{} {
+			return callback(value)
+		}
+	case func(value interface{}) core.Element:
+		s.DisplayCallback = func(value interface{}, _ interface{}) interface{} {
+			return callback(value)
+		}
+	case func(value interface{}) interface{}:
+		s.DisplayCallback = func(value interface{}, _ interface{}) interface{} {
+			return callback(value)
+		}
+	case func(value interface{}, item interface{}) string:
+		s.DisplayCallback = func(value interface{}, item interface{}) interface{} {
+			return callback(value, item)
+		}
+	case func(value interface{}, item interface{}) core.Element:
+		s.DisplayCallback = func(value interface{}, item interface{}) interface{} {
+			return callback(value, item)
+		}
+	case func(value interface{}, item interface{}) interface{}:
+		s.DisplayCallback = callback
+	default:
+		panic("fields.Display: unsupported callback signature")
+	}
+
 	return s
 }
 
@@ -3200,15 +3286,15 @@ func (s *Schema) GetPivotResourceName() string {
 //
 // # Döndürür
 //
-//   - func(interface{}) string: Display callback fonksiyonu (nil olabilir)
+//   - func(value interface{}, item interface{}) interface{}: Display callback fonksiyonu (nil olabilir)
 //
 // # Örnek
 //
 //	callback := field.GetDisplayCallback()
 //	if callback != nil {
-//	    displayValue := callback(value)
+//	    displayValue := callback(value, item)
 //	}
-func (s *Schema) GetDisplayCallback() func(interface{}) string {
+func (s *Schema) GetDisplayCallback() func(value interface{}, item interface{}) interface{} {
 	return s.DisplayCallback
 }
 

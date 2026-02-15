@@ -912,6 +912,7 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 				serialized["data"] = callback(val, item, c)
 			}
 		}
+		applyDisplayCallback(element, serialized, item)
 
 		resourceData[serialized["key"].(string)] = serialized
 	}
@@ -935,6 +936,65 @@ func normalizeRelationshipCollectionData(view string, serialized map[string]inte
 	if v.Kind() == reflect.Slice && v.IsNil() {
 		serialized["data"] = []interface{}{}
 	}
+}
+
+func applyDisplayCallback(element fields.Element, serialized map[string]interface{}, item interface{}) {
+	callback := element.GetDisplayCallback()
+	if callback == nil {
+		return
+	}
+
+	value := serialized["data"]
+	displayValue := callback(value, item)
+
+	if displayElement, ok := displayValue.(core.Element); ok {
+		component := serializeDisplayElement(displayElement)
+
+		if componentData, exists := component["data"]; !exists || componentData == nil {
+			component["data"] = value
+		}
+
+		if key, ok := component["key"].(string); !ok || key == "" {
+			component["key"] = element.GetKey()
+		}
+
+		if name, ok := component["name"].(string); !ok || name == "" {
+			component["name"] = element.GetName()
+		}
+
+		serialized["data"] = component
+		return
+	}
+
+	serialized["data"] = displayValue
+}
+
+func serializeDisplayElement(element core.Element) map[string]interface{} {
+	serialized := element.JsonSerialize()
+
+	props, ok := serialized["props"].(map[string]interface{})
+	if !ok || props == nil {
+		return serialized
+	}
+
+	rawFields, exists := props["fields"]
+	if !exists {
+		return serialized
+	}
+
+	children, ok := rawFields.([]core.Element)
+	if !ok {
+		return serialized
+	}
+
+	serializedChildren := make([]map[string]interface{}, 0, len(children))
+	for _, child := range children {
+		serializedChildren = append(serializedChildren, serializeDisplayElement(child))
+	}
+	props["fields"] = serializedChildren
+	serialized["props"] = props
+
+	return serialized
 }
 
 // / Bu metod, bir alan için dinamik seçenekleri (options) çözümler ve serileştirilmiş

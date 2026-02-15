@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http/httptest"
@@ -599,5 +600,117 @@ func TestResolveResourceFields_NormalizesNilRelationshipCollectionData(t *testin
 	}
 	if len(dataSlice) != 0 {
 		t.Fatalf("expected empty relationship collection, got %v", dataSlice)
+	}
+}
+
+func TestResolveResourceFields_AppliesDisplayCallbackWithComputedValue(t *testing.T) {
+	h := &FieldHandler{}
+	item := &HandlerTestProduct{ID: 42}
+
+	computedField := fields.NewField("Sizes", "sizes").Display(func(value interface{}, item interface{}) interface{} {
+		if value != nil {
+			t.Fatalf("expected computed field source value to be nil, got %v", value)
+		}
+		product, ok := item.(*HandlerTestProduct)
+		if !ok {
+			t.Fatalf("expected item type *HandlerTestProduct, got %T", item)
+		}
+		return fmt.Sprintf("size-for-%d", product.ID)
+	})
+
+	resolved := h.resolveResourceFields(
+		nil,
+		&core.ResourceContext{},
+		item,
+		[]fields.Element{computedField},
+	)
+
+	fieldData, ok := resolved["sizes"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected resolved field to be a map, got %T", resolved["sizes"])
+	}
+
+	if got, ok := fieldData["data"].(string); !ok || got != "size-for-42" {
+		t.Fatalf("expected computed display value 'size-for-42', got %v (%T)", fieldData["data"], fieldData["data"])
+	}
+}
+
+func TestResolveResourceFields_AppliesDisplayCallbackElementResult(t *testing.T) {
+	h := &FieldHandler{}
+	item := &HandlerTestProduct{CategoryID: 7}
+
+	field := fields.Number("Category", "category_id").Display(func(value interface{}, item interface{}) interface{} {
+		return fields.Badge("Category")
+	})
+
+	resolved := h.resolveResourceFields(
+		nil,
+		&core.ResourceContext{},
+		item,
+		[]fields.Element{field},
+	)
+
+	fieldData, ok := resolved["category_id"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected resolved field to be a map, got %T", resolved["category_id"])
+	}
+
+	componentData, ok := fieldData["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected display data to be a serialized component map, got %T", fieldData["data"])
+	}
+
+	if view, _ := componentData["view"].(string); view != "badge-field" {
+		t.Fatalf("expected display component view 'badge-field', got %v", componentData["view"])
+	}
+
+	if componentData["data"] != uint(7) {
+		t.Fatalf("expected fallback badge data to be original value 7, got %v", componentData["data"])
+	}
+}
+
+func TestResolveResourceFields_AppliesDisplayCallbackStackResult(t *testing.T) {
+	h := &FieldHandler{}
+	item := &HandlerTestProduct{ID: 9}
+
+	field := fields.Text("Sizes", "sizes").Display(func(value interface{}, item interface{}) core.Element {
+		return fields.Stack([]core.Element{
+			fields.Badge("10").WithProps("variant", "secondary"),
+			fields.Badge("20").WithProps("variant", "secondary"),
+		})
+	})
+
+	resolved := h.resolveResourceFields(
+		nil,
+		&core.ResourceContext{},
+		item,
+		[]fields.Element{field},
+	)
+
+	fieldData, ok := resolved["sizes"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected resolved field to be a map, got %T", resolved["sizes"])
+	}
+
+	stackData, ok := fieldData["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected display data to be a stack component map, got %T", fieldData["data"])
+	}
+
+	if view, _ := stackData["view"].(string); view != "stack-field" {
+		t.Fatalf("expected stack component view 'stack-field', got %v", stackData["view"])
+	}
+
+	props, ok := stackData["props"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected stack props to be map[string]interface{}, got %T", stackData["props"])
+	}
+
+	children, ok := props["fields"].([]map[string]interface{})
+	if !ok {
+		t.Fatalf("expected stack props.fields to be []map[string]interface{}, got %T", props["fields"])
+	}
+	if len(children) != 2 {
+		t.Fatalf("expected stack to have 2 children, got %d", len(children))
 	}
 }

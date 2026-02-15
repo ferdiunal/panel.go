@@ -19,6 +19,7 @@ func TestTypeMapperFieldToGoType(t *testing.T) {
 		{"text", fields.TYPE_TEXT, false, "string"},
 		{"text nullable", fields.TYPE_TEXT, true, "string"}, // pointer check
 		{"number", fields.TYPE_NUMBER, false, "int64"},
+		{"money", fields.TYPE_MONEY, false, "int64"},
 		{"boolean", fields.TYPE_BOOLEAN, false, "bool"},
 		{"email", fields.TYPE_EMAIL, false, "string"},
 		{"select", fields.TYPE_SELECT, false, "string"},
@@ -46,6 +47,7 @@ func TestTypeMapperFieldToSQLType(t *testing.T) {
 		{"text default", fields.TYPE_TEXT, 0, "varchar(255)"},
 		{"text custom size", fields.TYPE_TEXT, 100, "varchar(100)"},
 		{"number", fields.TYPE_NUMBER, 0, "bigint"},
+		{"money", fields.TYPE_MONEY, 0, "bigint"},
 		{"boolean", fields.TYPE_BOOLEAN, 0, "boolean"},
 		{"date", fields.TYPE_DATE, 0, "date"},
 		{"datetime", fields.TYPE_DATETIME, 0, "timestamp"},

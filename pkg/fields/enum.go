@@ -44,6 +44,7 @@ const (
 	TYPE_RICHTEXT        ElementType = core.TYPE_RICHTEXT
 	TYPE_PASSWORD        ElementType = core.TYPE_PASSWORD
 	TYPE_NUMBER          ElementType = core.TYPE_NUMBER
+	TYPE_MONEY           ElementType = core.TYPE_MONEY
 	TYPE_TEL             ElementType = core.TYPE_TEL
 	TYPE_EMAIL           ElementType = core.TYPE_EMAIL
 	TYPE_AUDIO           ElementType = core.TYPE_AUDIO
@@ -64,6 +65,7 @@ const (
 	TYPE_SELECT          ElementType = core.TYPE_SELECT
 	TYPE_PANEL           ElementType = core.TYPE_PANEL
 	TYPE_TABS            ElementType = core.TYPE_TABS
+	TYPE_STACK           ElementType = core.TYPE_STACK
 	TYPE_RELATIONSHIP    ElementType = core.TYPE_RELATIONSHIP
 	TYPE_BADGE           ElementType = core.TYPE_BADGE
 	TYPE_CODE            ElementType = core.TYPE_CODE

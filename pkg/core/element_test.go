@@ -84,6 +84,11 @@ func TestElementInterfaceHasRequiredMethods(t *testing.T) {
 		_ = element.Modify(nil)
 		_ = element.GetModifyCallback()
 
+		// Display
+		_ = element.Display(nil)
+		_ = element.DisplayAs("")
+		_ = element.DisplayUsingLabels()
+
 		// Other
 		_ = element.Options(nil)
 		_ = element.Default(nil)

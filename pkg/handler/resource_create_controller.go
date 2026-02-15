@@ -166,10 +166,24 @@ func HandleResourceCreate(h *FieldHandler, c *context.Context) error {
 	// Frontend'e gönderilecek alanları tutacak boş bir slice oluştur
 	// Her alan map[string]interface{} formatında JSON serileştirilecek
 	createFields := make([]map[string]interface{}, 0)
+	elements := h.getElements(c)
+
+	// Nested relationship context'inde parent kaynağa geri dönen ilişki alanlarını gizle.
+	// Örn: Category -> Products create formunda Product -> Category alanı tekrar gösterilmez.
+	if viaResource := strings.TrimSpace(c.Query("viaResource")); viaResource != "" {
+		filtered := make([]fields.Element, 0, len(elements))
+		for _, element := range elements {
+			if shouldSkipViaBackReferenceField(element, viaResource) {
+				continue
+			}
+			filtered = append(filtered, element)
+		}
+		elements = filtered
+	}
 
 	// Adım 3: Tüm Alanları Döngüyle İşle
 	// Handler'da tanımlı tüm alanları tek tek kontrol et ve filtrele
-	for _, element := range h.getElements(c) {
+	for _, element := range elements {
 		// Adım 3.1: Görünürlük Kontrolü
 		// Alan, mevcut kaynak için görünür değilse atla
 		// IsVisible, kullanıcı rolü, kaynak durumu gibi koşullara göre karar verir

@@ -92,3 +92,54 @@ func TestHandleResourceCreate_Unauthorized(t *testing.T) {
 		t.Errorf("Expected 'Unauthorized' error, got %v", response["error"])
 	}
 }
+
+func TestHandleResourceCreate_SkipsViaBackReferenceField(t *testing.T) {
+	app := fiber.New()
+
+	mockProvider := &MockDataProvider{}
+
+	fieldDefs := []fields.Element{
+		fields.ID(),
+		fields.Text("Name", "name"),
+		fields.BelongsTo("Category", "category_id", "categories"),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+	h.Elements = fieldDefs
+
+	app.Get("/products/create", FieldContextMiddleware(nil, nil, core.ContextCreate, fieldDefs), appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceCreate(h, c)
+	}))
+
+	req := httptest.NewRequest("GET", "/products/create?viaResource=categories", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	fieldsData, ok := response["fields"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected fields array in response, got %T", response["fields"])
+	}
+
+	for _, rawField := range fieldsData {
+		fieldMap, ok := rawField.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if fieldMap["key"] == "category_id" {
+			t.Fatalf("Expected category_id field to be filtered out in viaResource context")
+		}
+	}
+}

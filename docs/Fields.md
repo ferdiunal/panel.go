@@ -825,14 +825,61 @@ field.Stacked()
 Alan değerlerinin nasıl görüntüleneceğini özelleştirin.
 
 ```go
-// Display callback ile özel formatlama
+// Display callback (önerilen imza: value + item)
 fields.Text("Fiyat", "price").
 	OnList().
-	Display(func(value interface{}) string {
+	Display(func(value interface{}, item interface{}) interface{} {
 		if price, ok := value.(float64); ok {
 			return fmt.Sprintf("₺%.2f", price)
 		}
 		return ""
+	})
+
+// Computed alan örneği
+// "sizes" veritabanında yoksa value nil gelir, model item'dan hesaplanır
+fields.Text("Bedenler", "sizes").
+	OnList().
+	OnDetail().
+	Display(func(value interface{}, item interface{}) interface{} {
+		product, ok := item.(*product.Product)
+		if !ok {
+			return value
+		}
+
+		if value == nil {
+			return strings.Join(product.AvailableSizes, ", ")
+		}
+		return value
+	})
+
+// Component döndürme (Badge)
+fields.Text("Bedenler", "sizes").
+	OnList().
+	Display(func(value interface{}, item interface{}) interface{} {
+		product, ok := item.(*product.Product)
+		if !ok {
+			return value
+		}
+
+		return fields.Badge("Bedenler").
+			Default(strings.Join(product.AvailableSizes, ", ")).
+			WithProps("variant", "secondary")
+	})
+
+// Component döndürme (Stack + Badge)
+fields.Text("Sizes", "sizes").
+	Display(func(value interface{}, item interface{}) core.Element {
+		pv, ok := item.(*entity.Productvariant)
+		if !ok || pv == nil {
+			return fields.Stack([]core.Element{})
+		}
+
+		return fields.Stack([]core.Element{
+			fields.Badge(fmt.Sprintf("%d", pv.Weight)).WithProps("variant", "secondary"),
+			fields.Badge(fmt.Sprintf("%d", pv.Height)).WithProps("variant", "secondary"),
+			fields.Badge(fmt.Sprintf("%d", pv.Width)).WithProps("variant", "secondary"),
+			fields.Badge(fmt.Sprintf("%d", pv.Volume)).WithProps("variant", "secondary"),
+		})
 	})
 
 // DisplayAs ile format string
@@ -849,6 +896,26 @@ fields.Select("Kategori", "category").
 	}).
 	DisplayUsingLabels() // "1" yerine "Elektronik" gösterir
 ```
+
+`Display` callback içinde `fields.Badge(...)` gibi `core.Element` döndürürseniz
+backend bunu otomatik algılar ve frontend tarafı render eder.
+
+`Display` callback içinde `fields.Stack(...)` döndürürseniz, içindeki `fields` listesi
+de recursive serialize edilir ve çocuk bileşenler birlikte render edilir.
+
+`Display` için desteklenen callback imzaları:
+
+- `func(value interface{}) string`
+- `func(value interface{}) core.Element`
+- `func(value interface{}) interface{}`
+- `func(value interface{}, item interface{}) string`
+- `func(value interface{}, item interface{}) core.Element`
+- `func(value interface{}, item interface{}) interface{}`
+
+Notlar:
+
+- Sayısal değer formatlarken `int64` için `%d`, `float64` için `%f` kullanın.
+- `fields.Badge("10")` kullanımında değer `name` alanından da okunur (`data` fallback).
 
 ### Bağımlılıklar (Dependencies)
 
@@ -1010,6 +1077,46 @@ fields.Switch("Aktif", "is_active").
 		"false": "red",
 	})
 ```
+
+### Money Field (Currency + Intl + Mask)
+
+Money alanı, para tutarlarını currency metadata ile saklamak ve frontend'de
+tarayıcı locale'ine göre `Intl.NumberFormat` ile göstermek için kullanılır.
+
+```go
+fields.Money("Price", "price").
+	OnList().
+	OnDetail().
+	OnForm().
+	Required().
+	CurrencyEnum(fields.CurrencyTRY). // varsayılan para birimi
+	Currencies(
+		fields.CurrencyTRY,
+		fields.CurrencyUSD,
+		fields.CurrencyEUR,
+	).
+	AllowCustomCurrency(true). // custom currency kodları tanımlamaya izin
+	CustomCurrencies("SAR", "AED"). // enum dışı ek kodlar
+	Mask("999999999999999.99"). // form input mask
+	MaskChar("_").
+	ShowCurrency(true)
+```
+
+Notlar:
+
+- `Money` field backend'de `TYPE_MONEY`, frontend'de `money-field` olarak çözülür.
+- List/detail görünümlerinde para değeri `Intl.NumberFormat` ile browser locale'ine göre formatlanır.
+- `mask` verildiğinde form input'u masked text olarak çalışır.
+- Currency kodları için enumlar:
+  - `fields.CurrencyUSD`
+  - `fields.CurrencyEUR`
+  - `fields.CurrencyTRY`
+  - `fields.CurrencyGBP`
+  - `fields.CurrencyJPY`
+  - `fields.CurrencyCHF`
+  - `fields.CurrencyCAD`
+  - `fields.CurrencyAUD`
+  - `fields.CurrencyCNY`
 
 ### Pivot Fields
 
@@ -1447,7 +1554,7 @@ func (r *ProductFieldResolver) ResolveFields(ctx *context.Context) []core.Elemen
 			Min(0).
 			Sortable().
 			SetTextAlign("right").
-			Display(func(value interface{}) string {
+			Display(func(value interface{}, item interface{}) interface{} {
 				if price, ok := value.(float64); ok {
 					return fmt.Sprintf("₺%.2f", price)
 				}

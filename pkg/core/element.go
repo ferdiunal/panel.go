@@ -1422,13 +1422,37 @@ type Element interface {
 	//
 	// Bu metodlar, element'in değerlerinin nasıl görüntüleneceğini kontrol eder.
 
-	// GetDisplayCallback, görüntüleme callback fonksiyonunu döndürür.
+	// Display, element için özel görüntüleme callback'i ayarlar.
 	//
-	// Bu callback, element'in değerinin nasıl string'e dönüştürüleceğini belirler.
-	// Liste ve detay görünümlerinde değerin formatlanması için kullanılır.
+	// Desteklenen callback imzaları:
+	//   - func(value any) string
+	//   - func(value any) any
+	//   - func(value any, item any) string
+	//   - func(value any, item any) any
 	//
 	// Döndürür:
-	//   - Görüntüleme callback fonksiyonu (interface{} alır, string döner) veya nil
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	Display(fn interface{}) Element
+
+	// DisplayAs, görüntüleme format string'ini ayarlar.
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	DisplayAs(format string) Element
+
+	// DisplayUsingLabels, seçim alanlarında value yerine label göstermeyi etkinleştirir.
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	DisplayUsingLabels() Element
+
+	// GetDisplayCallback, görüntüleme callback fonksiyonunu döndürür.
+	//
+	// Bu callback, element'in değerinin nasıl görüntüleneceğini belirler.
+	// Callback, alan değeri ve ilgili kayıt modelini alır.
+	//
+	// Döndürür:
+	//   - Görüntüleme callback fonksiyonu (value, item alır; any döner) veya nil
 	//
 	// Kullanım Senaryoları:
 	//   - Özel format uygulama (para birimi, tarih, vb.)
@@ -1438,9 +1462,9 @@ type Element interface {
 	// Örnek:
 	//   callback := field.GetDisplayCallback()
 	//   if callback != nil {
-	//       displayValue := callback(value) // "₺1,234.56"
+	//       displayValue := callback(value, item) // "₺1,234.56"
 	//   }
-	GetDisplayCallback() func(interface{}) string
+	GetDisplayCallback() func(value any, item any) any
 
 	// GetDisplayedAs, görüntüleme format string'ini döndürür.
 	//

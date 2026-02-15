@@ -87,6 +87,14 @@ func TestNewFieldTypes(t *testing.T) {
 	if kv.Type != TYPE_KEY_VALUE || kv.View != "key-value-field" {
 		t.Errorf("KeyValue field mismatch")
 	}
+
+	money := Money("Price")
+	if money.Type != TYPE_MONEY || money.View != "money-field" {
+		t.Errorf("Money field mismatch")
+	}
+	if money.Props["currency"] != string(CurrencyUSD) {
+		t.Errorf("Money default currency mismatch")
+	}
 }
 
 func TestRelationshipFields(t *testing.T) {

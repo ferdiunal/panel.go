@@ -1,6 +1,10 @@
 package fields
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ferdiunal/panel.go/pkg/core"
+)
 
 // Bu fonksiyon, yeni bir alan şeması oluşturur ve temel konfigürasyonunu başlatır.
 //
@@ -228,6 +232,24 @@ func Number(name string, attribute ...string) *Schema {
 	f := NewField(name, attribute...)
 	f.View = "number-field"
 	f.Type = TYPE_NUMBER
+	return f
+}
+
+// Money, para tutarı için özel bir alan oluşturur.
+//
+// Varsayılan olarak:
+// - view: "money-field"
+// - type: TYPE_MONEY
+// - currency: "USD"
+// - currencies: DefaultCurrencies
+func Money(name string, attribute ...string) *Schema {
+	f := NewField(name, attribute...)
+	f.View = "money-field"
+	f.Type = TYPE_MONEY
+	f.Props["currency"] = string(CurrencyUSD)
+	f.Props["currencies"] = currencyCodes(DefaultCurrencies)
+	f.Props["allowCustomCurrency"] = false
+	f.Props["showCurrency"] = true
 	return f
 }
 
@@ -907,6 +929,25 @@ func Badge(name string, attribute ...string) *Schema {
 	f := NewField(name, attribute...)
 	f.View = "badge-field"
 	f.Type = TYPE_BADGE
+	return f
+}
+
+// Stack, birden fazla alanı tek bir konteynerde göstermek için kullanılan
+// display odaklı bir field oluşturur.
+//
+// Bu fonksiyon özellikle Display callback'lerinde kullanılır:
+//
+//	fields.Text("Sizes", "sizes").Display(func(value interface{}, item interface{}) core.Element {
+//	    return fields.Stack([]core.Element{
+//	        fields.Badge("10").WithProps("variant", "secondary"),
+//	        fields.Badge("20").WithProps("variant", "secondary"),
+//	    })
+//	})
+func Stack(children []core.Element) *Schema {
+	f := NewField("Stack", "stack")
+	f.View = "stack-field"
+	f.Type = TYPE_STACK
+	f.Props["fields"] = children
 	return f
 }
 
