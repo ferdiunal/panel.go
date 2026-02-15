@@ -1,5 +1,23 @@
 # Panel.go - Optimizasyon Rehberi
 
+Bu doküman, Panel.go framework'ünde resolver/mixin tabanlı performans ve bakım optimizasyonlarını anlatır.
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Alanlar (Fields)](Fields)
+4. Bu doküman (`Optimization-Guide`)
+
+## Hızlı Optimizasyon Akışı
+
+1. Resource'ları `OptimizedBase` üzerinden standardize et.
+2. Resolver'ları ayrı sorumluluklara böl (`FieldResolver`, `CardResolver`, `FilterResolver`).
+3. Query yükünü azalt (`pagination`, sınırlı eager load, hedefli filtreleme).
+4. Tekrar eden davranışları mixin/composition ile taşı.
+5. Sorun çıktığında troubleshooting bölümünden imza/bağlantı kontrollerini yap.
+
 ## Giriş
 
 Panel.go, mixin pattern ve resolver pattern kullanarak kod tekrarını azaltmış ve bakım kolaylığını artırmıştır. Bu rehber, optimizasyon pattern'lerini nasıl kullanacağınızı gösterir.
@@ -570,9 +588,17 @@ func (r *UserFieldResolver) ResolveFields(ctx *context.Context) []fields.Element
 }
 ```
 
+## Sık Hata Kontrolü (Optimizasyon)
+
+- Resolver ayarlı ama veri gelmiyor: resolver metod imzalarını ve dönüş tiplerini kontrol edin.
+- Optimize ederken davranış değişti: eski/yeni akış farkını adım adım karşılaştırın.
+- Gereksiz sorgu artışı: ilişki alanlarında eager/lazy stratejisini tekrar dengeleyin.
+- Context kaynaklı panik: resolver içinde `ctx == nil` durumuna karşı guard kullanın.
+
 ## Kaynaklar
 
-- [Resource Documentation](./Resources.md)
-- [Fields Documentation](./Fields.md)
-- [Pages Documentation](./Pages.md)
-- [Relationships Documentation](./Relationships.md)
+- [Kaynaklar (Resource)](Resources)
+- [Alanlar (Fields)](Fields)
+- [Sayfalar (Pages)](Pages)
+- [İlişkiler (Relationships)](Relationships)
+- [Gelişmiş Kullanım](Advanced-Usage)

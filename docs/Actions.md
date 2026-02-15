@@ -1,4 +1,4 @@
-# Action'lar Rehberi
+# Action'lar Rehberi (Legacy Teknik Akış)
 
 Action, resource kayıtları üzerinde toplu işlem çalıştırmanızı sağlar.
 
@@ -8,6 +8,14 @@ Action, resource kayıtları üzerinde toplu işlem çalıştırmanızı sağlar
 - Seçili kayıtları dışa aktarma
 - Sistem seviyesinde (ID seçmeden) bakım işlemi
 
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Yetkilendirme](Authorization)
+4. Bu doküman (`Actions`)
+
 ## Kısa Özet
 
 Action akışı:
@@ -15,6 +23,14 @@ Action akışı:
 2. Frontend `GET /api/resource/:resource/actions` ile listeyi alır.
 3. Kullanıcı action seçer ve `POST /api/resource/:resource/actions/:action` çağrılır.
 4. Backend policy + doğrulama + `CanRun` kontrolünden sonra `Execute` çalıştırır.
+
+## Hızlı Uygulama Akışı
+
+1. Action'ı `action.New(...)` ile tanımla ve benzersiz `slug` ver.
+2. Gerekli kullanıcı girdilerini `WithFields(...)` ile ekle.
+3. İş mantığını `Handle(...)` içinde yaz.
+4. Çalışma yetkisini `AuthorizeUsing(...)` ve policy zinciriyle sınırla.
+5. İhtiyaca göre `Standalone()` veya `Sole()` davranışını seç.
 
 ## Action Tanımlama (Fluent API)
 
@@ -195,3 +211,9 @@ Sunucu tarafında sırayla:
 ### "Action not found"
 
 - URL'deki action slug ile `GetActions()` içindeki slug eşleşmiyor.
+
+## Sonraki Adım
+
+- Lens aksiyonları için: [Lensler (Lenses)](Lenses)
+- Kart/özet görünümü için: [Widget'lar (Cards)](Widgets)
+- Uçtan uca API davranışı için: [API Referansı](API-Reference)

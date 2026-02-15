@@ -1,13 +1,26 @@
-# Resource Rehberi
+# Resource Rehberi (Legacy Teknik Akış)
 
-Resource, panelde bir veri modelini (tabloyu) yönetilebilir hale getiren ana yapı taşıdır.
+Resource, Panel.go'da bir veri modelini panelde yönetilebilir hale getiren ana birimdir.
 
-Bir resource tipik olarak şunları tanımlar:
+Bu doküman, özellikle legacy/düşük seviye akışta `model + field resolver + policy + repository + register` zincirini doğru kurmak için hazırlanmıştır.
+
+## Resource Ne Tanımlar?
+
+Bir resource tipik olarak şu parçaları içerir:
 - Model
 - Field'lar
 - Policy
 - Repository
-- Menü bilgileri (slug, title, icon, group)
+- Menü bilgileri (`slug`, `title`, `icon`, `group`)
+
+## Hızlı Akış (Önerilen Sıra)
+
+1. Model'i oluştur
+2. Field resolver'ı tanımla
+3. Policy'yi ekle
+4. Resource struct'ını kur
+5. `resource.Register(...)` ile global registry'ye kaydet
+6. Panel başlangıcında resource'u yükle
 
 ## Minimum Çalışan Resource
 
@@ -37,17 +50,25 @@ type OrganizationResource struct {
 
 type OrganizationFieldResolver struct{}
 
+type OrganizationPolicy struct{}
+
 func NewOrganizationResource() *OrganizationResource {
     r := &OrganizationResource{}
+
     r.SetModel(&Organization{})
     r.SetSlug("organizations")
     r.SetTitle("Organizations")
     r.SetIcon("building")
     r.SetGroup("Operations")
     r.SetVisible(true)
+    r.SetNavigationOrder(10)
 
+    // Relationship alanlarında insan-okunur etiket için kritik
     r.SetRecordTitleKey("name")
+
     r.SetFieldResolver(&OrganizationFieldResolver{})
+    r.SetPolicy(&OrganizationPolicy{})
+
     return r
 }
 
@@ -61,11 +82,17 @@ func (r *OrganizationFieldResolver) ResolveFields(ctx *context.Context) []fields
         fields.Text("Name", "name").Required().OnList().OnDetail().OnForm(),
     }
 }
+
+func (p *OrganizationPolicy) ViewAny(ctx *context.Context) bool { return true }
+func (p *OrganizationPolicy) View(ctx *context.Context, model any) bool { return true }
+func (p *OrganizationPolicy) Create(ctx *context.Context) bool { return true }
+func (p *OrganizationPolicy) Update(ctx *context.Context, model any) bool { return true }
+func (p *OrganizationPolicy) Delete(ctx *context.Context, model any) bool { return true }
 ```
 
 ## Resource Register Akışı
 
-İlişkilerin ve `AutoOptions` gibi özelliklerin stabil çalışması için register akışını doğru kurmak kritik.
+İlişkilerin ve `AutoOptions` gibi özelliklerin stabil çalışması için register akışını doğru kurmak kritiktir.
 
 ### 1) Global Registry API (`pkg/resource`)
 
@@ -77,7 +104,7 @@ resource.Clear()
 ```
 
 Notlar:
-- `Register` doğrudan resource instance alır.
+- `Register`, doğrudan resource instance alır.
 - Çekirdek API'de `resource.GetOrPanic` yoktur.
 - `Clear` test amaçlıdır.
 
@@ -99,9 +126,9 @@ Panel başlatılırken:
 - Config içinden gelen resource'lar register edilir.
 - Global registry'deki resource'lar (`resource.List()`) otomatik panel'e eklenir.
 
-Bu yüzden register edilmiş resource'lar, panel tarafında ayrıca tek tek eklenmeden de çalışabilir.
+Bu nedenle register edilmiş resource'lar, panel tarafında ayrıca tek tek eklenmeden de çalışabilir.
 
-## Resource Ayarları
+## Resource Konfigürasyonu
 
 ```go
 r.SetSlug("products")
@@ -120,7 +147,7 @@ r.SetSortable([]resource.Sortable{
 })
 ```
 
-## Record Title (İlişkiler İçin Çok Önemli)
+## Record Title (İlişkiler İçin Kritik)
 
 İlişkilerde görünen etiketleri kullanıcı dostu hale getirir.
 
@@ -145,7 +172,9 @@ fields.HasMany("Prices", "prices", "prices").
     ForeignKey("product_id")
 ```
 
-Detaylı ilişki API'si için: `docs/Relationships.md` ve `docs/Relationships-API.md`
+Detaylı ilişki API'si için:
+- [İlişkiler](Relationships)
+- [İlişkiler API Referansı](Relationships-API)
 
 ## Local Registry (Opsiyonel, Uygulama Seviyesi)
 
@@ -175,3 +204,9 @@ Bu desen uygulamanıza aittir; Panel.go'nun çekirdek API'si değildir.
 - Resource görünmüyor: Package import edilmemiş olabilir, `init()` çalışmamıştır.
 - İlişki dropdown boş: `AutoOptions` var ama ilişkili resource register edilmemiş olabilir.
 - Relationship veri gelmiyor: FK/OwnerKey/Pivot ayarları modelle uyuşmuyor olabilir.
+
+## Sonraki Adım
+
+- Field detayları için: [Alanlar (Fields)](Fields)
+- İlişki akışı için: [İlişkiler (Relationships)](Relationships)
+- Tam başlangıç akışı için: [Başlarken](Getting-Started)

@@ -1,6 +1,24 @@
-# Yetkilendirme (Authorization) Rehberi
+# Yetkilendirme (Authorization) Rehberi (Legacy Teknik Akış)
 
 Yetkilendirme, kullanıcıların hangi işlemleri yapabileceğini kontrol eder. Panel.go'da bu, Policy (Politika) sistemi aracılığıyla yapılır.
+
+Bu doküman, `Resource + Policy` düzeninde düşük seviye/legacy akış için hazırlanmıştır.
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Alanlar (Fields)](Fields)
+4. Bu doküman (`Authorization`)
+
+## Hızlı Yetkilendirme Akışı
+
+1. Her resource için ayrı bir policy struct tanımla.
+2. Policy içinde en az `ViewAny`, `View`, `Create`, `Update`, `Delete` metodlarını yaz.
+3. Gerekliyse `Restore` ve `ForceDelete` kararlarını da netleştir.
+4. Resource kurulumunda `r.SetPolicy(&MyPolicy{})` ile policy'yi bağla.
+5. Rol/izin kontrolünü tek yerden (örn. `ctx.HasPermission(...)` veya `ctx.User()`) tutarlı yönet.
 
 ## Temel Kavramlar
 
@@ -357,6 +375,6 @@ func (p *EmployeePolicy) ForceDelete(ctx *context.Context, model any) bool {
 
 ## Sonraki Adımlar
 
-- [Başlangıç Rehberi](./Getting-Started.md) - Temel kurulum
-- [Alanlar Rehberi](./Fields.md) - Alan tanımı
-- [API Referansı](./API-Reference.md) - Tüm metodlar
+- [Başlarken](Getting-Started) - Temel kurulum
+- [Alanlar (Fields)](Fields) - Alan tanımı
+- [API Referansı](API-Reference) - Tüm metodlar

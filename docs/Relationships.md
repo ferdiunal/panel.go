@@ -1,6 +1,16 @@
-# İlişkiler (Relationships)
+# İlişkiler (Relationships) - Legacy Teknik Akış
 
 Bu doküman, Panel.go içinde ilişki alanlarını son kullanıcıya anlaşılır şekilde kurmak için güncel ve pratik rehberdir.
+
+Bu içerik, `resource.Register(...)`, `SetRecordTitleKey(...)` ve relationship field builder'larının birlikte kullanıldığı düşük seviye/legacy akışı hedefler.
+
+## Hızlı Uygulama Akışı
+
+1. İlişkili tüm resource'lar için benzersiz slug belirle.
+2. Her resource'u `init()` içinde `resource.Register(slug, ...)` ile kaydet.
+3. Relationship field'da doğru `relatedResource` (slug veya resource instance) ver.
+4. Gerekli FK/OwnerKey/Pivot ayarlarını açıkça tanımla.
+5. Dropdown kalitesi için `SetRecordTitleKey(...)` veya `SetRecordTitleFunc(...)` ayarla.
 
 ## Hızlı Özet
 
@@ -295,3 +305,9 @@ Kontrol edin:
 - Gerekli yerlerde `ForeignKey` / `OwnerKey` / `PivotTable`
 - `SetRecordTitleKey` veya `SetRecordTitleFunc`
 - Büyük listelerde `Query(...)` ile kısıtlama
+
+## Sonraki Adım
+
+- Resource yapısı için: [Kaynaklar (Resource)](Resources)
+- Field kararları için: [Alanlar (Fields)](Fields)
+- Uçtan uca başlangıç akışı için: [Başlarken](Getting-Started)

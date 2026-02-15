@@ -1,6 +1,25 @@
-# Alanlar (Fields) Rehberi
+# Alanlar (Fields) Rehberi (Legacy Teknik Akış)
 
 Alanlar, veritabanı sütunlarını yönetim panelinde nasıl göstereceğinizi ve işleneceğini tanımlar.
+
+Bu doküman, `fields.Schema` tabanlı düşük seviye/legacy akışı referans alır ve `Resource + FieldResolver` yaklaşımıyla uyumludur.
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. Bu doküman (`Fields`)
+4. [İlişkiler (Relationships)](Relationships)
+
+## Hızlı Field Karar Akışı
+
+- Basit metin/veri: `text`, `textarea`, `number`, `switch`
+- Sabit seçenek: `select`, `radio`, `checkbox`
+- Tarih/saat: `date`, `time`, `datetime` (dialog/native kararına göre)
+- İlişki verisi: relationship field'ları (bu dokümanın ilişki bölümüne bakın)
+- Dosya/medya: `image`, `video`, `audio`, `file`
+- Gelişmiş içerik: `richtext`, `keyvalue`, `combobox`
 
 ## Alan Türleri
 
@@ -3011,8 +3030,17 @@ tooltip="Bu alan kullanıcı adınızı girmeniz için kullanılır. Kullanıcı
 tooltip="Girin" // Belirsiz
 ```
 
+## Sık Hata Kontrolü (Field Odaklı)
+
+- Formda alan görünmüyor: `OnForm()` / `OnlyOnForm()` / `HideOnCreate()` / `HideOnUpdate()` kombinasyonlarını kontrol edin.
+- Listede alan görünmüyor: `OnList()` ve `HideOnList()` çakışmalarını kontrol edin.
+- Değer yazılıyor ama okunmuyor: field `Key` değeri ile model alanı uyuşmuyor olabilir.
+- `select` boş geliyor: `options` map'i yanlış formatta olabilir veya value tipiyle uyuşmuyor olabilir.
+- Dosya yükleme başarısız: storage path/yetki ve `StoreAs` callback dönüşünü kontrol edin.
+- Validasyon beklenmiyor: `Required()` ve backend doğrulama katmanının birlikte çalıştığını doğrulayın.
+
 ## Sonraki Adımlar
 
-- [İlişkiler Rehberi](./Relationships.md) - Tablo ilişkileri
-- [Politika Rehberi](./Authorization.md) - Yetkilendirme
-- [API Referansı](./API-Reference.md) - Tüm metodlar
+- [İlişkiler (Relationships)](Relationships) - Tablo ilişkileri
+- [Yetkilendirme](Authorization) - Policy ve erişim kontrolü
+- [API Referansı](API-Reference) - Tüm metodlar

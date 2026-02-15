@@ -1,4 +1,4 @@
-# Lensler (Lenses)
+# Lensler (Lenses) - Legacy Teknik Akış
 
 Lens, bir resource'un "özel liste görünümü"dür. Index'in aynısı değildir; kendi query'si, field'ları ve kartları olabilir.
 
@@ -6,6 +6,22 @@ Tipik kullanım:
 - "Onay Bekleyen Siparişler"
 - "Son 7 Gün Aktif Kullanıcılar"
 - "Yüksek Riskli İşlemler"
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Alanlar (Fields)](Fields)
+4. Bu doküman (`Lenses`)
+
+## Hızlı Lens Akışı
+
+1. Lens için benzersiz `Name()` ve `Slug()` tanımla.
+2. `Query(...)` içinde filtre/sıralama mantığını izole et.
+3. Liste görünümü için `Fields()` veya `GetFields(...)` döndür.
+4. İhtiyaç varsa `GetCards(...)` ile metrik kartları ekle.
+5. Resource içinde `Lenses()` ile lens'i kaydet.
 
 ## Lens Arayüzü
 
@@ -150,3 +166,16 @@ Body:
 ## Yetki
 
 Lens endpoint'leri `ViewAny` policy kontrolünden geçer. Policy false dönerse `403 Unauthorized` alınır.
+
+## Sık Hata Kontrolü (Lens)
+
+- Lens görünmüyor: Resource içindeki `Lenses()` dönüşüne lens eklendiğini doğrulayın.
+- Lens verisi boş: `Query(...)` koşulları aşırı kısıtlayıcı olabilir, doğrudan DB sorgusuyla test edin.
+- Field fallback beklenmiyor: Lens `Fields()` boş dönerse resource field'larının kullanılacağını unutmayın.
+- Lens action çalışmıyor: Lens action endpoint slug'larının resource/action slug'larıyla birebir eşleştiğini kontrol edin.
+
+## Sonraki Adım
+
+- Toplu işlemler için: [Action'lar](Actions)
+- Özet metrikler için: [Widget'lar (Cards)](Widgets)
+- İlişki odaklı listeler için: [İlişkiler (Relationships)](Relationships)

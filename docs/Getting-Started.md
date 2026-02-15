@@ -1,122 +1,95 @@
-# Panel.go - Başlangıç Rehberi
+# Panel.go - Detaylı Teknik Başlangıç (Legacy Akış)
 
-Panel.go, Go uygulamalarınız için hızlı ve güçlü bir yönetim paneli oluşturmanıza yardımcı olan bir framework'tür.
+Bu rehber, Panel.go ile düşük seviye/legacy stile yakın bir başlangıç akışını adım adım kurar. Hedef, `model + resource + field resolver + policy + repository` zincirini tek bir çalışır senaryoda netleştirmektir.
 
-## Kurulum
+## 1) Önkoşullar
 
-### 1. Projenize Ekleyin
+- Go kurulumu (önerilen: güncel stabil sürüm)
+- GORM ve seçtiğiniz veritabanı sürücüsü
+- `panel` CLI (opsiyonel ama önerilen)
+- Boş bir proje dizini
+
+Veritabanı seçimi için kısa öneri:
+- Geliştirme: `sqlite`
+- Production: `postgres`
+- Mevcut ekosistemle uyum gerekiyorsa: `mysql`
+
+Not:
+- Bu rehberde terminoloji tekilleştirilmiştir: `Panel.go framework`, `panel CLI`, `Resource`, `Policy`.
+
+## 2) Kurulum
+
+### 2.1 SDK ekleme
 
 ```bash
 go get github.com/ferdiunal/panel.go
 ```
 
-### 2. Temel Kurulum
+### 2.2 CLI kurulumu (opsiyonel ama önerilen)
+
+```bash
+go install github.com/ferdiunal/panel.go/cmd/panel@latest
+```
+
+## 3) `panel init` ile proje bootstrap
+
+Yeni bir proje dizininde:
+
+```bash
+panel init
+```
+
+Veya veritabanını doğrudan seçerek:
+
+```bash
+panel init -d sqlite
+panel init -d postgres
+panel init -d mysql
+```
+
+Bu adım sonrası tipik olarak aşağıdaki dosyalar oluşur:
+- `main.go`
+- `go.mod`
+- `.env`
+- `.panel/stubs/*`
+
+CLI detayları için: [CLI - Init Komutu](CLI_INIT)
+
+## 4) Legacy Teknik Akış: Model + Resource + Resolver + Policy + Repository
+
+Bu bölümde örnek bir `posts` kaynağı oluşturuyoruz.
+
+### 4.1 Model (`internal/domain/post/entity.go`)
 
 ```go
-package main
+package post
 
-import (
-	"log"
-	"github.com/ferdiunal/panel.go/pkg/panel"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-)
+import "time"
 
-func main() {
-	// Veritabanı bağlantısı
-	db, err := gorm.Open(sqlite.Open("app.db"), &gorm.Config{})
-	if err != nil {
-		panic("Veritabanı bağlantısı başarısız")
-	}
-
-	// Panel yapılandırması
-	cfg := panel.Config{
-		Database: panel.DatabaseConfig{
-			Instance: db,
-		},
-		Server: panel.ServerConfig{
-			Host: "localhost",
-			Port: "8080",
-		},
-		Environment: "development",
-	}
-
-	// Panel oluştur ve başlat
-	app := panel.New(cfg)
-	log.Println("Panel http://localhost:8080 adresinde çalışıyor")
-	app.Start()
+type Post struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	Status    string    `json:"status"` // draft, published
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 ```
 
-## Temel Kavramlar
-
-### Resource Nedir?
-
-Resource, veritabanınızdaki bir tabloyu yönetmek için kullanılan bir yapıdır. Örneğin, "Kullanıcılar" tablosunu yönetmek için bir User Resource oluşturursunuz.
-
-Her resource şunları içerir:
-- **Alanlar** (Fields) - Tablonun sütunları
-- **Politika** (Policy) - Kimin ne yapabileceği
-- **Repository** - Veritabanı işlemleri
-
-### Basit Bir Resource Oluşturma
-
-Diyelim ki bir Blog uygulaması yapıyorsunuz ve "Yazılar" tablosunu yönetmek istiyorsunuz.
+### 4.2 Field Resolver (`internal/resource/post/field_resolver.go`)
 
 ```go
-package resources
+package post
 
 import (
 	"github.com/ferdiunal/panel.go/pkg/context"
-	"github.com/ferdiunal/panel.go/pkg/core"
-	"github.com/ferdiunal/panel.go/pkg/data"
-	"github.com/ferdiunal/panel.go/pkg/resource"
 	"github.com/ferdiunal/panel.go/pkg/fields"
-	"gorm.io/gorm"
 )
 
-// Post modeli
-type Post struct {
-	ID    string `gorm:"primaryKey"`
-	Title string
-	Body  string
-	Status string // draft, published
-}
-
-// PostResource, yazıları yönetmek için resource
-type PostResource struct {
-	resource.OptimizedBase
-}
-
-// NewPostResource, yeni bir Post resource'u oluşturur
-func NewPostResource() *PostResource {
-	r := &PostResource{}
-
-	r.SetModel(&Post{})
-	r.SetSlug("posts")
-	r.SetTitle("Yazılar")
-	r.SetIcon("file-text")
-	r.SetGroup("İçerik")
-
-	// Alanları tanımla
-	r.SetFieldResolver(&PostFieldResolver{})
-
-	// Politikayı tanımla
-	r.SetPolicy(&PostPolicy{})
-
-	return r
-}
-
-// Repository, veritabanı işlemleri
-func (r *PostResource) Repository(db *gorm.DB) data.DataProvider {
-	return data.NewGormDataProvider(db, &Post{})
-}
-
-// PostFieldResolver, yazı alanlarını tanımlar
 type PostFieldResolver struct{}
 
-func (r *PostFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
-	return []core.Element{
+func (r *PostFieldResolver) ResolveFields(ctx *context.Context) []fields.Element {
+	return []fields.Element{
 		(&fields.Schema{
 			Key:   "id",
 			Name:  "ID",
@@ -145,315 +118,169 @@ func (r *PostFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
 			Props: map[string]interface{}{
 				"options": map[string]string{
 					"draft":     "Taslak",
-					"published": "Yayınlandı",
+					"published": "Yayında",
 				},
 			},
 		}).OnList().OnDetail().OnForm(),
 	}
 }
+```
 
-// PostPolicy, yazılar için yetkilendirme
+### 4.3 Policy (`internal/resource/post/policy.go`)
+
+```go
+package post
+
+import appContext "github.com/ferdiunal/panel.go/pkg/context"
+
 type PostPolicy struct{}
 
-func (p *PostPolicy) ViewAny(ctx *context.Context) bool {
-	return true // Herkes yazıları görebilir
-}
-
-func (p *PostPolicy) View(ctx *context.Context, model any) bool {
+func (p *PostPolicy) ViewAny(ctx *appContext.Context) bool {
 	return true
 }
 
-func (p *PostPolicy) Create(ctx *context.Context) bool {
-	return true // Herkes yazı oluşturabilir
-}
-
-func (p *PostPolicy) Update(ctx *context.Context, model any) bool {
+func (p *PostPolicy) View(ctx *appContext.Context, model any) bool {
 	return true
 }
 
-func (p *PostPolicy) Delete(ctx *context.Context, model any) bool {
+func (p *PostPolicy) Create(ctx *appContext.Context) bool {
 	return true
 }
 
-func (p *PostPolicy) Restore(ctx *context.Context, model any) bool {
-	return false
+func (p *PostPolicy) Update(ctx *appContext.Context, model any) bool {
+	return true
 }
 
-func (p *PostPolicy) ForceDelete(ctx *context.Context, model any) bool {
-	return false
+func (p *PostPolicy) Delete(ctx *appContext.Context, model any) bool {
+	return true
 }
 ```
 
-### Resource'u Panel'e Kaydetme
+### 4.4 Resource + Repository (`internal/resource/post/resource.go`)
 
 ```go
-func main() {
-	db, _ := gorm.Open(sqlite.Open("app.db"), &gorm.Config{})
+package post
 
-	cfg := panel.Config{
-		Database: panel.DatabaseConfig{
-			Instance: db,
-		},
-		Server: panel.ServerConfig{
-			Host: "localhost",
-			Port: "8080",
-		},
-		Environment: "development",
-		Resources: []resource.Resource{
-			resources.NewPostResource(),
-		},
-	}
+import (
+	"github.com/ferdiunal/panel.go/pkg/data"
+	"github.com/ferdiunal/panel.go/pkg/resource"
+	domainPost "my-panel-app/internal/domain/post"
+	"gorm.io/gorm"
+)
 
-	app := panel.New(cfg)
-	app.Start()
+func init() {
+	resource.Register("posts", NewPostResource())
+}
+
+type PostResource struct {
+	resource.OptimizedBase
+}
+
+func NewPostResource() *PostResource {
+	r := &PostResource{}
+
+	r.SetModel(&domainPost.Post{})
+	r.SetSlug("posts")
+	r.SetTitle("Yazılar")
+	r.SetIcon("file-text")
+	r.SetGroup("İçerik")
+	r.SetVisible(true)
+	r.SetNavigationOrder(10)
+	r.SetRecordTitleKey("title")
+
+	r.SetFieldResolver(&PostFieldResolver{})
+	r.SetPolicy(&PostPolicy{})
+
+	return r
+}
+
+func (r *PostResource) Repository(db *gorm.DB) data.DataProvider {
+	return data.NewGormDataProvider(db, &domainPost.Post{})
 }
 ```
 
-## Alanlar (Fields)
+Not:
+- `resource.Register("posts", ...)` ilişkilerde `relatedResource` çözümlemeleri ve otomatik option yükleme için güvenli bir başlangıç desenidir.
+- `SetRecordTitleKey("title")` ilişki dropdown'larında okunabilir etiket için kritiktir.
 
-Alanlar, veritabanı sütunlarını yönetim panelinde nasıl göstereceğinizi tanımlar.
+## 5) Resource Kaydı ve Panel Başlatma
 
-### Desteklenen Alan Türleri
-
-```go
-// Metin alanı
-(&fields.Schema{
-	Key:   "name",
-	Name:  "Ad",
-	View:  "text",
-	Props: make(map[string]interface{}),
-}).OnList().OnDetail().OnForm()
-
-// Metin alanı (çok satırlı)
-(&fields.Schema{
-	Key:   "description",
-	Name:  "Açıklama",
-	View:  "textarea",
-	Props: make(map[string]interface{}),
-}).OnForm()
-
-// Seçim alanı
-(&fields.Schema{
-	Key:   "status",
-	Name:  "Durum",
-	View:  "select",
-	Props: map[string]interface{}{
-		"options": map[string]string{
-			"active":   "Aktif",
-			"inactive": "İnaktif",
-		},
-	},
-}).OnList().OnDetail().OnForm()
-
-// Tarih alanı
-(&fields.Schema{
-	Key:   "created_at",
-	Name:  "Oluşturulma Tarihi",
-	View:  "datetime",
-	Props: make(map[string]interface{}),
-}).ReadOnly().OnList().OnDetail()
-
-// Evet/Hayır alanı
-(&fields.Schema{
-	Key:   "is_active",
-	Name:  "Aktif mi?",
-	View:  "switch",
-	Props: make(map[string]interface{}),
-}).OnList().OnDetail().OnForm()
-```
-
-### Alan Seçenekleri
-
-```go
-// Zorunlu alan
-field.Required()
-
-// Salt okunur alan
-field.ReadOnly()
-
-// Varsayılan değer
-field.Default("Varsayılan Değer")
-
-// Yardım metni
-field.HelpText("Bu alan hakkında bilgi")
-
-// Yer tutucu metni
-field.Placeholder("Buraya yazın...")
-
-// Sadece listede göster
-field.OnlyOnList()
-
-// Sadece detayda göster
-field.OnlyOnDetail()
-
-// Sadece formda göster
-field.OnlyOnForm()
-
-// Listede gizle
-field.HideOnList()
-
-// Detayda gizle
-field.HideOnDetail()
-
-// Oluşturmada gizle
-field.HideOnCreate()
-
-// Güncellemede gizle
-field.HideOnUpdate()
-```
-
-## Politika (Policy)
-
-Politika, kullanıcıların hangi işlemleri yapabileceğini kontrol eder.
-
-```go
-type PostPolicy struct{}
-
-// Tüm yazıları görme izni
-func (p *PostPolicy) ViewAny(ctx *context.Context) bool {
-	// Örnek: Sadece admin'ler görebilir
-	return isAdmin(ctx)
-}
-
-// Belirli bir yazıyı görme izni
-func (p *PostPolicy) View(ctx *context.Context, model any) bool {
-	post := model.(*Post)
-	// Örnek: Yazar veya admin görebilir
-	return isAuthor(ctx, post) || isAdmin(ctx)
-}
-
-// Yazı oluşturma izni
-func (p *PostPolicy) Create(ctx *context.Context) bool {
-	return isLoggedIn(ctx)
-}
-
-// Yazı güncelleme izni
-func (p *PostPolicy) Update(ctx *context.Context, model any) bool {
-	post := model.(*Post)
-	return isAuthor(ctx, post) || isAdmin(ctx)
-}
-
-// Yazı silme izni
-func (p *PostPolicy) Delete(ctx *context.Context, model any) bool {
-	return isAdmin(ctx)
-}
-
-// Yazı geri yükleme izni
-func (p *PostPolicy) Restore(ctx *context.Context, model any) bool {
-	return isAdmin(ctx)
-}
-
-// Yazı kalıcı silme izni
-func (p *PostPolicy) ForceDelete(ctx *context.Context, model any) bool {
-	return isAdmin(ctx)
-}
-```
-
-## Gelişmiş Özellikler
-
-### Sıralama
-
-Resource'ları varsayılan olarak nasıl sıralanacağını belirleyin:
-
-```go
-func (r *PostResource) GetSortable() []resource.Sortable {
-	return []resource.Sortable{
-		{
-			Column:    "created_at",
-			Direction: "desc", // En yeni yazılar önce
-		},
-	}
-}
-```
-
-### Arama
-
-Alanları aranabilir yapın:
-
-```go
-(&fields.Schema{
-	Key:   "title",
-	Name:  "Başlık",
-	View:  "text",
-	Props: make(map[string]interface{}),
-}).Searchable()
-```
-
-### Sıralama
-
-Alanları sıralanabilir yapın:
-
-```go
-(&fields.Schema{
-	Key:   "created_at",
-	Name:  "Oluşturulma Tarihi",
-	View:  "datetime",
-	Props: make(map[string]interface{}),
-}).Sortable()
-```
-
-### Filtreleme
-
-Alanları filtrelenebilir yapın:
-
-```go
-(&fields.Schema{
-	Key:   "status",
-	Name:  "Durum",
-	View:  "select",
-	Props: map[string]interface{}{
-		"options": map[string]string{
-			"draft":     "Taslak",
-			"published": "Yayınlandı",
-		},
-	},
-}).Filterable()
-```
-
-## Örnek: Tam Blog Uygulaması
+`main.go` içinde paneli bağlayın ve resource ekleyin:
 
 ```go
 package main
 
 import (
 	"log"
+
 	"github.com/ferdiunal/panel.go/pkg/panel"
-	"github.com/ferdiunal/panel.go/pkg/resource"
+	domainPost "my-panel-app/internal/domain/post"
+	postResource "my-panel-app/internal/resource/post"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func main() {
-	// Veritabanı
-	db, _ := gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
-	db.AutoMigrate(&Post{}, &Category{})
+	db, err := gorm.Open(sqlite.Open("app.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("veritabanı bağlantı hatası: %v", err)
+	}
 
-	// Panel yapılandırması
+	// Model migration
+	_ = db.AutoMigrate(
+		&domainPost.Post{},
+	)
+
 	cfg := panel.Config{
-		Database: panel.DatabaseConfig{
-			Instance: db,
-		},
+		Database: panel.DatabaseConfig{Instance: db},
 		Server: panel.ServerConfig{
 			Host: "localhost",
 			Port: "8080",
 		},
 		Environment: "development",
-		Resources: []resource.Resource{
-			NewPostResource(),
-			NewCategoryResource(),
-		},
 	}
 
-	// Panel başlat
 	app := panel.New(cfg)
-	log.Println("Blog paneli http://localhost:8080 adresinde çalışıyor")
+	app.RegisterResource(postResource.NewPostResource())
 	app.Start()
 }
 ```
 
-## Sonraki Adımlar
+## 6) Otomatik Endpoint'leri Doğrulama
 
-- [Alanlar Rehberi](./Fields.md) - Tüm alan türleri hakkında detaylı bilgi
-- [Politika Rehberi](./Authorization.md) - Yetkilendirme sistemi
-- [İlişkiler Rehberi](./Relationships.md) - Tablo ilişkileri
-- [API Referansı](./API-Reference.md) - Tüm API metodları
+Resource slug'ınız `posts` ise aşağıdaki endpoint'ler otomatik gelir:
+
+- `GET /api/resource/posts`
+- `POST /api/resource/posts`
+- `GET /api/resource/posts/:id`
+- `PUT /api/resource/posts/:id`
+- `DELETE /api/resource/posts/:id`
+
+Hızlı doğrulama:
+
+```bash
+curl http://localhost:8080/api/resource/posts
+```
+
+## 7) Sık Hatalar ve Çözüm Tablosu
+
+| Problem | Olası Neden | Çözüm |
+|---|---|---|
+| Resource görünmüyor | Package import edilmedi / register çalışmadı | `main.go` içinde ilgili package importunu ve `RegisterResource` çağrısını kontrol et |
+| Dropdown ilişki boş | İlişkili resource register edilmedi | İlgili resource için `resource.Register(slug, ...)` ve doğru `relatedResource` kullan |
+| 403 yetki hatası | Policy izinleri `false` dönüyor | Policy metotlarını ve permission tanımlarını kontrol et |
+| Veri yazılmıyor | Repository/model map uyumsuzluğu | `SetModel`, GORM tag'leri ve field key'lerini eşleştir |
+| Endpoint 404 | Yanlış slug | `SetSlug("posts")` ile URL slug'ının aynı olduğundan emin ol |
+
+## 8) Sonraki Adımlar
+
+- [Kaynaklar (Resource)](Resources)
+- [Alanlar (Fields)](Fields)
+- [İlişkiler (Relationships)](Relationships)
+- [Yetkilendirme](Authorization)
+
+## Hızlı Geçiş
+
+Kısa akışa dönmek istersen:
+- Repo ana giriş: [README](../README.md)
+- Dokümantasyon merkezi: [Home](Home)

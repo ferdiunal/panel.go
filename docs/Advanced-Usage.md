@@ -1,6 +1,23 @@
-# Gelişmiş Kullanım
+# Gelişmiş Kullanım (Legacy Teknik Akış)
 
-Bu bölüm Panel SDK'nın ileri seviye özelliklerini ve tekniklerini kapsar. Temel kavramları zaten bildiğinizi varsayıyoruz.
+Bu bölüm Panel.go framework'ünün ileri seviye özelliklerini kapsar. Temel kavramları (`Resource`, `Field`, `Relationship`, `Policy`) bildiğinizi varsayar.
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Alanlar (Fields)](Fields)
+4. [İlişkiler (Relationships)](Relationships)
+5. Bu doküman (`Advanced-Usage`)
+
+## Hızlı Uygulama Akışı
+
+1. Önce resource davranışını sabitle (`SetModel`, `SetSlug`, `SetFieldResolver`, `SetPolicy`).
+2. Sonra hook ve doğrulama katmanını ekle (`Before...`, `After...`, `Rules`).
+3. İlişki ve sorgu performansını optimize et (`WithEagerLoad`, `Query`).
+4. Görünürlük/filtre/sıralama davranışlarını netleştir.
+5. Son adımda hata yönetimi ve context tabanlı kuralları ekle.
 
 ## Özel Alanlar Oluşturma
 
@@ -622,9 +639,18 @@ func (r *ProductResource) Fields() []fields.Element {
 }
 ```
 
+## Sık Hata Kontrolü (Advanced Usage)
+
+- Hook çalışmıyor: Metod imzası ve receiver tipinin resource tarafıyla eşleştiğini kontrol edin.
+- Policy doğru ama erişim hatalı: Resource içinde `SetPolicy(...)` çağrısını doğrulayın.
+- Eager load beklenmiyor: İlişki field'ında `WithEagerLoad()` / `WithLazyLoad()` seçimini gözden geçirin.
+- Query callback etkisiz: callback içinde doğru query tipine cast edildiğini kontrol edin.
+- Context'e bağlı kural boşa düşüyor: `ctx == nil` senaryosu için fallback ekleyin.
+
 ## Ayrıca Bkz.
 
-- [Alanlar](./Fields.md) - Field system genel bakış
-- [Kaynaklar](./Resources.md) - Resource tanımı
-- [İlişkiler](./Relationships.md) - Relationship fields
-- [API Referansı](./API-Reference.md) - Tam API referansı
+- [Alanlar (Fields)](Fields) - Field system genel bakış
+- [Kaynaklar (Resource)](Resources) - Resource tanımı
+- [İlişkiler (Relationships)](Relationships) - Relationship fields
+- [API Referansı](API-Reference) - Tam API referansı
+- [Optimizasyon](Optimization-Guide) - Resolver/mixin ve performans stratejileri

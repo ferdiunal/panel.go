@@ -1,6 +1,22 @@
-# API Referansı
+# API Referansı (Legacy Teknik Akış)
 
 Panel SDK'nın tam API referansı. Tüm metodlar, parametreler ve dönüş değerleri burada belirtilmiştir.
+
+Bu doküman, detaylı ve düşük seviye API bakışı içindir. Uçtan uca başlangıç için önce [Başlarken](Getting-Started) ve [Kaynaklar (Resource)](Resources) dokümanlarını takip edin.
+
+## Bu Doküman Ne Zaman Kullanılmalı?
+
+- Bir metodun imzasını veya dönüş tipini doğrularken
+- Field/relationship builder zincirinde hangi seçeneklerin olduğunu ararken
+- Policy ve query davranışlarını referans düzeyinde kontrol ederken
+
+## Hızlı Referans Akışı
+
+1. Resource davranışı için: `Resource Interface`
+2. Alan davranışı için: `Field Interface`
+3. İlişki kurulumları için: `Relationship Fields`
+4. Yetki kontrolleri için: `Policy Interface`
+5. Sorgu detayları için: `Query Builder`
 
 ## İçindekiler
 
@@ -895,10 +911,19 @@ func (r *UserResource) BeforeCreate(ctx context.Context, data map[string]interfa
 
 ---
 
+## Sık Hata Kontrolü (API Referansı Kullanırken)
+
+- Yalnızca API referansına bakıp entegrasyon yapmak: Önce [Başlarken](Getting-Started) akışını baz alın.
+- Field görünürlük metodlarını karıştırmak: `OnlyOn...` ve `HideOn...` kombinasyonlarını birlikte kontrol edin.
+- Relationship'te yalnızca field builder'a bakmak: `resource.Register(...)` ve slug doğruluğunu ayrıca kontrol edin.
+- Policy imzalarını eksik implemente etmek: Resource tarafındaki policy beklentisiyle birebir eşleştiğinden emin olun.
+
+---
+
 ## Ayrıca Bkz.
 
-- [Alanlar](./Fields.md) - Field system genel bakış
-- [Kaynaklar](./Resources.md) - Resource tanımı
-- [İlişkiler](./Relationships.md) - Relationship fields
-- [Yetkilendirme](./Authorization.md) - Policy tanımı
-- [Gelişmiş Kullanım](./Advanced-Usage.md) - İleri seviye özellikler
+- [Alanlar (Fields)](Fields) - Field system genel bakış
+- [Kaynaklar (Resource)](Resources) - Resource tanımı
+- [İlişkiler (Relationships)](Relationships) - Relationship fields
+- [Yetkilendirme](Authorization) - Policy tanımı
+- [Gelişmiş Kullanım](Advanced-Usage) - İleri seviye özellikler

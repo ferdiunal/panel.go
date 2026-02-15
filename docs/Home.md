@@ -1,57 +1,72 @@
-# Panel SDK Dokümantasyonu
+# Panel.go Dokümantasyon Merkezi
 
-**Panel SDK**'ya hoş geldiniz. Go ekosisteminin gücünü ve tip sistemini sonuna kadar kullanan, modern, tip güvenli (type-safe) ve akıcı (fluent) bir UI aracıdır. Bu SDK, güçlü yönetim panelleri ve dashboard'ları kolaylıkla oluşturmanız için tasarlanmıştır.
+Panel.go, Go + GORM ile admin paneli ve CRUD API'yi hızlıca ayağa kaldırmak için geliştirilmiş bir framework'tür.
 
-## Felsefemiz
+Bu sayfa, son kullanıcı için en doğru dokümantasyon okuma sırasını verir.
 
-Panel SDK birkaç temel prensip üzerine kuruludur:
+## Hızlı Başlangıç (4 Adım)
 
-1.  **Tip Güvenliği (Type Safety)**: Alan tanımlarından veri sorgularına kadar her şey tip güvenlidir. Sihirli string'lere veya tahmin oyunlarına yer yok.
-2.  **Akıcı API (Fluent API)**: Kaynaklarınızı ve alanlarınızı, doğal bir dil gibi okunan temiz, zincirleme (chainable) bir API kullanarak tanımlayın.
-3.  **Performans**: Eager Loading (`With`) gibi yerleşik optimizasyonlar ve verimli JSON serileştirme sayesinde uygulamalarınız hızlı çalışır.
-4.  **Basitlik**: Sihir yerine netliği tercih ediyoruz. Açık ilişkiler, anlaşılır isimlendirme ve öngörülebilir davranışlar.
+### 1) Paketi projeye ekle
 
-## Başlarken
-
-Panel SDK'yı kullanmak için genellikle **Kaynaklar (Resources)** tanımlarsınız. Bir Kaynak, bir veri modeline (örneğin bir Kullanıcı veya Ürün) karşılık gelir ve bunun nasıl görüntüleneceğini ve etkileşime girileceğini tanımlar.
-
-### Örnek Kaynak (Resource)
-
-```go
-type UserResource struct{}
-
-func (u *UserResource) Model() interface{} {
-    return &User{}
-}
-
-func (u *UserResource) Fields() []fields.Element {
-    return []fields.Element{
-        fields.ID(),
-        fields.Text("İsim", "Name").Sortable().Required(),
-        fields.Email("E-posta", "Email"),
-        fields.Link("Şirket", "Company"), // İlişki
-    }
-}
+```bash
+go get github.com/ferdiunal/panel.go
 ```
 
-## Dokümantasyon
+### 2) CLI kur
 
-### Başlangıç
+```bash
+go install github.com/ferdiunal/panel.go/cmd/panel@latest
+```
 
--   **[Başlarken (Getting Started)](Getting-Started)** - Panel SDK'yı kurun ve ilk kaynağınızı oluşturun
--   **[Kaynaklar (Resources)](Resources)** - Kaynakları tanımlayın ve yapılandırın
+### 3) Proje iskeletini oluştur
 
-### Temel Kavramlar
+```bash
+panel init
+```
 
--   **[Alanlar (Fields)](Fields)** - Tüm alan türleri ve seçenekleri
--   **[İlişkiler (Relationships)](Relationships)** - BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo
--   **[Yetkilendirme (Authorization)](Authorization)** - Erişim kontrolü ve politikalar
+Detay: [CLI - Init Komutu](CLI_INIT)
 
-### İleri Seviye
+### 4) İlk resource'u oluşturup uygulamayı başlat
 
--   **[Gelişmiş Kullanım (Advanced Usage)](Advanced-Usage)** - Özel alanlar, middleware, hooks
--   **[API Referansı (API Reference)](API-Reference)** - Tüm metodlar ve parametreler
--   **[Lensler (Lenses)](Lenses)** - Özel raporlar ve görünümler
--   **[Sayfalar (Pages)](Pages)** - Özel gösterge panelleri
--   **[Ayarlar (Settings)](Settings)** - Uygulama ayarları
--   **[Widgets](Widgets)** - Gösterge paneli widget'ları
+Başlangıç rehberi: [Başlarken](Getting-Started)
+
+## Ne Öğrenmeliyim? (Önerilen Rota)
+
+### 1. Temel kullanım
+- [Başlarken](Getting-Started)
+- [Kaynaklar (Resource)](Resources)
+- [Alanlar (Fields)](Fields)
+- [İlişkiler (Relationships)](Relationships)
+
+### 2. Güvenlik ve erişim
+- [Kimlik Doğrulama](Authentication)
+- [Yetkilendirme](Authorization)
+
+### 3. Arayüz ve ürün özellikleri
+- [Action'lar](Actions)
+- [Lensler](Lenses)
+- [Widgets](Widgets)
+- [Sayfalar](Pages)
+- [Ayarlar](Settings)
+- [Bildirimler](Notifications)
+
+### 4. API ve entegrasyon
+- [API Referansı](API-Reference)
+- [OpenAPI/Swagger](API-OPENAPI)
+- [OpenAPI Custom Mapping](API-CUSTOM-MAPPING)
+
+### 5. İleri seviye
+- [Gelişmiş Kullanım](Advanced-Usage)
+- [Optimizasyon](Optimization-Guide)
+- [Plugin Sistemi](PLUGIN_SYSTEM)
+- [Plugin Development](PLUGIN_DEVELOPMENT)
+
+## Sık Kullanılan Linkler
+
+- [Resource Template](RESOURCE_TEMPLATE)
+- [İlişkiler API Referansı](Relationships-API)
+- [Bağımlı Alanlar](Dependent-Fields)
+- [Plugin CLI](PLUGIN_CLI)
+- [Plugin Troubleshooting](PLUGIN_TROUBLESHOOTING)
+
+Tüm menü için: [_Sidebar](_Sidebar)

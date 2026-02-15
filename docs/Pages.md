@@ -1,6 +1,21 @@
-# Sayfalar (Pages)
+# Sayfalar (Pages) - Legacy Teknik Akış
 
 Sayfalar (Pages), Panel SDK'da kaynaklar (resources) dışında kalan özel görünümleri ve gösterge panellerini (dashboards) tanımlamanızı sağlar. Genellikle widget'ları bir araya getirmek veya özel raporlama ekranları oluşturmak için kullanılır.
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Widget'lar (Cards)](Widgets)
+4. Bu doküman (`Pages`)
+
+## Hızlı Page Akışı
+
+1. Page struct'ını oluştur ve `Slug`, `Title`, `Icon`, `Cards` metotlarını tanımla.
+2. `Config.Pages` içinde page'i kaydet.
+3. Gerekirse `app.RegisterPage(...)` ile manuel ekleme yap.
+4. `GET /api/pages` ve `GET /api/pages/:slug` endpoint'leri ile doğrula.
 
 ## Sayfa Tanımlama
 
@@ -104,3 +119,16 @@ Kayıtlı sayfalara aşağıdaki endpointler üzerinden erişilebilir:
   }
 }
 ```
+
+## Sık Hata Kontrolü (Pages)
+
+- Sayfa listede yok: `Config.Pages` veya `RegisterPage(...)` akışını kontrol edin.
+- Endpoint 404: `Slug()` değeri ile çağrılan URL'nin birebir eşleştiğini doğrulayın.
+- Kartlar boş: `Cards()` metodunun gerçek veri döndürdüğünü ve widget sorgularını kontrol edin.
+- Menüde ikon yanlış: `Icon()` içinde geçerli ikon adının verildiğinden emin olun.
+
+## Sonraki Adım
+
+- Sistem ayar sayfası için: [Ayarlar (Settings)](Settings)
+- Kullanıcı hesabı ve profil için: [Account Page](ACCOUNT_PAGE)
+- Dashboard metrikleri için: [Widget'lar (Cards)](Widgets)

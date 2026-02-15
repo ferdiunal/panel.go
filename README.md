@@ -1,405 +1,131 @@
-# Panel.go 🚀
+# Panel.go
 
-**Panel.go**, Go (Golang) projelerinizde hızlı, tip güvenli ve yönetilebilir admin panelleri oluşturmanız için tasarlanmış modern bir SDK'dır.
+Panel.go, Go + GORM ile admin paneli ve CRUD API'yi hızlıca ayağa kaldırmak için geliştirilmiş bir framework'tür.
 
-Go'nun performansına ve tip güvenliğine uygun olarak tasarlanan bu yapı, veritabanı modellerinizi dakikalar içinde tam fonksiyonel bir REST API'ye ve yönetim arayüzüne dönüştürür.
+Bu repo içinde hem SDK hem de `panel` CLI bulunur.
 
-## ✨ Özellikler
+## Kimin için?
 
-- **Resource Abstraction**: Model ve UI mantığını tek bir yapıda toplayın.
-- **Fluent Field API**: Zincirleme metodlarla (`Text("Ad").Sortable().Required()`) kolayca alan tanımlayın.
-- **Panel System**: Field'ları card-based panellere gruplayın, responsive grid layout (1-4 columns).
-- **Rich Text Editor**: Tiptap tabanlı WYSIWYG editor (Bold, Italic, Lists, Links, etc.).
-- **Textarea Support**: Çok satırlı metin girişi için textarea field.
-- **Relationship Fields**: BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo ilişkilerini destekler.
-- **Otomatik CRUD**: Oluşturduğunuz her resource için Create, Read, Update, Delete ve Show endpointleri hazır gelir.
-- **Smart Data Provider**: GORM entegrasyonu ile sayfalama, sıralama ve filtreleme otomatik halledilir.
-- **Model-Only Migration**: GORM AutoMigrate ile database-agnostic migration (PostgreSQL, MySQL, SQLite).
-- **Central App Config**: Tek bir `Panel` instance'ı ile tüm servisi yönetin.
-- **Genişletilebilir Mimari**: Kendi özel servislerinizi ve rotalarınızı kolayca entegre edin.
-- **Embedded Frontend**: Frontend dosyaları binary içine gömülerek tek bir çalıştırılabilir dosya olarak dağıtılabilir.
-- **Kapsamlı Dokümantasyon**: Türkçe yazılmış, 70+ örnek içeren detaylı rehberler.
+- Go backend geliştiricileri
+- GORM kullanan ekipler
+- Admin panelini sıfırdan yazmak yerine hızlıca üretmek isteyen projeler
 
-## � Dokümantasyon
+## Neler sunar?
 
-Panel.go için kapsamlı, Türkçe yazılmış dokümantasyon mevcuttur. Tüm rehberlere `docs/` klasöründen erişebilirsiniz.
+- Resource tabanlı yapı (model, field, policy, repository)
+- Otomatik CRUD endpoint'leri
+- Hazır admin UI (Go binary içine gömülü)
+- Relationship field'ları (`BelongsTo`, `HasMany`, `BelongsToMany`, `MorphTo`)
+- Policy ve rol/izin yönetimi
+- Lens, Action, Page ve Widget desteği
+- OpenAPI/Swagger üretimi
+- Plugin sistemi
 
-### Başlarken
-- **[Başlarken](docs/Getting-Started.md)** - Kurulum ve ilk resource oluşturma
-- **[Kaynaklar (Resources)](docs/Resources.md)** - Resource tanımı ve yapılandırması
-- **[Alanlar (Fields)](docs/Fields.md)** - 10+ alan türü ve seçenekleri
+## Hızlı Başlangıç
 
-### Temel Kavramlar
-- **[İlişkiler (Relationships)](docs/Relationships.md)** - BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo
-- **[Yetkilendirme (Authorization)](docs/Authorization.md)** - Policy yazma ve rol tabanlı erişim kontrolü
-
-### İleri Seviye
-- **[Gelişmiş Kullanım (Advanced Usage)](docs/Advanced-Usage.md)** - Özel alanlar, middleware, hooks, optimizasyon
-- **[API Referansı (API Reference)](docs/API-Reference.md)** - Tüm metodlar ve parametreler
-- **[Lensler (Lenses)](docs/Lenses.md)** - Özel raporlar ve görünümler
-- **[Sayfalar (Pages)](docs/Pages.md)** - Özel gösterge panelleri
-- **[Ayarlar (Settings)](docs/Settings.md)** - Uygulama ayarları
-- **[Widgets](docs/Widgets.md)** - Gösterge paneli widget'ları
-
-### Diğer
-- **[Kimlik Doğrulama (Authentication)](docs/Authentication.md)** - Kullanıcı kimlik doğrulaması
-
-**Toplam:** 2000+ satır, 70+ gerçek dünya örneği
-
-## 📊 Proje Durumu
-
-Proje kalitesi statik rakamlarla değil, çalıştırılabilir kalite kapıları ile takip edilir.
-
-```bash
-go test ./...
-go test -race ./...
-go vet ./...
-```
-
-**En son doğrulama tarihi:** 14 Şubat 2026  
-**Durum:** `go test ./...`, `go test -race ./...` ve `go vet ./...` başarılı
-
-## 📦 Kurulum
+### 1) SDK'yı projene ekle
 
 ```bash
 go get github.com/ferdiunal/panel.go
 ```
 
-### UI Dosyaları
-
-Panel.go, frontend dosyalarını Go binary'sine gömer (embed). Projeyi klonladığınızda UI dosyaları zaten `pkg/panel/ui/` klasöründe hazır olarak gelir, bu yüzden Node.js veya Bun kurmanıza gerek yoktur.
-
-#### Frontend'i Yeniden Build Etme (Opsiyonel)
-
-Eğer frontend kodunda değişiklik yaparsanız, UI'ı yeniden build etmek için:
+### 2) CLI kur (önerilen)
 
 ```bash
-# Önce web bağımlılıklarını yükleyin (sadece ilk seferde)
-cd web && bun install
+go install github.com/ferdiunal/panel.go/cmd/panel@latest
+```
 
-# UI'ı build edin ve pkg/panel/ui'a kopyalayın
-make build-ui
+### 3) Proje iskeletini üret
+
+```bash
+panel init
 ```
 
 Bu komut:
-1. `web/` klasöründeki React uygulamasını build eder
-2. Build edilen dosyaları `pkg/panel/ui/` klasörüne kopyalar
-3. Bir sonraki Go build'de bu dosyalar otomatik olarak binary'e gömülür
+- başlangıç dosyalarını oluşturur
+- veritabanı seçimine göre örnek konfigürasyon yazar
+- `.panel/stubs/` ve `.claude/skills/` dosyalarını yayınlar
 
-## ⚡ Hızlı Başlangıç
+Detay: [`docs/CLI_INIT.md`](docs/CLI_INIT.md)
 
-Sadece 4 adımda çalışır hale getirin.
+### 4) Uygulamayı çalıştır
 
-### 1. Veritabanı Modeli (GORM)
-
-```go
-type User struct {
-    ID        uint      `json:"id" gorm:"primaryKey"`
-    FullName  string    `json:"full_name"`
-    Email     string    `json:"email"`
-    Role      string    `json:"role"`
-    CreatedAt time.Time `json:"created_at"`
-}
-```
-
-### 2. Resource Tanımı
-
-Modelinizi ve UI alanlarını (Fields) bağlayan yapıyı kurun.
+`main.go` içinde paneli başlatıp resource'larını kaydet:
 
 ```go
-import (
-    "github.com/ferdiunal/panel.go/pkg/fields"
-    "github.com/ferdiunal/panel.go/pkg/resource"
-)
-
-type UserResource struct{
-    resource.Base
+cfg := panel.Config{
+    Server: panel.ServerConfig{Host: "localhost", Port: "8080"},
+    Database: panel.DatabaseConfig{Instance: db},
+    Environment: "development",
 }
 
-// Resource Tanımlayıcı
-func GetUserResource() resource.Resource {
-    return &UserResource{
-        Base: resource.Base{
-            DataModel: &User{},
-            Label:     "Users",
-            FieldsVal: []fields.Element{
-                fields.ID().Sortable(),
-
-                fields.Text("Ad Soyad", "full_name").
-                    Sortable().
-                    Placeholder("Tam ad...").
-                    Required(),
-
-                fields.Email("E-Posta", "email").
-                    Sortable().
-                    Required(),
-
-                fields.Select("Rol", "role").
-                    Options(map[string]string{
-                        "admin": "Yönetici",
-                        "user":  "Kullanıcı",
-                    }),
-                    
-                fields.DateTime("Kayıt Tarihi", "created_at").
-                    OnList().
-                    ReadOnly(),
-            },
-        },
-    }
-}
+app := panel.New(cfg)
+app.RegisterResource(GetUserResource())
+app.Start()
 ```
 
-### 3. Uygulamayı Başlatma
+İlk resource örneği için: [`docs/Getting-Started.md`](docs/Getting-Started.md)
 
-`main.go` dosyanızda paneli yapılandırın ve resource'ları kaydedin.
+## Otomatik Açılan API Yapısı
 
-```go
-package main
+Bir resource register edildiğinde bu endpoint'ler otomatik gelir:
 
-import (
-    "gorm.io/driver/sqlite"
-    "gorm.io/gorm"
-    "github.com/ferdiunal/panel.go/pkg/panel"
-)
+- `GET /api/resource/{slug}`
+- `POST /api/resource/{slug}`
+- `GET /api/resource/{slug}/:id`
+- `PUT /api/resource/{slug}/:id`
+- `DELETE /api/resource/{slug}/:id`
 
-func main() {
-    // 1. Veritabanı Bağlantısı
-    db, _ := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-    db.AutoMigrate(&User{})
+## Dokümantasyon Rotası (Son Kullanıcı)
 
-    // 2. Panel Ayarları
-    cfg := panel.Config{
-        Server: panel.ServerConfig{
-            Host: "localhost",
-            Port: "8080",
-        },
-        Database: panel.DatabaseConfig{
-            Instance: db,
-        },
-        Environment: "production", // "development" (embedded assetleri atlar) veya "production"
-        Storage: panel.StorageConfig{
-            Path: "./storage/public", // Disk üzerindeki yol
-            URL:  "/storage",         // URL öneki
-        },
-        Permissions: panel.PermissionConfig{
-            Path: "permissions.toml", // İzin dosyası yolu
-        },
-    }
+### 1. Kurulum ve temel kullanım
+- [`docs/Getting-Started.md`](docs/Getting-Started.md)
+- [`docs/Resources.md`](docs/Resources.md)
+- [`docs/Fields.md`](docs/Fields.md)
+- [`docs/Relationships.md`](docs/Relationships.md)
 
-    // 3. Panel Oluştur
-    app := panel.New(cfg)
-    
-    // Resource Kaydet
-    app.RegisterResource(GetUserResource())
+### 2. Güvenlik ve erişim
+- [`docs/Authentication.md`](docs/Authentication.md)
+- [`docs/Authorization.md`](docs/Authorization.md)
 
-    // 4. Sunucuyu Başlat
-    app.Start()
-}
+### 3. Arayüzü zenginleştirme
+- [`docs/Actions.md`](docs/Actions.md)
+- [`docs/Lenses.md`](docs/Lenses.md)
+- [`docs/Widgets.md`](docs/Widgets.md)
+- [`docs/Pages.md`](docs/Pages.md)
+- [`docs/Settings.md`](docs/Settings.md)
+- [`docs/Notifications.md`](docs/Notifications.md)
+
+### 4. API ve entegrasyon
+- [`docs/API-Reference.md`](docs/API-Reference.md)
+- [`docs/API-OPENAPI.md`](docs/API-OPENAPI.md)
+- [`docs/API-CUSTOM-MAPPING.md`](docs/API-CUSTOM-MAPPING.md)
+
+### 5. İleri seviye
+- [`docs/Advanced-Usage.md`](docs/Advanced-Usage.md)
+- [`docs/Optimization-Guide.md`](docs/Optimization-Guide.md)
+- [`docs/PLUGIN_SYSTEM.md`](docs/PLUGIN_SYSTEM.md)
+- [`docs/PLUGIN_DEVELOPMENT.md`](docs/PLUGIN_DEVELOPMENT.md)
+
+Tam menü: [`docs/_Sidebar.md`](docs/_Sidebar.md)
+
+## CLI Kısa Komutlar
+
+```bash
+panel make:resource Product
+panel make:model Product
+panel make:page Dashboard
+panel make:lens ActiveProducts --resource product
+panel make:action Publish --resource post
 ```
 
-## 🔌 API Endpoints
+Plugin komutları için: [`docs/PLUGIN_CLI.md`](docs/PLUGIN_CLI.md)
 
-Resource kaydedildikten sonra (örneğin `"users"` slug'ı ile), aşağıdaki endpointler otomatik olarak aktif olur:
+## Notlar
 
-| Metot | Endpoint | Açıklama |
-|-------|----------|----------|
-| `GET` | `/api/resource/users` | Listeleme (Sayfalama, Sıralama, Arama destekli) |
-| `POST` | `/api/resource/users` | Yeni kayıt oluşturma |
-| `GET` | `/api/resource/users/:id` | Tekil kayıt detayını görüntüleme |
-| `PUT` | `/api/resource/users/:id` | Kayıt güncelleme |
-| `DELETE` | `/api/resource/users/:id` | Kayıt silme |
+- UI dosyaları repo içinde gömülü gelir; normal kullanımda ayrıca frontend build zorunlu değildir.
+- Frontend tarafında değişiklik yaparsan `make build-ui` ile UI varlıklarını yeniden üretmelisin.
 
-## 🎨 Panel Sistemi
+## Lisans
 
-Panel.go, field'ları card-based panellere gruplamanıza olanak tanır. Bu sayede formlarınızı daha organize, okunabilir ve kullanıcı dostu hale getirebilirsiniz.
-
-### Temel Kullanım
-
-```go
-fields.Panel("Basic Information",
-    fields.Text("Name", "name").Required(),
-    fields.Email("Email", "email").Required(),
-    fields.Number("Age", "age"),
-)
-```
-
-### Grid Layout (1-4 Columns)
-
-Panel içindeki field'ları responsive grid layout ile düzenleyebilirsiniz:
-
-```go
-// 2 sütunlu grid
-fields.Panel("User Details",
-    fields.Text("First Name", "first_name"),
-    fields.Text("Last Name", "last_name"),
-    fields.Email("Email", "email"),
-    fields.Text("Phone", "phone"),
-).WithColumns(2)
-
-// 3 sütunlu grid
-fields.Panel("Address",
-    fields.Text("Street", "street"),
-    fields.Text("City", "city"),
-    fields.Text("State", "state"),
-).WithColumns(3)
-
-// 4 sütunlu grid
-fields.Panel("Metadata",
-    fields.DateTime("Created At", "created_at"),
-    fields.DateTime("Updated At", "updated_at"),
-    fields.Text("Created By", "created_by"),
-    fields.Text("Updated By", "updated_by"),
-).WithColumns(4)
-```
-
-**Responsive Davranış:**
-- 1 sütun: Tüm ekran boyutlarında 1 sütun
-- 2 sütun: Mobile'da 1, tablet ve üstünde 2 sütun
-- 3 sütun: Mobile'da 1, tablet'te 2, desktop'ta 3 sütun
-- 4 sütun: Mobile'da 1, tablet'te 2, desktop'ta 4 sütun
-
-### Panel Özellikleri
-
-#### Açıklama Ekleme
-
-```go
-fields.Panel("Contact Information",
-    fields.Email("Email", "email"),
-    fields.Text("Phone", "phone"),
-).WithDescription("User contact details")
-```
-
-#### Collapsible Panel
-
-```go
-fields.Panel("Advanced Settings",
-    fields.Boolean("Is Active", "is_active"),
-    fields.Select("Status", "status"),
-).Collapsible()  // Açılır/kapanır panel
-```
-
-#### Varsayılan Kapalı Panel
-
-```go
-fields.Panel("Metadata",
-    fields.DateTime("Created At", "created_at").ReadOnly(),
-    fields.DateTime("Updated At", "updated_at").ReadOnly(),
-).Collapsible().DefaultCollapsed()  // Varsayılan olarak kapalı
-```
-
-### Tam Örnek
-
-```go
-func (r *ProductFieldResolver) ResolveFields(ctx *context.Context) []core.Element {
-    return []core.Element{
-        fields.ID("ID").Sortable(),
-
-        // Basic Information Panel - 2 sütunlu grid
-        fields.Panel("Basic Information",
-            fields.Text("Name", "name").Required().Sortable().Searchable(),
-            fields.Number("Price", "price").Required(),
-            fields.Number("Stock", "stock"),
-        ).WithDescription("Product basic details").WithColumns(2),
-
-        // Description Panel - Collapsible
-        fields.Panel("Description",
-            fields.Textarea("Short Description", "description").Searchable(),
-            fields.RichText("Full Details", "details"),
-        ).WithDescription("Product descriptions and details").Collapsible(),
-
-        // Metadata Panel - Varsayılan kapalı
-        fields.Panel("Metadata",
-            fields.DateTime("Created At", "created_at").ReadOnly(),
-            fields.DateTime("Updated At", "updated_at").ReadOnly(),
-        ).WithDescription("System information").WithColumns(2).DefaultCollapsed(),
-    }
-}
-```
-
-**Özellikler:**
-- ✅ Card-based UI (Shadcn UI Card component)
-- ✅ Responsive grid layout (1-4 columns)
-- ✅ Collapsible panels (açılır/kapanır)
-- ✅ Varsayılan kapalı paneller
-- ✅ Panel açıklamaları
-- ✅ Tailwind CSS ile styling
-
-## 🛠 Gelişmiş Kullanım
-
-### Custom Repository Kullanımı
-
-Varsayılan olarak her resource `GormDataProvider` kullanır. Ancak karmaşık sorgulara, farklı veri kaynaklarına veya özel iş mantığına ihtiyacınız varsa kendi repository'nizi kullanabilirsiniz.
-
-1. `data.DataProvider` interface'ini implemente eden bir struct oluşturun.
-2. Resource struct'ınızda `Repository` metodunu override ederek bu provider'ı dönün.
-
-```go
-// 1. Custom Repository Oluşturma
-type MyCustomRepo struct {
-    // ... gerekli alanlar
-}
-
-// data.DataProvider interface metodlarını implemente edin...
-
-// 2. Resource İçinde Tanımlama
-func (r *UserResource) Repository(db *gorm.DB) data.DataProvider {
-    return &MyCustomRepo{}
-}
-```
-
-## 🛡 İzin Sistemi (RBAC)
-
-Panel.go, rol tabanlı erişim kontrolü (RBAC) için yerleşik bir yapı sunar. İzinler bir `TOML` dosyasında tanımlanır ve her kullanıcı rolüne göre yönetilir.
-
-### 1. İzin Dosyası (permissions.toml)
-
-Proje kök dizininde (veya config'de belirttiğiniz yolda) bir TOML dosyası oluşturun:
-
-```toml
-# Sistemde kullanılacak roller
-system_roles = ["admin", "editor", "user"]
-
-[resources]
-  # 'users' kaynağı için izinler
-  [resources.users]
-  label = "Kullanıcı Yönetimi"
-  # Bu kaynağa ait aksiyonlar (backend policy'de kontrol edilir)
-  actions = ["view_any", "view", "create", "update", "delete", "block"]
-
-  [resources.posts]
-  label = "İçerik Yönetimi"
-  actions = ["view_any", "create", "update"]
-```
-
-### 2. Policy Entegrasyonu
-
-Otomatik oluşturulan policy dosyalarınızda (`pkg/policy/`) `HasPermission` metodunu kullanarak yetki kontrolü yapabilirsiniz:
-
-```go
-func (p UserPolicy) View(ctx *appContext.Context, model interface{}) bool {
-    // Kullanıcının "users" kaynağında "view" yetkisi var mı?
-    // Format: {resource_identifier}.{action}
-    return ctx.HasPermission("users.view")
-}
-
-func (p UserPolicy) Create(ctx *appContext.Context) bool {
-    return ctx.HasPermission("users.create")
-}
-```
-
-> **Not:** `admin` rolüne sahip kullanıcılar varsayılan olarak tüm yetkilere sahiptir (`HasPermission` her zaman `true` döner).
-
-### 3. Kullanıcıya Rol Atama
-
-Kullanıcı modelinizde `Role` alanı, `system_roles` içinde tanımlanan değerlerden biri olmalıdır.
-
-```go
-user := User{
-    FullName: "Ahmet Yılmaz",
-    Role:     "editor",
-}
-```
-
-## 📝 Lisans
-
-MIT License.
+MIT

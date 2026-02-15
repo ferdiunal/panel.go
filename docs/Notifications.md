@@ -1,6 +1,22 @@
-# Bildirimler (Notifications) Rehberi
+# Bildirimler (Notifications) Rehberi - Legacy Teknik Akış
 
 Bildirimler, kullanıcılara sistem olayları, durum değişiklikleri ve önemli güncellemeler hakkında gerçek zamanlı bilgi sağlar. Panel.go, modern SSE (Server-Sent Events) teknolojisi ile yüksek performanslı bildirim sistemi sunar.
+
+## Bu Doküman Ne Zaman Okunmalı?
+
+Önerilen sıra:
+1. [Başlarken](Getting-Started)
+2. [Kaynaklar (Resource)](Resources)
+3. [Action'lar](Actions)
+4. Bu doküman (`Notifications`)
+
+## Hızlı Notification Akışı
+
+1. Notification modelini ve service katmanını doğrula.
+2. Uygulama olaylarında (action, workflow, moderation) bildirim oluştur.
+3. SSE endpoint'ini (`/api/notifications/stream`) aktif et.
+4. Frontend'de EventSource ile stream'i dinle.
+5. Okundu/okunmadı yönetimini polling fallback endpoint'leriyle birlikte sürdür.
 
 ## Bildirim Sistemi Nedir?
 
@@ -904,6 +920,13 @@ func (s *NotificationService) CreateFromTemplate(userID, templateKey string, dat
 
 ## Sonuç
 
+Bu rehberde notification akışı uçtan uca (model, service, SSE, frontend, troubleshooting) ele alınmıştır. Üretimde bağlantı kararlılığı, index stratejisi ve rate-limit planlaması ile birlikte kullanılması önerilir.
+
+## Sonraki Adım
+
+- Dashboard ve özet görünüm için: [Widget'lar (Cards)](Widgets)
+- Notification tetikleyen toplu işlemler için: [Action'lar](Actions)
+- Uçtan uca API detayları için: [API Referansı](API-Reference)
 Panel.go bildirim sistemi, modern SSE teknolojisi ile:
 - ✅ Real-time updates (2s latency)
 - ✅ Düşük server load
@@ -917,4 +940,4 @@ Panel.go bildirim sistemi, modern SSE teknolojisi ile:
 - Network Traffic: %90 azalma
 - Battery Usage: %70 azalma
 
-İleri seviye konular için [Advanced-Usage.md](Advanced-Usage.md) dökümanına bakın.
+İleri seviye konular için [Gelişmiş Kullanım](Advanced-Usage) dokümanına bakın.
