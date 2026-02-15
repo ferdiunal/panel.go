@@ -128,4 +128,4 @@ Plugin komutları için: [`docs/PLUGIN_CLI.md`](docs/PLUGIN_CLI.md)
 
 ## Lisans
 
-MIT
+[MIT](LICENSE)
