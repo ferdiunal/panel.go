@@ -1584,6 +1584,25 @@ func (h *FieldHandler) ResolveFieldOptions(element fields.Element, serialized ma
 func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, error) {
 	var body = make(map[string]interface{})
 	elements := h.getElements(c)
+	isFileElement := func(el fields.Element) bool {
+		view := el.GetView()
+		if strings.HasPrefix(view, "file-field") ||
+			strings.HasPrefix(view, "image-field") ||
+			strings.HasPrefix(view, "video-field") ||
+			strings.HasPrefix(view, "audio-field") {
+			return true
+		}
+
+		fieldType := el.JsonSerialize()["type"]
+		switch t := fieldType.(type) {
+		case fields.ElementType:
+			return t == fields.TYPE_FILE || t == fields.TYPE_VIDEO || t == fields.TYPE_AUDIO
+		case string:
+			return t == string(fields.TYPE_FILE) || t == string(fields.TYPE_VIDEO) || t == string(fields.TYPE_AUDIO)
+		default:
+			return false
+		}
+	}
 
 	// Check content type
 	ctype := c.Ctx.Get("Content-Type")
@@ -1601,6 +1620,16 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 		// Fiber BodyParser handles multipart form fields too.
 	}
 
+	// BodyParser may include file fields as empty strings for multipart payloads.
+	// We remove these keys and only trust MultipartForm().File for file-like fields.
+	if strings.Contains(ctype, "multipart/form-data") {
+		for _, el := range elements {
+			if isFileElement(el) {
+				delete(body, el.GetKey())
+			}
+		}
+	}
+
 	// Handle Form Data (Multipart)
 	if form, err := c.Ctx.MultipartForm(); err == nil {
 		for key, values := range form.Value {
@@ -1613,27 +1642,33 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 				var isFileType bool
 				for _, el := range elements {
 					if el.GetKey() == normalizedKey {
-						if el.JsonSerialize()["type"] == fields.TYPE_FILE ||
-							el.JsonSerialize()["type"] == fields.TYPE_VIDEO ||
-							el.JsonSerialize()["type"] == fields.TYPE_AUDIO {
-							isFileType = true
-						}
+						isFileType = isFileElement(el)
 						break
 					}
 				}
 
-				if !isFileType {
-					if strings.HasSuffix(key, "[]") || len(values) > 1 {
-						body[normalizedKey] = values
-					} else {
+				if isFileType {
+					// File fields are populated from form.File, but keep explicit null sentinel
+					// so frontend can clear an existing file value.
+					if len(values) == 1 && values[0] == formNullSentinel {
 						body[normalizedKey] = values[0]
 					}
+					continue
+				}
+
+				if strings.HasSuffix(key, "[]") || len(values) > 1 {
+					body[normalizedKey] = values
+				} else {
+					body[normalizedKey] = values[0]
 				}
 			}
 		}
 		for key, files := range form.File {
 			if len(files) > 0 {
 				file := files[0]
+				if file == nil || strings.TrimSpace(file.Filename) == "" {
+					continue
+				}
 				var path string
 
 				// Check for matching element and callback
@@ -1695,6 +1730,11 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 
 		// MorphTo is handled below by splitting into *_type and *_id fields.
 		if strings.HasPrefix(el.GetView(), "morph-to-field") {
+			continue
+		}
+
+		if isFileElement(el) {
+			body[key] = nil
 			continue
 		}
 

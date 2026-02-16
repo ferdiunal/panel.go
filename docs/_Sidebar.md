@@ -7,6 +7,7 @@
 - [Alanlar (Fields)](Fields)
   - [Bağımlı Alanlar](Dependent-Fields)
   - [Bağımlı Alanlar Playbook](Dependent-Fields-Playbook)
+  - [Bağımlı Alanlar Vaka Notu (Hero Item)](Dependent-Fields-HeroItem-Case)
   - [Dialog Field](DIALOG_FIELD)
   - [Tabs Field ve UI FileSystem](TABS_FIELD_UI_FILESYSTEM)
 - [İlişkiler (Relationships)](Relationships)

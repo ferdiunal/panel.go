@@ -313,3 +313,249 @@ func TestParseBody_MultipartMissingBelongsToManyBecomesEmptySlice(t *testing.T) 
 		t.Fatalf("expected tags to be empty slice, got %#v", tags)
 	}
 }
+
+func TestParseBody_MultipartFileFieldUsesStorageCallback(t *testing.T) {
+	imageField := fields.Image("Image", "image")
+	imageField.StoreAs(func(c *fiber.Ctx, file *multipart.FileHeader) (string, error) {
+		_ = c
+		if file == nil {
+			t.Fatalf("expected multipart file header")
+		}
+		if file.Filename != "hero.webp" {
+			t.Fatalf("expected filename hero.webp, got %q", file.Filename)
+		}
+		return "/storage/hero.webp", nil
+	})
+
+	h := newRelationTestHandler([]fields.Element{
+		fields.Text("Title", "title"),
+		imageField,
+	})
+
+	var formBody bytes.Buffer
+	writer := multipart.NewWriter(&formBody)
+	if err := writer.WriteField("title", "Hero"); err != nil {
+		t.Fatalf("failed to write title field: %v", err)
+	}
+
+	filePart, err := writer.CreateFormFile("image", "hero.webp")
+	if err != nil {
+		t.Fatalf("failed to create image part: %v", err)
+	}
+	if _, err := filePart.Write([]byte("fake-image-content")); err != nil {
+		t.Fatalf("failed to write image content: %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to close multipart writer: %v", err)
+	}
+
+	parsed := runParseBodyRequest(
+		t,
+		h,
+		writer.FormDataContentType(),
+		&formBody,
+	)
+
+	if parsed["title"] != "Hero" {
+		t.Fatalf("expected title to be Hero, got %#v", parsed["title"])
+	}
+	if parsed["image"] != "/storage/hero.webp" {
+		t.Fatalf("expected image to be /storage/hero.webp, got %#v", parsed["image"])
+	}
+}
+
+func TestParseBody_MultipartFileSentinelConvertedToNil(t *testing.T) {
+	h := newRelationTestHandler([]fields.Element{
+		fields.Image("Image", "image"),
+	})
+
+	var formBody bytes.Buffer
+	writer := multipart.NewWriter(&formBody)
+	if err := writer.WriteField("image", formNullSentinel); err != nil {
+		t.Fatalf("failed to write image sentinel field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to close multipart writer: %v", err)
+	}
+
+	parsed := runParseBodyRequest(
+		t,
+		h,
+		writer.FormDataContentType(),
+		&formBody,
+	)
+
+	value, exists := parsed["image"]
+	if !exists {
+		t.Fatalf("expected image key in parsed body")
+	}
+	if value != nil {
+		t.Fatalf("expected image to be nil, got %#v", value)
+	}
+}
+
+func TestParseBody_MultipartZeroByteFileStillCallsStorage(t *testing.T) {
+	storageCalled := false
+	imageField := fields.Image("Image", "image")
+	imageField.StoreAs(func(c *fiber.Ctx, file *multipart.FileHeader) (string, error) {
+		_ = c
+		storageCalled = true
+		if file == nil {
+			t.Fatalf("expected multipart file header")
+		}
+		return "/storage/empty.webp", nil
+	})
+
+	h := newRelationTestHandler([]fields.Element{
+		imageField,
+	})
+
+	var formBody bytes.Buffer
+	writer := multipart.NewWriter(&formBody)
+	if _, err := writer.CreateFormFile("image", "empty.webp"); err != nil {
+		t.Fatalf("failed to create zero-byte image part: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to close multipart writer: %v", err)
+	}
+
+	parsed := runParseBodyRequest(
+		t,
+		h,
+		writer.FormDataContentType(),
+		&formBody,
+	)
+
+	if !storageCalled {
+		t.Fatalf("expected storage callback to be called for zero-byte file")
+	}
+	if parsed["image"] != "/storage/empty.webp" {
+		t.Fatalf("expected image to be /storage/empty.webp, got %#v", parsed["image"])
+	}
+}
+
+func TestHandleResolveDependencies_NormalizesFieldEnvelopeValues(t *testing.T) {
+	staticURLField := fields.Text("Static URL", "static_url")
+	staticURLField.DependsOn("target_type")
+	staticURLField.OnDependencyChange(func(
+		field *fields.Schema,
+		formData map[string]interface{},
+		ctx *fiber.Ctx,
+	) *fields.FieldUpdate {
+		_ = field
+		_ = ctx
+
+		targetType, _ := formData["target_type"].(string)
+		if targetType == "static_url" {
+			return fields.NewFieldUpdate().Show().Enable().MakeRequired()
+		}
+		return fields.NewFieldUpdate().Hide().Disable().MakeOptional()
+	})
+
+	h := newRelationTestHandler([]fields.Element{
+		fields.Select("Target Type", "target_type"),
+		staticURLField,
+	})
+
+	statusCode, response := runResolveDependenciesRequest(t, h, map[string]interface{}{
+		"formData": map[string]interface{}{
+			"target_type": map[string]interface{}{
+				"key":  "target_type",
+				"type": "select",
+				"data": "static_url",
+			},
+		},
+		"context":       "update",
+		"changedFields": []string{"target_type"},
+	})
+
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+
+	updates, ok := response["fields"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected response.fields to be map, got %T", response["fields"])
+	}
+
+	staticURLUpdate, ok := updates["static_url"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected static_url update, got: %#v", updates["static_url"])
+	}
+
+	if visible, _ := staticURLUpdate["visible"].(bool); !visible {
+		t.Fatalf("expected static_url.visible to be true, got %#v", staticURLUpdate["visible"])
+	}
+	if required, _ := staticURLUpdate["required"].(bool); !required {
+		t.Fatalf("expected static_url.required to be true, got %#v", staticURLUpdate["required"])
+	}
+	if disabled, _ := staticURLUpdate["disabled"].(bool); disabled {
+		t.Fatalf("expected static_url.disabled to be false, got %#v", staticURLUpdate["disabled"])
+	}
+}
+
+func TestHandleResolveDependencies_NormalizesEditResponseShape(t *testing.T) {
+	staticURLField := fields.Text("Static URL", "static_url")
+	staticURLField.DependsOn("target_type")
+	staticURLField.OnDependencyChange(func(
+		field *fields.Schema,
+		formData map[string]interface{},
+		ctx *fiber.Ctx,
+	) *fields.FieldUpdate {
+		_ = field
+		_ = ctx
+
+		targetType, _ := formData["target_type"].(string)
+		if targetType == "static_url" {
+			return fields.NewFieldUpdate().Show().Enable().MakeRequired()
+		}
+		return fields.NewFieldUpdate().Hide().Disable().MakeOptional()
+	})
+
+	h := newRelationTestHandler([]fields.Element{
+		fields.Select("Target Type", "target_type"),
+		staticURLField,
+	})
+
+	statusCode, response := runResolveDependenciesRequest(t, h, map[string]interface{}{
+		"formData": map[string]interface{}{
+			"fields": []interface{}{
+				map[string]interface{}{
+					"key":  "target_type",
+					"type": "select",
+					"data": "static_url",
+				},
+			},
+			"meta": map[string]interface{}{
+				"title": "Example",
+			},
+		},
+		"context":       "update",
+		"changedFields": []string{"target_type"},
+	})
+
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+
+	updates, ok := response["fields"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected response.fields to be map, got %T", response["fields"])
+	}
+
+	staticURLUpdate, ok := updates["static_url"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected static_url update, got: %#v", updates["static_url"])
+	}
+
+	if visible, _ := staticURLUpdate["visible"].(bool); !visible {
+		t.Fatalf("expected static_url.visible to be true, got %#v", staticURLUpdate["visible"])
+	}
+	if required, _ := staticURLUpdate["required"].(bool); !required {
+		t.Fatalf("expected static_url.required to be true, got %#v", staticURLUpdate["required"])
+	}
+	if disabled, _ := staticURLUpdate["disabled"].(bool); disabled {
+		t.Fatalf("expected static_url.disabled to be false, got %#v", staticURLUpdate["disabled"])
+	}
+}

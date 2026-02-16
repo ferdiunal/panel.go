@@ -4,6 +4,29 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### 🧩 Edit Form Select Initial Value Düzeltmesi (Dependent Fields / target_type)
+
+Edit formda backend `target_type` değeri gelse bile select alanının placeholder göstermesi sorunu giderildi.
+
+#### Frontend
+
+- `web/src/components/fields/form/SelectField.tsx`:
+  - Select value normalize akışı güçlendirildi (`string`, `object`, JSON-string payload desteği).
+  - RHF değeri boş geldiğinde `field.data` fallback'i ile seçili değer korunuyor.
+  - Fallback değer form state'e senkronize edilerek dependency resolver ile tutarlılık sağlandı.
+- `web/src/pages/resource/index.tsx`:
+  - Edit initial data üretiminde select alanları normalize edilerek initialize ediliyor.
+  - `target_type` eksik/boş payload senaryosunda `product_id` / `category_id` / `static_url` üzerinden güvenli infer eklendi.
+
+#### Sonuç
+
+- Edit modal açılışında `Hedef Tipi` alanı artık kayıtlı değeri seçili gösterir.
+- `depends_on("target_type")` ile kontrol edilen alanlar ilk render'da doğru görünür/aktif olur.
+
+#### Doğrulama
+
+- ✅ `bun run build` (`web/`)
+
 ### 📊 Chart Widget Modernizasyonu (shadcn/ui + Dinamik Series)
 
 Dashboard chart kartları shadcn/ui örneklerine taşındı ve backend/frontend veri sözleşmesi genişletildi.

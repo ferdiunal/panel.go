@@ -39,7 +39,10 @@
 package handler
 
 import (
+	"encoding/json"
+	"log"
 	"reflect"
+	"strings"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
@@ -306,18 +309,32 @@ func HandleResolveDependencies(h *FieldHandler, c *context.Context) error {
 	// Parse request body
 	var req ResolveDependenciesRequest
 	if err := c.Ctx.BodyParser(&req); err != nil {
+		log.Printf("[depends][controller] body-parse-failed resource=%s error=%v", c.Params("resource"), err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
 
+	req.FormData = normalizeDependencyFormData(req.FormData)
+
+	log.Printf(
+		"[depends][controller] request resource=%s context=%s changedFields=%v resourceId=%v formData=%s",
+		c.Params("resource"),
+		req.Context,
+		req.ChangedFields,
+		req.ResourceID,
+		toJSONForDependencyLog(req.FormData),
+	)
+
 	// Accept "edit" as an alias for "update" from frontend mode naming.
 	if req.Context == "edit" {
 		req.Context = "update"
+		log.Printf("[depends][controller] context-normalized resource=%s normalizedContext=%s", c.Params("resource"), req.Context)
 	}
 
 	// Validate context
 	if req.Context != "create" && req.Context != "update" {
+		log.Printf("[depends][controller] invalid-context resource=%s context=%s", c.Params("resource"), req.Context)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid context. Must be 'create', 'edit', or 'update'",
 		})
@@ -332,11 +349,21 @@ func HandleResolveDependencies(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
+	log.Printf(
+		"[depends][controller] schema-ready resource=%s context=%s elements=%d schemaFields=%d changedFields=%v",
+		c.Params("resource"),
+		req.Context,
+		len(elements),
+		len(schemaFields),
+		req.ChangedFields,
+	)
+
 	// Create dependency resolver
 	resolver := fields.NewDependencyResolver(schemaFields, req.Context)
 
 	// Check for circular dependencies
 	if err := resolver.DetectCircularDependencies(); err != nil {
+		log.Printf("[depends][controller] circular-detected resource=%s error=%v", c.Params("resource"), err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -345,10 +372,18 @@ func HandleResolveDependencies(h *FieldHandler, c *context.Context) error {
 	// Resolve dependencies
 	updates, err := resolver.ResolveDependencies(req.FormData, req.ChangedFields, c.Ctx)
 	if err != nil {
+		log.Printf("[depends][controller] resolve-failed resource=%s error=%v", c.Params("resource"), err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to resolve dependencies",
 		})
 	}
+
+	log.Printf(
+		"[depends][controller] response resource=%s updatedFields=%d payload=%s",
+		c.Params("resource"),
+		len(updates),
+		toJSONForDependencyLog(updates),
+	)
 
 	// Return field updates
 	return c.JSON(fiber.Map{
@@ -388,4 +423,94 @@ func schemaFromElement(element fields.Element) *fields.Schema {
 	}
 
 	return nil
+}
+
+func normalizeDependencyFormData(formData map[string]interface{}) map[string]interface{} {
+	if len(formData) == 0 {
+		return formData
+	}
+
+	normalized := make(map[string]interface{}, len(formData))
+
+	// Support payloads copied from edit responses:
+	// { "fields": [ { "key": "...", "data": ... }, ... ], "meta": {...} }
+	if rawFields, ok := formData["fields"]; ok {
+		if fieldList, ok := rawFields.([]interface{}); ok {
+			for _, rawField := range fieldList {
+				fieldMap, ok := rawField.(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				key, _ := fieldMap["key"].(string)
+				if strings.TrimSpace(key) == "" {
+					continue
+				}
+
+				if data, exists := fieldMap["data"]; exists {
+					normalized[key] = normalizeDependencyFormValue(data)
+				}
+			}
+		}
+	}
+
+	for key, value := range formData {
+		if key == "fields" || key == "meta" {
+			continue
+		}
+		normalized[key] = normalizeDependencyFormValue(value)
+	}
+
+	if len(normalized) == 0 {
+		return formData
+	}
+
+	return normalized
+}
+
+func normalizeDependencyFormValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		rawData, hasData := v["data"]
+		if hasData && isFieldValueEnvelope(v) {
+			return normalizeDependencyFormValue(rawData)
+		}
+		return v
+	case []interface{}:
+		normalized := make([]interface{}, 0, len(v))
+		for _, item := range v {
+			normalized = append(normalized, normalizeDependencyFormValue(item))
+		}
+		return normalized
+	default:
+		return value
+	}
+}
+
+func isFieldValueEnvelope(value map[string]interface{}) bool {
+	if _, ok := value["data"]; !ok {
+		return false
+	}
+
+	if len(value) == 1 {
+		return true
+	}
+
+	_, hasKey := value["key"]
+	_, hasType := value["type"]
+	_, hasView := value["view"]
+	_, hasName := value["name"]
+	_, hasLabel := value["label"]
+	_, hasDependsOn := value["depends_on"]
+	_, hasDependencyRules := value["dependency_rules"]
+
+	return hasKey || hasType || hasView || hasName || hasLabel || hasDependsOn || hasDependencyRules
+}
+
+func toJSONForDependencyLog(v interface{}) string {
+	payload, err := json.Marshal(v)
+	if err != nil {
+		return "<marshal_error>"
+	}
+	return string(payload)
 }

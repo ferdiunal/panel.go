@@ -25,20 +25,25 @@
 // resolver := NewDependencyResolver(fields, "form")
 //
 // // Döngüsel bağımlılık kontrolü
-// if err := resolver.DetectCircularDependencies(); err != nil {
-//     log.Fatal(err)
-// }
+//
+//	if err := resolver.DetectCircularDependencies(); err != nil {
+//	    log.Fatal(err)
+//	}
 //
 // // Değişen alanlar için bağımlılıkları çöz
 // updates, err := resolver.ResolveDependencies(formData, []string{"country"}, ctx)
-// if err != nil {
-//     log.Fatal(err)
-// }
+//
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
 // ```
 package fields
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -105,11 +110,12 @@ type DependencyResolver struct {
 // ## Kullanım Örneği
 //
 // ```go
-// fields := []*Schema{
-//     {Key: "country", DependsOnFields: []string{}},
-//     {Key: "city", DependsOnFields: []string{"country"}},
-//     {Key: "district", DependsOnFields: []string{"city"}},
-// }
+//
+//	fields := []*Schema{
+//	    {Key: "country", DependsOnFields: []string{}},
+//	    {Key: "city", DependsOnFields: []string{"country"}},
+//	    {Key: "district", DependsOnFields: []string{"city"}},
+//	}
 //
 // resolver := NewDependencyResolver(fields, "form")
 // ```
@@ -157,24 +163,28 @@ func NewDependencyResolver(fields []*Schema, context string) *DependencyResolver
 //
 // ```go
 // // Form verisi
-// formData := map[string]interface{}{
-//     "country": "TR",
-//     "city": "Istanbul",
-// }
+//
+//	formData := map[string]interface{}{
+//	    "country": "TR",
+//	    "city": "Istanbul",
+//	}
 //
 // // Değişen alanlar
 // changedFields := []string{"country"}
 //
 // // Bağımlılıkları çöz
 // updates, err := resolver.ResolveDependencies(formData, changedFields, ctx)
-// if err != nil {
-//     return err
-// }
+//
+//	if err != nil {
+//	    return err
+//	}
 //
 // // Güncellemeleri uygula
-// for fieldKey, update := range updates {
-//     fmt.Printf("Alan %s güncellendi: %+v\n", fieldKey, update)
-// }
+//
+//	for fieldKey, update := range updates {
+//	    fmt.Printf("Alan %s güncellendi: %+v\n", fieldKey, update)
+//	}
+//
 // ```
 //
 // ## Performans
@@ -199,31 +209,61 @@ func (r *DependencyResolver) ResolveDependencies(
 ) (map[string]*FieldUpdate, error) {
 	updates := make(map[string]*FieldUpdate)
 
+	log.Printf(
+		"[depends][resolver] start context=%s changedFields=%v formData=%s fieldCount=%d",
+		r.context,
+		changedFields,
+		toDependencyJSON(formData),
+		len(r.fields),
+	)
+
 	// Build dependency graph
 	dependencyGraph := r.buildDependencyGraph()
+	log.Printf("[depends][resolver] dependency-graph context=%s graph=%s", r.context, toDependencyJSON(dependencyGraph))
 
 	// Find affected fields
 	affectedFields := r.findAffectedFields(dependencyGraph, changedFields)
+	log.Printf("[depends][resolver] affected-fields context=%s changed=%v affected=%v", r.context, changedFields, affectedFields)
 
 	// Execute callbacks for affected fields
 	for _, fieldKey := range affectedFields {
 		field := r.findFieldByKey(fieldKey)
 		if field == nil {
+			log.Printf("[depends][resolver] skip-missing-field key=%s", fieldKey)
 			continue
 		}
 
 		// Get the appropriate callback based on context
 		callback := field.GetDependencyCallback(r.context)
 		if callback == nil {
+			log.Printf(
+				"[depends][resolver] skip-no-callback key=%s context=%s dependsOn=%v",
+				fieldKey,
+				r.context,
+				field.DependsOnFields,
+			)
 			continue
 		}
+
+		log.Printf(
+			"[depends][resolver] callback-exec key=%s context=%s dependsOn=%v",
+			fieldKey,
+			r.context,
+			field.DependsOnFields,
+		)
 
 		// Execute callback
 		update := callback(field, formData, ctx)
 		if update != nil {
 			updates[fieldKey] = update
+			log.Printf("[depends][resolver] callback-update key=%s update=%s", fieldKey, toDependencyJSON(update))
+			continue
 		}
+
+		log.Printf("[depends][resolver] callback-nil key=%s", fieldKey)
 	}
+
+	log.Printf("[depends][resolver] done context=%s updates=%s", r.context, toDependencyJSON(updates))
 
 	return updates, nil
 }
@@ -274,10 +314,10 @@ func (r *DependencyResolver) ResolveDependencies(
 //
 // 1. Boş bir graf map'i oluştur
 // 2. Her alan için:
-//    - Eğer bağımlılığı yoksa atla
-//    - Her bağımlılık için:
-//      - Graf'ta bağımlı olunan alanı key olarak ekle
-//      - Bu key'in value listesine mevcut alanı ekle
+//   - Eğer bağımlılığı yoksa atla
+//   - Her bağımlılık için:
+//   - Graf'ta bağımlı olunan alanı key olarak ekle
+//   - Bu key'in value listesine mevcut alanı ekle
 //
 // ## Performans
 //
@@ -307,6 +347,8 @@ func (r *DependencyResolver) buildDependencyGraph() map[string][]string {
 			graph[dependsOn] = append(graph[dependsOn], field.Key)
 		}
 	}
+
+	log.Printf("[depends][resolver] graph-built context=%s graph=%s", r.context, toDependencyJSON(graph))
 
 	return graph
 }
@@ -346,10 +388,10 @@ func (r *DependencyResolver) buildDependencyGraph() map[string][]string {
 // // country -> city -> district
 // //         -> state
 //
-// graph := map[string][]string{
-//     "country": {"city", "state"},
-//     "city": {"district"},
-// }
+//	graph := map[string][]string{
+//	    "country": {"city", "state"},
+//	    "city": {"district"},
+//	}
 //
 // // country değiştiğinde etkilenen alanlar
 // affected := resolver.findAffectedFields(graph, []string{"country"})
@@ -365,6 +407,7 @@ func (r *DependencyResolver) buildDependencyGraph() map[string][]string {
 // - **Zaman Karmaşıklığı**: O(V + E)
 //   - V: Graf'taki toplam alan sayısı
 //   - E: Graf'taki toplam bağımlılık sayısı
+//
 // - **Alan Karmaşıklığı**: O(V)
 //   - affected, visited ve queue için
 //
@@ -372,11 +415,17 @@ func (r *DependencyResolver) buildDependencyGraph() map[string][]string {
 //
 // ```
 // Değişiklik: country = "TR"
-//   ↓
+//
+//	↓
+//
 // Etkilenen: city (İstanbul, Ankara, İzmir seçenekleri yüklenir)
-//   ↓
+//
+//	↓
+//
 // Etkilenen: district (city'ye göre ilçeler yüklenir)
-//   ↓
+//
+//	↓
+//
 // Etkilenen: neighborhood (district'e göre mahalleler yüklenir)
 // ```
 //
@@ -402,24 +451,30 @@ func (r *DependencyResolver) findAffectedFields(
 	// BFS to find all affected fields
 	queue := make([]string, len(changedFields))
 	copy(queue, changedFields)
+	log.Printf("[depends][resolver] bfs-start changed=%v", changedFields)
 
 	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
+		log.Printf("[depends][resolver] bfs-pop current=%s pending=%v", current, queue)
 
 		if visited[current] {
+			log.Printf("[depends][resolver] bfs-skip-visited current=%s", current)
 			continue
 		}
 		visited[current] = true
 
 		// Get fields that depend on current field
 		dependents := graph[current]
+		log.Printf("[depends][resolver] bfs-dependents current=%s dependents=%v", current, dependents)
 		for _, dependent := range dependents {
 			affected[dependent] = true
+			log.Printf("[depends][resolver] bfs-affected dependent=%s by=%s", dependent, current)
 
 			// Check for circular dependencies
 			if !visited[dependent] {
 				queue = append(queue, dependent)
+				log.Printf("[depends][resolver] bfs-enqueue dependent=%s queue=%v", dependent, queue)
 			}
 		}
 	}
@@ -429,6 +484,8 @@ func (r *DependencyResolver) findAffectedFields(
 	for field := range affected {
 		result = append(result, field)
 	}
+
+	log.Printf("[depends][resolver] bfs-done changed=%v affected=%v", changedFields, result)
 
 	return result
 }
@@ -455,25 +512,29 @@ func (r *DependencyResolver) findAffectedFields(
 //
 // ```go
 // // Alan listesi
-// fields := []*Schema{
-//     {Key: "country", Label: "Ülke"},
-//     {Key: "city", Label: "Şehir"},
-//     {Key: "district", Label: "İlçe"},
-// }
+//
+//	fields := []*Schema{
+//	    {Key: "country", Label: "Ülke"},
+//	    {Key: "city", Label: "Şehir"},
+//	    {Key: "district", Label: "İlçe"},
+//	}
 //
 // resolver := NewDependencyResolver(fields, "form")
 //
 // // Alan bul
 // cityField := resolver.findFieldByKey("city")
-// if cityField != nil {
-//     fmt.Println(cityField.Label) // "Şehir"
-// }
+//
+//	if cityField != nil {
+//	    fmt.Println(cityField.Label) // "Şehir"
+//	}
 //
 // // Olmayan alan
 // unknownField := resolver.findFieldByKey("unknown")
-// if unknownField == nil {
-//     fmt.Println("Alan bulunamadı")
-// }
+//
+//	if unknownField == nil {
+//	    fmt.Println("Alan bulunamadı")
+//	}
+//
 // ```
 //
 // ## Performans
@@ -490,21 +551,23 @@ func (r *DependencyResolver) findAffectedFields(
 //
 // ```go
 // // Örnek optimizasyon
-// type DependencyResolver struct {
-//     fields    []*Schema
-//     fieldMap  map[string]*Schema // Cache
-//     context   string
-// }
 //
-// func (r *DependencyResolver) findFieldByKey(key string) *Schema {
-//     if r.fieldMap == nil {
-//         r.fieldMap = make(map[string]*Schema)
-//         for _, field := range r.fields {
-//             r.fieldMap[field.Key] = field
-//         }
-//     }
-//     return r.fieldMap[key]
-// }
+//	type DependencyResolver struct {
+//	    fields    []*Schema
+//	    fieldMap  map[string]*Schema // Cache
+//	    context   string
+//	}
+//
+//	func (r *DependencyResolver) findFieldByKey(key string) *Schema {
+//	    if r.fieldMap == nil {
+//	        r.fieldMap = make(map[string]*Schema)
+//	        for _, field := range r.fields {
+//	            r.fieldMap[field.Key] = field
+//	        }
+//	    }
+//	    return r.fieldMap[key]
+//	}
+//
 // ```
 //
 // ## Önemli Notlar
@@ -558,43 +621,51 @@ func (r *DependencyResolver) findFieldByKey(key string) *Schema {
 // **Karmaşık Döngü:**
 // ```
 // Alan A -> Alan B -> Alan C
-//           ↓         ↓
-//         Alan D -> Alan E -> Alan A
+//
+//	  ↓         ↓
+//	Alan D -> Alan E -> Alan A
+//
 // ```
 //
 // ## Kullanım Örneği
 //
 // ```go
 // // Alan tanımları
-// fields := []*Schema{
-//     {Key: "country", DependsOnFields: []string{"city"}},  // Hatalı!
-//     {Key: "city", DependsOnFields: []string{"country"}},  // Döngü!
-// }
+//
+//	fields := []*Schema{
+//	    {Key: "country", DependsOnFields: []string{"city"}},  // Hatalı!
+//	    {Key: "city", DependsOnFields: []string{"country"}},  // Döngü!
+//	}
 //
 // resolver := NewDependencyResolver(fields, "form")
 //
 // // Döngüsel bağımlılık kontrolü
-// if err := resolver.DetectCircularDependencies(); err != nil {
-//     log.Fatal(err) // "circular dependency detected involving field: country"
-// }
+//
+//	if err := resolver.DetectCircularDependencies(); err != nil {
+//	    log.Fatal(err) // "circular dependency detected involving field: country"
+//	}
+//
 // ```
 //
 // ## Doğru Kullanım
 //
 // ```go
 // // Doğru alan tanımları (tek yönlü bağımlılık)
-// fields := []*Schema{
-//     {Key: "country", DependsOnFields: []string{}},
-//     {Key: "city", DependsOnFields: []string{"country"}},
-//     {Key: "district", DependsOnFields: []string{"city"}},
-// }
+//
+//	fields := []*Schema{
+//	    {Key: "country", DependsOnFields: []string{}},
+//	    {Key: "city", DependsOnFields: []string{"country"}},
+//	    {Key: "district", DependsOnFields: []string{"city"}},
+//	}
 //
 // resolver := NewDependencyResolver(fields, "form")
 //
 // // Kontrol başarılı
-// if err := resolver.DetectCircularDependencies(); err != nil {
-//     log.Fatal(err)
-// }
+//
+//	if err := resolver.DetectCircularDependencies(); err != nil {
+//	    log.Fatal(err)
+//	}
+//
 // // Hata yok, sistem güvenli
 // ```
 //
@@ -604,8 +675,9 @@ func (r *DependencyResolver) findFieldByKey(key string) *Schema {
 // 2. Alanı ziyaret edildi olarak işaretle
 // 3. Alanı recursion stack'e ekle
 // 4. Alanın bağımlılarını kontrol et:
-//    - Bağımlı henüz ziyaret edilmemişse, recursive DFS çağrısı yap
-//    - Bağımlı recursion stack'te varsa, döngü tespit edildi
+//   - Bağımlı henüz ziyaret edilmemişse, recursive DFS çağrısı yap
+//   - Bağımlı recursion stack'te varsa, döngü tespit edildi
+//
 // 5. Alanı recursion stack'ten çıkar
 //
 // ## Performans
@@ -613,6 +685,7 @@ func (r *DependencyResolver) findFieldByKey(key string) *Schema {
 // - **Zaman Karmaşıklığı**: O(V + E)
 //   - V: Toplam alan sayısı
 //   - E: Toplam bağımlılık sayısı
+//
 // - **Alan Karmaşıklığı**: O(V)
 //   - visited ve recStack map'leri için
 //
@@ -633,42 +706,59 @@ func (r *DependencyResolver) findFieldByKey(key string) *Schema {
 //
 // **İPUCU**: Geliştirme ortamında panic kullanarak erken tespit yapılabilir:
 // ```go
-// if err := resolver.DetectCircularDependencies(); err != nil {
-//     panic(err) // Geliştirme ortamında hemen fark edilir
-// }
+//
+//	if err := resolver.DetectCircularDependencies(); err != nil {
+//	    panic(err) // Geliştirme ortamında hemen fark edilir
+//	}
+//
 // ```
 //
 // ## Test Örneği
 //
 // ```go
-// func TestCircularDependency(t *testing.T) {
-//     fields := []*Schema{
-//         {Key: "a", DependsOnFields: []string{"b"}},
-//         {Key: "b", DependsOnFields: []string{"c"}},
-//         {Key: "c", DependsOnFields: []string{"a"}}, // Döngü!
-//     }
 //
-//     resolver := NewDependencyResolver(fields, "test")
-//     err := resolver.DetectCircularDependencies()
+//	func TestCircularDependency(t *testing.T) {
+//	    fields := []*Schema{
+//	        {Key: "a", DependsOnFields: []string{"b"}},
+//	        {Key: "b", DependsOnFields: []string{"c"}},
+//	        {Key: "c", DependsOnFields: []string{"a"}}, // Döngü!
+//	    }
 //
-//     assert.Error(t, err)
-//     assert.Contains(t, err.Error(), "circular dependency")
-// }
+//	    resolver := NewDependencyResolver(fields, "test")
+//	    err := resolver.DetectCircularDependencies()
+//
+//	    assert.Error(t, err)
+//	    assert.Contains(t, err.Error(), "circular dependency")
+//	}
+//
 // ```
 func (r *DependencyResolver) DetectCircularDependencies() error {
 	graph := r.buildDependencyGraph()
 	visited := make(map[string]bool)
 	recStack := make(map[string]bool)
 
+	log.Printf("[depends][resolver] circular-check-start context=%s fieldCount=%d", r.context, len(r.fields))
+
 	for _, field := range r.fields {
 		if !visited[field.Key] {
 			if r.hasCycle(field.Key, graph, visited, recStack) {
+				log.Printf("[depends][resolver] circular-check-failed context=%s field=%s", r.context, field.Key)
 				return fmt.Errorf("circular dependency detected involving field: %s", field.Key)
 			}
 		}
 	}
 
+	log.Printf("[depends][resolver] circular-check-ok context=%s", r.context)
+
 	return nil
+}
+
+func toDependencyJSON(v interface{}) string {
+	payload, err := json.Marshal(v)
+	if err != nil {
+		return "<marshal_error>"
+	}
+	return string(payload)
 }
 
 // # hasCycle
@@ -697,25 +787,26 @@ func (r *DependencyResolver) DetectCircularDependencies() error {
 // DFS algoritması iki map kullanır:
 //
 // 1. **visited**: Bir alanın daha önce ziyaret edilip edilmediğini tutar
-//    - Gereksiz tekrar ziyaretleri önler
-//    - Performans optimizasyonu sağlar
+//   - Gereksiz tekrar ziyaretleri önler
+//   - Performans optimizasyonu sağlar
 //
 // 2. **recStack** (Recursion Stack): Mevcut DFS yolunda hangi alanların olduğunu tutar
-//    - Eğer bir alan hem ziyaret edilmişse hem de recStack'te varsa, döngü var demektir
-//    - Her DFS dalı tamamlandığında alan recStack'ten çıkarılır
+//   - Eğer bir alan hem ziyaret edilmişse hem de recStack'te varsa, döngü var demektir
+//   - Her DFS dalı tamamlandığında alan recStack'ten çıkarılır
 //
 // ## Adım Adım Çalışma
 //
 // ```
-// 1. Alanı visited ve recStack'e ekle
-// 2. Alanın tüm bağımlılarını kontrol et:
-//    a. Bağımlı henüz ziyaret edilmemişse:
-//       - Recursive olarak hasCycle çağır
-//       - Eğer döngü bulunursa true döndür
-//    b. Bağımlı recStack'te varsa:
-//       - Döngü tespit edildi, true döndür
-// 3. Alanı recStack'ten çıkar (backtrack)
-// 4. Döngü bulunamadı, false döndür
+//  1. Alanı visited ve recStack'e ekle
+//  2. Alanın tüm bağımlılarını kontrol et:
+//     a. Bağımlı henüz ziyaret edilmemişse:
+//     - Recursive olarak hasCycle çağır
+//     - Eğer döngü bulunursa true döndür
+//     b. Bağımlı recStack'te varsa:
+//     - Döngü tespit edildi, true döndür
+//  3. Alanı recStack'ten çıkar (backtrack)
+//  4. Döngü bulunamadı, false döndür
+//
 // ```
 //
 // ## Görsel Örnek
@@ -725,14 +816,16 @@ func (r *DependencyResolver) DetectCircularDependencies() error {
 // A -> B -> C -> A
 //
 // hasCycle("A"):
-//   visited: {A}, recStack: {A}
-//   hasCycle("B"):
-//     visited: {A,B}, recStack: {A,B}
-//     hasCycle("C"):
-//       visited: {A,B,C}, recStack: {A,B,C}
-//       hasCycle("A"):
-//         A visited=true ve recStack=true
-//         DÖNGÜ TESPİT EDİLDİ! -> return true
+//
+//	visited: {A}, recStack: {A}
+//	hasCycle("B"):
+//	  visited: {A,B}, recStack: {A,B}
+//	  hasCycle("C"):
+//	    visited: {A,B,C}, recStack: {A,B,C}
+//	    hasCycle("A"):
+//	      A visited=true ve recStack=true
+//	      DÖNGÜ TESPİT EDİLDİ! -> return true
+//
 // ```
 //
 // **Döngü Yok:**
@@ -741,19 +834,21 @@ func (r *DependencyResolver) DetectCircularDependencies() error {
 // A -> D
 //
 // hasCycle("A"):
-//   visited: {A}, recStack: {A}
-//   hasCycle("B"):
-//     visited: {A,B}, recStack: {A,B}
-//     hasCycle("C"):
-//       visited: {A,B,C}, recStack: {A,B,C}
-//       C'nin bağımlısı yok
-//       recStack: {A,B} (C çıkarıldı)
-//     recStack: {A} (B çıkarıldı)
-//   hasCycle("D"):
-//     visited: {A,B,C,D}, recStack: {A,D}
-//     D'nin bağımlısı yok
-//     recStack: {A} (D çıkarıldı)
-//   recStack: {} (A çıkarıldı)
+//
+//	visited: {A}, recStack: {A}
+//	hasCycle("B"):
+//	  visited: {A,B}, recStack: {A,B}
+//	  hasCycle("C"):
+//	    visited: {A,B,C}, recStack: {A,B,C}
+//	    C'nin bağımlısı yok
+//	    recStack: {A,B} (C çıkarıldı)
+//	  recStack: {A} (B çıkarıldı)
+//	hasCycle("D"):
+//	  visited: {A,B,C,D}, recStack: {A,D}
+//	  D'nin bağımlısı yok
+//	  recStack: {A} (D çıkarıldı)
+//	recStack: {} (A çıkarıldı)
+//
 // DÖNGÜ YOK -> return false
 // ```
 //
@@ -763,6 +858,7 @@ func (r *DependencyResolver) DetectCircularDependencies() error {
 //   - V: Toplam alan sayısı
 //   - E: Toplam bağımlılık sayısı
 //   - Her alan ve her bağımlılık en fazla bir kez ziyaret edilir
+//
 // - **Alan Karmaşıklığı**: O(V)
 //   - Recursion stack derinliği en fazla V olabilir
 //   - visited ve recStack map'leri O(V) alan kullanır
@@ -799,36 +895,44 @@ func (r *DependencyResolver) DetectCircularDependencies() error {
 //
 // ```go
 // // Test 1: Basit döngü
-// graph := map[string][]string{
-//     "a": {"b"},
-//     "b": {"a"},
-// }
+//
+//	graph := map[string][]string{
+//	    "a": {"b"},
+//	    "b": {"a"},
+//	}
+//
 // // hasCycle("a") -> true
 //
 // // Test 2: Dolaylı döngü
-// graph := map[string][]string{
-//     "a": {"b"},
-//     "b": {"c"},
-//     "c": {"a"},
-// }
+//
+//	graph := map[string][]string{
+//	    "a": {"b"},
+//	    "b": {"c"},
+//	    "c": {"a"},
+//	}
+//
 // // hasCycle("a") -> true
 //
 // // Test 3: Döngü yok
-// graph := map[string][]string{
-//     "a": {"b", "c"},
-//     "b": {"d"},
-//     "c": {"d"},
-// }
+//
+//	graph := map[string][]string{
+//	    "a": {"b", "c"},
+//	    "b": {"d"},
+//	    "c": {"d"},
+//	}
+//
 // // hasCycle("a") -> false
 //
 // // Test 4: Karmaşık graf, döngü yok
-// graph := map[string][]string{
-//     "a": {"b", "c"},
-//     "b": {"d"},
-//     "c": {"d", "e"},
-//     "d": {"f"},
-//     "e": {"f"},
-// }
+//
+//	graph := map[string][]string{
+//	    "a": {"b", "c"},
+//	    "b": {"d"},
+//	    "c": {"d", "e"},
+//	    "d": {"f"},
+//	    "e": {"f"},
+//	}
+//
 // // hasCycle("a") -> false
 // ```
 func (r *DependencyResolver) hasCycle(

@@ -2,6 +2,8 @@
 
 Bu doküman, `DependsOn()` / `OnDependencyChange()` akışını hızlı ve sorunsuz kurmak için hazırlanmıştır.
 
+Gerçek saha örneği için: [Bağımlı Alanlar Vaka Notu (Hero Item)](Dependent-Fields-HeroItem-Case)
+
 ## Ne zaman kullanılır?
 
 - Bir alanın seçenekleri başka bir alanın değerine göre değişecekse
@@ -100,4 +102,3 @@ Beklenti:
 
 - `fields.variant_option_id.options` dolu gelmeli
 - Boş durumda `disabled: true` ve açıklayıcı `helpText` gelebilmeli
-

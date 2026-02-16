@@ -3,8 +3,11 @@ package resource
 import (
 	"fmt"
 	"mime/multipart"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/ferdiunal/panel.go/pkg/action"
 	"github.com/ferdiunal/panel.go/pkg/auth"
@@ -2116,7 +2119,26 @@ func (b *OptimizedBase) GetFilters() []Filter {
 // / - Cloud storage entegrasyonu
 // / - Thumbnail oluşturma
 func (b *OptimizedBase) StoreHandler(c *context.Context, file *multipart.FileHeader, storagePath string, storageURL string) (string, error) {
-	return "", nil
+	if storagePath == "" {
+		storagePath = "./storage/public"
+	}
+	if storageURL == "" {
+		storageURL = "/storage"
+	}
+
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	localPath := filepath.Join(storagePath, filename)
+
+	if err := os.MkdirAll(storagePath, 0755); err != nil {
+		return "", err
+	}
+
+	if err := c.Ctx.SaveFile(file, localPath); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/%s", strings.TrimRight(storageURL, "/"), filename), nil
 }
 
 // / NavigationOrder, menüdeki sıralama önceliğini döner.
