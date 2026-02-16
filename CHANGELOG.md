@@ -4,6 +4,38 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### 📊 Chart Widget Modernizasyonu (shadcn/ui + Dinamik Series)
+
+Dashboard chart kartları shadcn/ui örneklerine taşındı ve backend/frontend veri sözleşmesi genişletildi.
+
+#### Frontend
+
+- `trend-metric`, `partition-metric` ve `progress-metric` bileşenleri shadcn/ui chart bileşenleri ile hizalandı.
+- `progress-metric` için seri yönetimi dinamik hale getirildi:
+  - `series` artık map yapısında (`desktop/mobile` zorunlu değil).
+  - `seriesOrder` ile sıra kontrolü desteklendi.
+  - `activeSeries` alias veya data key ile çözümleniyor.
+- `ProgressMetric` ve `TrendMetric` kartlarında hardcoded alt başlık kaldırıldı; `subtitle`/`description` payload'dan okunuyor.
+- Tarih/sayı formatları `Intl.DateTimeFormat` ve `Intl.NumberFormat` ile tarayıcı locale'ına göre render ediliyor.
+- `web/src/main.tsx` içinde `html[lang]` ve `dir` değerleri güvenli şekilde set edilerek i18n formatlaması garanti altına alındı.
+
+#### Backend
+
+- `pkg/metric/metric.go` içinde `ProgressMetric` seri modeli generic hale getirildi.
+- `SetSeriesLabel`, `SetSeriesColor`, `SetSeriesEnabled`, `SetSeriesKey`, `SetActiveSeries` metodları dinamik seri key'leriyle çalışacak şekilde güncellendi.
+- `Resolve()` çıktısına `series`, `activeSeries`, `seriesOrder`, `subtitle` alanları eklendi.
+- Line chart için history normalize/fallback üretimi dinamik seri sayısına göre çalışacak şekilde güncellendi.
+
+#### Dokümantasyon
+
+- `docs/Charts-Data-Contract.md` güncellendi (dinamik `series`, `seriesOrder`, `activeSeries`).
+- `docs/Widgets.md` güncellendi (yeni progress kullanım örnekleri ve troubleshooting notları).
+
+#### Doğrulama
+
+- ✅ `go test ./pkg/widget ./pkg/metric ./pkg/handler`
+- ✅ `bun run build` (`web/`)
+
 ### 🛡️ Dependency Resolver CSRF 403 Düzeltmesi
 
 Dependency resolver endpoint'ine giden isteklerde CSRF header eksikliği nedeniyle oluşan `403` hatası giderildi.

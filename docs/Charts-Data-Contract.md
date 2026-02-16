@@ -9,6 +9,7 @@ Bu doküman, shadcn/ui chart bileşenleri ile backend payload formatı arasında
 - `progress-metric` -> Line Chart - Interactive
 
 Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) hem yeni alanları (`chartData`, `chartColors`) döndürür.
+Chart kartlarında `subtitle` (veya `description`) alanı alt başlık olarak frontend'de doğrudan kullanılır.
 
 ## 1. Trend Metric (`trend-metric`)
 
@@ -20,6 +21,7 @@ Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) he
   "title": "Kayıt Trendi",
   "width": "1/3",
   "data": {
+    "subtitle": "Son 30 gün",
     "data": [
       { "date": "2026-02-01", "value": 12 },
       { "date": "2026-02-02", "value": 18 }
@@ -36,6 +38,7 @@ Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) he
 
 - `widget.NewTrendWidget(...)` ile `chartData` otomatik normalize edilir.
 - `desktop` serisi zorunlu, `mobile` opsiyonel (yoksa `0`).
+- Hardcoded chart alt başlığı kullanılmaz; payload içindeki `subtitle`/`description` render edilir.
 
 ## 2. Partition Metric (`partition-metric`)
 
@@ -81,13 +84,15 @@ Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) he
   "title": "Aylık Hedef",
   "width": "1/3",
   "data": {
+    "subtitle": "Şubat hedefi",
     "current": 320,
     "target": 1000,
     "percentage": 32,
     "activeSeries": "siparis",
+    "seriesOrder": ["siparis", "hedef"],
     "series": {
-      "desktop": { "key": "siparis", "label": "Sipariş", "color": "var(--chart-1)", "enabled": true },
-      "mobile": { "key": "hedef", "label": "Hedef", "color": "var(--chart-2)", "enabled": true }
+      "siparis": { "key": "siparis", "label": "Sipariş", "color": "var(--chart-1)", "enabled": true },
+      "hedef": { "key": "hedef", "label": "Hedef", "color": "var(--chart-2)", "enabled": true }
     },
     "chartData": [
       { "date": "2026-02-01", "siparis": 120, "hedef": 1000 },
@@ -100,18 +105,23 @@ Backend, mümkün olduğunda hem eski alanları (`data`, `current`, `target`) he
 
 ### Notlar
 
-- `series.desktop.key` ve `series.mobile.key` değerleri line chart `dataKey` alanlarını belirler.
-- `activeSeries` değeri alias (`desktop/mobile`) veya data key (`siparis/hedef`) olabilir.
+- `series` alanı artık dinamiktir; `desktop/mobile` zorunlu değildir.
+- Her seri için `key` line chart `dataKey` alanını belirler.
+- `activeSeries` değeri seri map anahtarı veya `key` değeri olabilir.
 - `History(...)` verilmezse backend, `current/target` değerlerinden 30 günlük fallback `chartData` üretir.
+- Hardcoded chart alt başlığı kullanılmaz; payload içindeki `subtitle`/`description` render edilir.
 
 ## Önerilen Backend Kullanımı
 
 ```go
 metric.NewProgress("Aylık Hedef", 1000).
-  SetSeriesKey("desktop", "siparis").
-  SetSeriesLabel("desktop", "Sipariş").
-  SetSeriesKey("mobile", "hedef").
-  SetSeriesLabel("mobile", "Hedef").
+  SetSubtitle("Şubat hedefi").
+  SetSeriesLabel("siparis", "Sipariş").
+  SetSeriesColor("siparis", "var(--chart-1)").
+  SetSeriesEnabled("siparis", true).
+  SetSeriesLabel("hedef", "Hedef").
+  SetSeriesColor("hedef", "var(--chart-2)").
+  SetSeriesEnabled("hedef", true).
   SetActiveSeries("siparis").
   Current(func(db *gorm.DB) (int64, error) {
     return metric.CountWhere(db, &Order{}, "created_at >= ?", startOfMonth)
@@ -123,6 +133,12 @@ metric.NewProgress("Aylık Hedef", 1000).
     }, nil
   })
 ```
+
+## 4. i18n ve Locale Formatlama
+
+- Tarih etiketleri ve tooltip tarihleri frontend'de `Intl.DateTimeFormat` ile formatlanır.
+- Sayısal değerler frontend'de `Intl.NumberFormat` ile formatlanır.
+- Locale kaynağı: tarayıcı dili + `html[lang]` (`web/src/main.tsx` içinde garanti edilir).
 
 ## Frontend Kaynakları
 

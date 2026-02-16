@@ -63,16 +63,19 @@ func (r *OrderResource) Cards() []widget.Card {
 func (r *OrderResource) Cards() []widget.Card {
 	return []widget.Card{
 		metric.NewProgress("Aylık Hedef", 1000).
-			SetSeriesKey("desktop", "siparis").
-			SetSeriesLabel("desktop", "Sipariş").
-			SetSeriesKey("mobile", "hedef").
-			SetSeriesLabel("mobile", "Hedef").
+			SetSubtitle("Şubat hedefi").
+			SetSeriesLabel("siparis", "Sipariş").
+			SetSeriesColor("siparis", "var(--chart-1)").
+			SetSeriesEnabled("siparis", true).
+			SetSeriesLabel("hedef", "Hedef").
+			SetSeriesColor("hedef", "var(--chart-2)").
+			SetSeriesEnabled("hedef", true).
 			SetActiveSeries("siparis").
 			Current(func(db *gorm.DB) (int64, error) {
 				return metric.CountWhere(db, &Order{}, "created_at >= ?", startOfMonth())
 			}).
 			History(func(db *gorm.DB) ([]map[string]interface{}, error) {
-				// date + SetSeriesKey ile tanımlanan data key alanları beklenir
+				// date + seri key alanları beklenir
 				return []map[string]interface{}{
 					{"date": "2026-02-01", "siparis": 120, "hedef": 1000},
 					{"date": "2026-02-02", "siparis": 180, "hedef": 1000},
@@ -83,6 +86,7 @@ func (r *OrderResource) Cards() []widget.Card {
 ```
 
 > `History(...)` verilmezse backend, `current/target` değerlerinden 30 günlük fallback `chartData` üretir.
+> `progress-metric` için `desktop/mobile` serileri zorunlu değildir; dilediğiniz seri key'leri kullanılabilir.
 
 ## Frontend Bileşen Eşleşmesi
 
@@ -103,10 +107,12 @@ Detaylı alan yapıları ve JSON örnekleri için:
 - Eski kartlar (sadece `data.value`, `data.current`, `data.target`) çalışmaya devam eder.
 - Yeni interaktif chart deneyimi için backend tarafında `chartData` üretmeniz önerilir.
 - `trend-metric` için `widget.NewTrendWidget(...)` kullanımıyla `chartData` otomatik normalize edilir.
+- Chart alt başlıkları hardcoded değildir; `subtitle` veya `description` payload ile yönetilir.
+- Tarih/sayı etiketleri frontend'de `Intl` ile locale uyumlu formatlanır (`html[lang]` dikkate alınır).
 
 ## Sorun Giderme
 
 - Kart görünmüyor: `component` adı frontend switch ile eşleşmeli.
 - Pie chart renkleri yanlış: `SetColors(...)` anahtarlarıyla kategori isimlerini eşleştirin.
-- Line chart düz çizgi: `History(...)` çıktısında `date` ve `SetSeriesKey(...)` ile tanımlı seri key alanlarını doğrulayın.
+- Line chart düz çizgi: `History(...)` çıktısında `date` ve seri key alanlarının (`siparis`, `hedef` vb.) dolu olduğunu doğrulayın.
 - Area chart boş: trend sorgusunun tarih alanı (`created_at` vb.) doğru ve dolu olmalı.

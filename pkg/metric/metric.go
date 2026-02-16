@@ -299,7 +299,7 @@ func NewProgress(title string, target int64) *ProgressMetric {
 		Target:       target,
 		FormatType:   FormatNumber,
 		ActiveSeries: "desktop",
-		Series:       defaultProgressSeries(),
+		Series:       map[string]ProgressSeriesConfig{},
 	}
 }
 
@@ -332,8 +332,9 @@ func (m *ProgressMetric) Current(fn func(db *gorm.DB) (int64, error)) *ProgressM
 // History, line chart için zaman serisi verisi döndüren sorgu fonksiyonunu ayarlar.
 //
 // Dönen veri, aşağıdaki alanları içermelidir:
-// - date (string, YYYY-MM-DD)
-// - desktop/mobile veya SetSeriesKey ile belirlenen seri key'leri (number)
+//   - date (string, YYYY-MM-DD)
+//   - series konfigürasyonunda tanımlanan seri key'leri (number)
+//     (geri uyumluluk için desktop/mobile da desteklenir)
 func (m *ProgressMetric) History(fn func(db *gorm.DB) ([]map[string]interface{}, error)) *ProgressMetric {
 	m.HistoryFunc = fn
 	return m
@@ -344,47 +345,110 @@ func (m *ProgressMetric) SetSubtitle(subtitle string) *ProgressMetric {
 	return m
 }
 
-func (m *ProgressMetric) SetSeriesLabel(seriesKey, label string) *ProgressMetric {
+func (m *ProgressMetric) ensureSeriesMap() {
 	if m.Series == nil {
 		m.Series = make(map[string]ProgressSeriesConfig)
 	}
-	key := normalizeProgressSeriesAlias(seriesKey)
-	cfg := m.Series[key]
-	cfg.Label = label
-	m.Series[key] = cfg
+}
+
+func (m *ProgressMetric) resolveSeriesAlias(seriesKey string) string {
+	alias := normalizeProgressSeriesAlias(seriesKey)
+	if alias == "" {
+		return ""
+	}
+	if _, ok := m.Series[alias]; ok {
+		return alias
+	}
+
+	// Backward compatibility: if caller references old data keys directly.
+	for key, cfg := range m.Series {
+		if strings.EqualFold(cfg.Key, alias) {
+			return key
+		}
+	}
+
+	return alias
+}
+
+func (m *ProgressMetric) ensureSeriesEntry(seriesKey string) (string, ProgressSeriesConfig) {
+	m.ensureSeriesMap()
+
+	alias := m.resolveSeriesAlias(seriesKey)
+	if alias == "" {
+		return "", ProgressSeriesConfig{}
+	}
+
+	cfg, exists := m.Series[alias]
+	if !exists {
+		cfg = ProgressSeriesConfig{
+			Key:     alias,
+			Label:   defaultProgressSeriesLabel(alias),
+			Color:   defaultChartColor(len(m.Series)),
+			Enabled: true,
+		}
+	}
+	if cfg.Key == "" {
+		cfg.Key = alias
+	}
+
+	return alias, cfg
+}
+
+func (m *ProgressMetric) SetSeriesLabel(seriesKey, label string) *ProgressMetric {
+	alias, cfg := m.ensureSeriesEntry(seriesKey)
+	if alias == "" {
+		return m
+	}
+
+	if strings.TrimSpace(label) != "" {
+		cfg.Label = strings.TrimSpace(label)
+	}
+	m.Series[alias] = cfg
 	return m
 }
 
 func (m *ProgressMetric) SetSeriesColor(seriesKey, color string) *ProgressMetric {
-	if m.Series == nil {
-		m.Series = make(map[string]ProgressSeriesConfig)
+	alias, cfg := m.ensureSeriesEntry(seriesKey)
+	if alias == "" {
+		return m
 	}
-	key := normalizeProgressSeriesAlias(seriesKey)
-	cfg := m.Series[key]
-	cfg.Color = color
-	m.Series[key] = cfg
+
+	if strings.TrimSpace(color) != "" {
+		cfg.Color = strings.TrimSpace(color)
+	}
+	m.Series[alias] = cfg
 	return m
 }
 
 func (m *ProgressMetric) SetSeriesEnabled(seriesKey string, enabled bool) *ProgressMetric {
-	if m.Series == nil {
-		m.Series = make(map[string]ProgressSeriesConfig)
+	alias, cfg := m.ensureSeriesEntry(seriesKey)
+	if alias == "" {
+		return m
 	}
-	key := normalizeProgressSeriesAlias(seriesKey)
-	cfg := m.Series[key]
+
 	cfg.Enabled = enabled
-	m.Series[key] = cfg
+	m.Series[alias] = cfg
 	return m
 }
 
 func (m *ProgressMetric) SetSeriesKey(seriesAlias, dataKey string) *ProgressMetric {
-	if m.Series == nil {
-		m.Series = make(map[string]ProgressSeriesConfig)
+	alias, cfg := m.ensureSeriesEntry(seriesAlias)
+	if alias == "" {
+		return m
 	}
-	alias := normalizeProgressSeriesAlias(seriesAlias)
-	cfg := m.Series[alias]
-	cfg.Key = strings.TrimSpace(dataKey)
+
+	normalizedDataKey := normalizeProgressSeriesDataKey(dataKey, cfg.Key)
+	if normalizedDataKey == "" {
+		return m
+	}
+
+	cfg.Key = normalizedDataKey
 	m.Series[alias] = cfg
+
+	if strings.EqualFold(m.ActiveSeries, alias) {
+		m.ActiveSeries = normalizedDataKey
+	}
+
 	return m
 }
 
@@ -468,15 +532,16 @@ func (m *ProgressMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}
 
 	seriesConfig := m.resolveSeriesConfig()
 	activeSeries := m.resolveActiveSeriesFromConfig(seriesConfig)
+	seriesOrder := orderedProgressSeriesAliases(seriesConfig, activeSeries)
 	chartData := make([]map[string]interface{}, 0)
 	if m.HistoryFunc != nil {
 		historyData, err := m.HistoryFunc(db)
 		if err != nil {
 			return nil, err
 		}
-		chartData = normalizeLineChartData(historyData, current, m.Target, seriesConfig)
+		chartData = normalizeLineChartData(historyData, current, m.Target, seriesConfig, seriesOrder, activeSeries)
 	} else {
-		chartData = buildProgressFallbackChartData(current, m.Target, seriesConfig)
+		chartData = buildProgressFallbackChartData(current, m.Target, seriesConfig, seriesOrder, activeSeries)
 	}
 
 	return map[string]interface{}{
@@ -488,6 +553,7 @@ func (m *ProgressMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}
 		"subtitle":     m.Subtitle,
 		"series":       seriesConfig,
 		"activeSeries": activeSeries,
+		"seriesOrder":  seriesOrder,
 	}, nil
 }
 
@@ -511,6 +577,7 @@ func (m *ProgressMetric) Resolve(ctx *context.Context, db *gorm.DB) (interface{}
 // - Metrik konfigürasyonunu API üzerinden iletmek
 func (m *ProgressMetric) JsonSerialize() map[string]interface{} {
 	seriesConfig := m.resolveSeriesConfig()
+	activeSeries := m.resolveActiveSeriesFromConfig(seriesConfig)
 	return map[string]interface{}{
 		"component":    m.Component(),
 		"title":        m.Name(),
@@ -520,64 +587,87 @@ func (m *ProgressMetric) JsonSerialize() map[string]interface{} {
 		"format":       m.FormatType,
 		"subtitle":     m.Subtitle,
 		"series":       seriesConfig,
-		"activeSeries": m.resolveActiveSeriesFromConfig(seriesConfig),
+		"activeSeries": activeSeries,
+		"seriesOrder":  orderedProgressSeriesAliases(seriesConfig, activeSeries),
 	}
 }
 
 func (m *ProgressMetric) resolveSeriesConfig() map[string]ProgressSeriesConfig {
-	series := map[string]ProgressSeriesConfig{
-		"desktop": {
-			Key:     "desktop",
-			Label:   "Desktop",
-			Color:   "var(--chart-1)",
-			Enabled: true,
-		},
-		"mobile": {
-			Key:     "mobile",
-			Label:   "Mobile",
-			Color:   "var(--chart-2)",
-			Enabled: true,
-		},
+	source := m.Series
+	if len(source) == 0 {
+		source = defaultProgressSeries()
 	}
 
-	for key, config := range m.Series {
-		normalizedKey := normalizeProgressSeriesAlias(key)
-		normalized := series[normalizedKey]
-		if config.Key != "" {
-			normalized.Key = config.Key
+	series := make(map[string]ProgressSeriesConfig, len(source))
+	sourceKeys := make([]string, 0, len(source))
+	for key := range source {
+		sourceKeys = append(sourceKeys, key)
+	}
+	sort.Strings(sourceKeys)
+
+	for _, rawKey := range sourceKeys {
+		cfg := source[rawKey]
+		alias := normalizeProgressSeriesAlias(rawKey)
+		if alias == "" {
+			continue
 		}
-		if config.Label != "" {
-			normalized.Label = config.Label
+
+		resolved := series[alias]
+		dataKey := normalizeProgressSeriesDataKey(cfg.Key, alias)
+		if resolved.Key == "" {
+			resolved.Key = dataKey
 		}
-		if config.Color != "" {
-			normalized.Color = config.Color
+		if cfg.Label != "" {
+			resolved.Label = cfg.Label
 		}
-		normalized.Enabled = config.Enabled
-		series[normalizedKey] = normalized
+		if cfg.Color != "" {
+			resolved.Color = cfg.Color
+		}
+		resolved.Enabled = cfg.Enabled
+		series[alias] = resolved
 	}
 
-	if !series["desktop"].Enabled && !series["mobile"].Enabled {
-		series["desktop"] = ProgressSeriesConfig{
-			Label:   series["desktop"].Label,
-			Color:   series["desktop"].Color,
-			Enabled: true,
+	aliases := resolveProgressSeriesAliases(series)
+	usedDataKeys := make(map[string]struct{}, len(aliases))
+
+	for i, alias := range aliases {
+		cfg := series[alias]
+		cfg.Key = normalizeProgressSeriesDataKey(cfg.Key, alias)
+		if cfg.Label == "" {
+			cfg.Label = defaultProgressSeriesLabel(alias)
 		}
+		if cfg.Color == "" {
+			cfg.Color = defaultChartColor(i)
+		}
+
+		baseKey := cfg.Key
+		uniqueKey := baseKey
+		uniqueCounter := 2
+		for {
+			if _, exists := usedDataKeys[uniqueKey]; !exists {
+				break
+			}
+			uniqueKey = normalizeProgressSeriesDataKey(fmt.Sprintf("%s-%d", baseKey, uniqueCounter), alias)
+			uniqueCounter++
+		}
+		cfg.Key = uniqueKey
+		usedDataKeys[uniqueKey] = struct{}{}
+		series[alias] = cfg
 	}
 
-	desktop := series["desktop"]
-	mobile := series["mobile"]
-	desktop.Key = normalizeProgressSeriesDataKey(desktop.Key, "desktop")
-	mobile.Key = normalizeProgressSeriesDataKey(mobile.Key, "mobile")
-
-	if mobile.Key == desktop.Key {
-		mobile.Key = normalizeProgressSeriesDataKey("target", "target")
-		if mobile.Key == desktop.Key {
-			mobile.Key = normalizeProgressSeriesDataKey("mobile", "mobile")
+	enabledFound := false
+	for _, alias := range aliases {
+		if series[alias].Enabled {
+			enabledFound = true
+			break
 		}
 	}
-
-	series["desktop"] = desktop
-	series["mobile"] = mobile
+	if !enabledFound && len(aliases) > 0 {
+		firstAlias := aliases[0]
+		cfg := series[firstAlias]
+		cfg.Enabled = true
+		series[firstAlias] = cfg
+	}
 
 	return series
 }
@@ -588,13 +678,14 @@ func (m *ProgressMetric) resolveActiveSeries() string {
 
 func (m *ProgressMetric) resolveActiveSeriesFromConfig(series map[string]ProgressSeriesConfig) string {
 	active := strings.TrimSpace(m.ActiveSeries)
-	if alias, ok := resolveProgressSeriesAlias(active); ok {
-		if cfg, exists := series[alias]; exists && cfg.Enabled {
-			return cfg.Key
-		}
+	normalizedActive := normalizeProgressSeriesAlias(active)
+
+	if cfg, exists := series[normalizedActive]; exists && cfg.Enabled {
+		return cfg.Key
 	}
 
-	for _, alias := range []string{"desktop", "mobile"} {
+	aliases := resolveProgressSeriesAliases(series)
+	for _, alias := range aliases {
 		cfg, ok := series[alias]
 		if !ok || !cfg.Enabled {
 			continue
@@ -604,13 +695,63 @@ func (m *ProgressMetric) resolveActiveSeriesFromConfig(series map[string]Progres
 		}
 	}
 
-	if cfg, ok := series["desktop"]; ok && cfg.Enabled {
-		return cfg.Key
+	for _, alias := range aliases {
+		cfg := series[alias]
+		if cfg.Enabled {
+			return cfg.Key
+		}
 	}
-	if cfg, ok := series["mobile"]; ok && cfg.Enabled {
-		return cfg.Key
+
+	if len(aliases) > 0 {
+		return series[aliases[0]].Key
 	}
+
 	return "desktop"
+}
+
+func resolveProgressSeriesAliases(series map[string]ProgressSeriesConfig) []string {
+	aliases := make([]string, 0, len(series))
+	for alias := range series {
+		aliases = append(aliases, alias)
+	}
+	sort.Strings(aliases)
+	return aliases
+}
+
+func orderedProgressSeriesAliases(series map[string]ProgressSeriesConfig, activeSeriesKey string) []string {
+	aliases := resolveProgressSeriesAliases(series)
+	sort.SliceStable(aliases, func(i, j int) bool {
+		iActive := strings.EqualFold(series[aliases[i]].Key, activeSeriesKey)
+		jActive := strings.EqualFold(series[aliases[j]].Key, activeSeriesKey)
+		if iActive != jActive {
+			return iActive
+		}
+		return aliases[i] < aliases[j]
+	})
+	return aliases
+}
+
+func defaultProgressSeriesLabel(key string) string {
+	switch strings.TrimSpace(strings.ToLower(key)) {
+	case "desktop":
+		return "Desktop"
+	case "mobile":
+		return "Mobile"
+	}
+
+	parts := strings.Split(strings.ReplaceAll(key, "_", "-"), "-")
+	words := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		words = append(words, strings.ToUpper(part[:1])+part[1:])
+	}
+	if len(words) == 0 {
+		return "Series"
+	}
+
+	return strings.Join(words, " ")
 }
 
 // Bu yapı, tablo şeklinde metrik verilerini temsil eder.
@@ -869,9 +1010,19 @@ func buildPartitionChartData(data map[string]int64, colors map[string]string) ([
 	return chartData, chartColors
 }
 
-func normalizeLineChartData(rows []map[string]interface{}, current, target int64, series map[string]ProgressSeriesConfig) []map[string]interface{} {
-	desktopSeries := series["desktop"]
-	mobileSeries := series["mobile"]
+func normalizeLineChartData(
+	rows []map[string]interface{},
+	current, target int64,
+	series map[string]ProgressSeriesConfig,
+	seriesAliases []string,
+	activeSeries string,
+) []map[string]interface{} {
+	if len(seriesAliases) == 0 {
+		seriesAliases = orderedProgressSeriesAliases(series, activeSeries)
+	}
+	if len(seriesAliases) == 0 {
+		seriesAliases = []string{"desktop"}
+	}
 
 	chartData := make([]map[string]interface{}, 0, len(rows))
 	for i, row := range rows {
@@ -880,39 +1031,71 @@ func normalizeLineChartData(rows []map[string]interface{}, current, target int64
 			date = time.Now().AddDate(0, 0, -(len(rows) - i - 1)).Format("2006-01-02")
 		}
 
-		desktopFallbackKeys := []string{desktopSeries.Key, "desktop", "current", "value"}
-		desktop, ok := firstInt64(row, desktopFallbackKeys...)
-		if !ok {
-			desktop = current
-		}
-
-		mobileFallbackKeys := []string{mobileSeries.Key, "mobile", "target"}
-		mobile, ok := firstInt64(row, mobileFallbackKeys...)
-		if !ok {
-			mobile = target
-		}
-
 		normalized := map[string]interface{}{
 			"date": date,
 		}
-		normalized[desktopSeries.Key] = desktop
-		normalized[mobileSeries.Key] = mobile
+
+		for seriesIndex, alias := range seriesAliases {
+			cfg, ok := series[alias]
+			if !ok {
+				continue
+			}
+
+			fallbackKeys := []string{cfg.Key, alias}
+			switch seriesIndex {
+			case 0:
+				fallbackKeys = append(fallbackKeys, "current", "value", "desktop")
+			case 1:
+				fallbackKeys = append(fallbackKeys, "target", "mobile")
+			}
+
+			value, exists := firstInt64(row, fallbackKeys...)
+			if !exists {
+				switch seriesIndex {
+				case 0:
+					value = current
+				case 1:
+					value = target
+				default:
+					value = 0
+				}
+			}
+
+			normalized[cfg.Key] = value
+		}
+
 		chartData = append(chartData, normalized)
 	}
 
 	if len(chartData) == 0 {
-		return buildProgressFallbackChartData(current, target, series)
+		return buildProgressFallbackChartData(current, target, series, seriesAliases, activeSeries)
 	}
 
 	return chartData
 }
 
-func buildProgressFallbackChartData(current, target int64, series map[string]ProgressSeriesConfig) []map[string]interface{} {
+func buildProgressFallbackChartData(
+	current, target int64,
+	series map[string]ProgressSeriesConfig,
+	seriesAliases []string,
+	activeSeries string,
+) []map[string]interface{} {
+	if len(seriesAliases) == 0 {
+		seriesAliases = orderedProgressSeriesAliases(series, activeSeries)
+	}
+	if len(seriesAliases) == 0 {
+		seriesAliases = []string{"desktop"}
+		series["desktop"] = ProgressSeriesConfig{
+			Key:     "desktop",
+			Label:   "Desktop",
+			Color:   defaultChartColor(0),
+			Enabled: true,
+		}
+	}
+
 	const days = 30
 	chartData := make([]map[string]interface{}, 0, days)
 	now := time.Now()
-	desktopKey := series["desktop"].Key
-	mobileKey := series["mobile"].Key
 
 	for i := 0; i < days; i++ {
 		date := now.AddDate(0, 0, -(days - i - 1)).Format("2006-01-02")
@@ -921,8 +1104,23 @@ func buildProgressFallbackChartData(current, target int64, series map[string]Pro
 		normalized := map[string]interface{}{
 			"date": date,
 		}
-		normalized[desktopKey] = progressValue
-		normalized[mobileKey] = target
+
+		for seriesIndex, alias := range seriesAliases {
+			cfg, ok := series[alias]
+			if !ok {
+				continue
+			}
+
+			switch seriesIndex {
+			case 0:
+				normalized[cfg.Key] = progressValue
+			case 1:
+				normalized[cfg.Key] = target
+			default:
+				normalized[cfg.Key] = 0
+			}
+		}
+
 		chartData = append(chartData, normalized)
 	}
 
@@ -930,35 +1128,23 @@ func buildProgressFallbackChartData(current, target int64, series map[string]Pro
 }
 
 func normalizeProgressSeriesAlias(seriesKey string) string {
-	normalized := strings.TrimSpace(strings.ToLower(seriesKey))
-	switch normalized {
-	case "mobile":
-		return "mobile"
-	default:
-		return "desktop"
-	}
-}
-
-func resolveProgressSeriesAlias(seriesKey string) (string, bool) {
-	normalized := strings.TrimSpace(strings.ToLower(seriesKey))
-	switch normalized {
-	case "desktop":
-		return "desktop", true
-	case "mobile":
-		return "mobile", true
-	default:
-		return "", false
-	}
+	return normalizeProgressSeriesDataKey(seriesKey, "")
 }
 
 func normalizeProgressSeriesDataKey(value, fallback string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
+		if strings.TrimSpace(fallback) == "" {
+			return ""
+		}
 		value = fallback
 	}
 
 	normalized := normalizeChartKey(value)
 	if normalized == "" {
+		if strings.TrimSpace(fallback) == "" {
+			return ""
+		}
 		return normalizeChartKey(fallback)
 	}
 	return normalized
