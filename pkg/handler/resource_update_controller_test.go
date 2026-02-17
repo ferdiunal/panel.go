@@ -198,6 +198,72 @@ func TestHandleResourceUpdate_InvalidBody(t *testing.T) {
 	}
 }
 
+func TestHandleResourceUpdate_ValidationError(t *testing.T) {
+	app := fiber.New()
+
+	existingUser := User{ID: 1, FullName: "Old Name", Email: "old@example.com"}
+	mockProvider := &MockDataProviderWithUpdate{
+		ShowItem: existingUser,
+	}
+
+	fieldDefs := []fields.Element{
+		fields.Text("Full Name", "full_name").Required(),
+		fields.Email("Email", "email").
+			Required().
+			AddValidationRule(fields.EmailRule()),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+	h.Elements = fieldDefs
+
+	app.Put("/users/:id", FieldContextMiddleware(nil, nil, core.ContextUpdate, fieldDefs), appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceUpdate(h, c)
+	}))
+
+	body := map[string]interface{}{
+		"full_name": "",
+		"email":     "invalid-email",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/users/1", bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
+		t.Errorf("Expected status 422, got %d", resp.StatusCode)
+	}
+
+	respBody, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	if response["code"] != validationErrorCode {
+		t.Errorf("Expected validation error code, got %v", response["code"])
+	}
+
+	errorMap, ok := response["errors"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected errors map in response")
+	}
+
+	fullNameErrors, ok := errorMap["full_name"].([]interface{})
+	if !ok || len(fullNameErrors) == 0 {
+		t.Fatalf("Expected full_name validation error")
+	}
+
+	emailErrors, ok := errorMap["email"].([]interface{})
+	if !ok || len(emailErrors) == 0 {
+		t.Fatalf("Expected email validation error")
+	}
+}
+
 // MockDataProviderWithUpdate extends MockDataProvider with Update functionality
 type MockDataProviderWithUpdate struct {
 	MockDataProvider

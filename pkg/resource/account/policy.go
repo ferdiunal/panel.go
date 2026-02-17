@@ -8,7 +8,7 @@ import (
 
 // Bu yapı, Account entity'si için yetkilendirme politikasını tanımlar.
 //
-// AccountPolicy, Laravel Nova'nın Policy pattern'ını takip ederek, Account kaynağı
+// AccountPolicy, yaygın Policy pattern'ını takip ederek, Account kaynağı
 // üzerinde gerçekleştirilebilecek işlemlere (görüntüleme, oluşturma, güncelleme, silme vb.)
 // ilişkin yetkilendirme kurallarını yönetir.
 //

@@ -82,6 +82,7 @@ Bir resource register edildiğinde bu endpoint'ler otomatik gelir:
 - [`docs/Getting-Started.md`](docs/Getting-Started.md)
 - [`docs/Resources.md`](docs/Resources.md)
 - [`docs/Fields.md`](docs/Fields.md)
+- [`docs/Validation.md`](docs/Validation.md)
 - [`docs/Relationships.md`](docs/Relationships.md)
 
 ### 2. Güvenlik ve erişim

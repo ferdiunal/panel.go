@@ -5,6 +5,7 @@
   - [Resource Template](RESOURCE_TEMPLATE)
   - [Domain Resource Colocations](DOMAIN_RESOURCE_COLOCATIONS)
 - [Alanlar (Fields)](Fields)
+  - [Doğrulama (Validation)](Validation)
   - [Bağımlı Alanlar](Dependent-Fields)
   - [Bağımlı Alanlar Playbook](Dependent-Fields-Playbook)
   - [Bağımlı Alanlar Vaka Notu (Hero Item)](Dependent-Fields-HeroItem-Case)

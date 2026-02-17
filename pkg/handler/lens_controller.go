@@ -1,7 +1,7 @@
 // # Lens Controller Paketi
 //
 // Bu paket, kaynak (resource) bazlı lens işlemlerini yöneten HTTP handler fonksiyonlarını içerir.
-// Lens'ler, Laravel Nova'dan esinlenerek geliştirilmiş, kaynaklar üzerinde özel filtreleme
+// Lens'ler, admin panel yaklaşımından esinlenerek geliştirilmiş, kaynaklar üzerinde özel filtreleme
 // ve görünüm sağlayan güçlü bir özelliktir.
 //
 // ## Lens Nedir?
@@ -45,7 +45,7 @@ import (
 // # HandleLensIndex
 //
 // Bu fonksiyon, bir kaynak için mevcut tüm lens'leri listeler ve istemciye döndürür.
-// Laravel Nova'nın `LensController@index` metoduna karşılık gelir.
+// Klasik `LensController@index` davranışına karşılık gelir.
 //
 // ## Amaç
 //
@@ -123,7 +123,7 @@ import (
 // - ✅ Dinamik lens keşfi sağlar
 // - ✅ Frontend'de otomatik UI oluşturma imkanı
 // - ✅ Basit ve anlaşılır API
-// - ✅ Laravel Nova ile uyumlu yapı
+// - ✅ Mevcut lens API yaklaşımıyla uyumlu yapı
 //
 // ## Dikkat Edilmesi Gerekenler
 //
@@ -161,7 +161,7 @@ func HandleLensIndex(h *FieldHandler, c *context.Context) error {
 // # HandleLens
 //
 // Bu fonksiyon, belirli bir lens üzerinden filtrelenmiş kaynak verilerini listeler.
-// Laravel Nova'nın `LensController@show` metoduna karşılık gelir.
+// Klasik `LensController@show` davranışına karşılık gelir.
 //
 // ## Amaç
 //

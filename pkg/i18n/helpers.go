@@ -1,5 +1,5 @@
 // Package i18n provides internationalization helpers for Panel.go
-// Laravel'deki __() helper'ına benzer şekilde çalışır
+// Yaygın __() helper API'sine benzer şekilde çalışır
 package i18n
 
 import (
@@ -8,7 +8,7 @@ import (
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
-// Trans, Laravel'deki __() helper'ına benzer şekilde çeviri yapar
+// Trans, yaygın __() helper API'sine benzer şekilde çeviri yapar
 // Basit kullanım: Trans(c, "welcome")
 // Template ile: Trans(c, "welcomeWithName", map[string]string{"Name": "Ahmet"})
 //
@@ -57,7 +57,7 @@ func Trans(c *fiber.Ctx, messageID string, templateData ...map[string]interface{
 	return result
 }
 
-// TransChoice, Laravel'deki trans_choice() helper'ına benzer şekilde çoğul çeviri yapar
+// TransChoice, yaygın trans_choice() helper'ına benzer şekilde çoğul çeviri yapar
 // Sayıya göre doğru çoğul formunu seçer
 //
 // # Kullanım Örnekleri
@@ -107,7 +107,7 @@ func TransChoice(c *fiber.Ctx, messageID string, count int, templateData ...map[
 }
 
 // GetLocale, mevcut dili döndürür
-// Laravel'deki app()->getLocale() metoduna benzer
+// Yaygın getLocale() helper davranışına benzer
 //
 // # Kullanım Örneği
 //
@@ -128,7 +128,7 @@ func GetLocale(c *fiber.Ctx) string {
 }
 
 // HasTranslation, çevirinin var olup olmadığını kontrol eder
-// Laravel'deki Lang::has() metoduna benzer
+// Çeviri varlık kontrolü yapan helper metoda benzer
 //
 // # Kullanım Örneği
 //
@@ -147,7 +147,7 @@ func HasTranslation(c *fiber.Ctx, messageID string) bool {
 }
 
 // TransWithFallback, çeviri yoksa fallback değeri döndürür
-// Laravel'deki __() helper'ının fallback özelliğine benzer
+// __() helper'ındaki fallback davranışına benzer
 //
 // # Kullanım Örneği
 //

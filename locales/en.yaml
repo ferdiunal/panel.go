@@ -32,6 +32,19 @@ form:
   tooShort: "Too short"
   tooLong: "Too long"
 
+validation:
+  required: "{{.Field}} is required"
+  email: "Please enter a valid email address"
+  url: "Please enter a valid URL"
+  min: "{{.Field}} must be at least {{.Min}}"
+  max: "{{.Field}} must be at most {{.Max}}"
+  minLength: "{{.Field}} must be at least {{.Length}} characters"
+  maxLength: "{{.Field}} must be at most {{.Length}} characters"
+  pattern: "{{.Field}} format is invalid"
+  unique: "{{.Field}} has already been taken"
+  exists: "Selected {{.Field}} is invalid"
+  invalid: "Invalid value"
+
 # Navigation
 navigation:
   dashboard: "Dashboard"

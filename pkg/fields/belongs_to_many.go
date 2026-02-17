@@ -288,7 +288,7 @@ func (b *BelongsToManyField) GetTypes() map[string]string {
 // Extract, BelongsToMany ilişkisini minimal formatta serialize eder.
 //
 // Bu metod, ilişkili kayıtları [{"id": ..., "title": ...}, ...] formatında döndürür.
-// Laravel Nova'nın title pattern'ini takip eder.
+// Record title pattern'ini takip eder.
 //
 // # Çalışma Mantığı
 //

@@ -4,6 +4,56 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### ✅ Field-Level Validator Entegrasyonu (go-playground/validator)
+
+Backend ve frontend form akışına field-level hata döndüren server-side validasyon katmanı eklendi.
+
+#### Backend
+
+- `pkg/handler/request_validation.go` eklendi:
+  - `go-playground/validator/v10` ile rule tabanlı doğrulama çalıştırılıyor.
+  - Desteklenen kurallar: `required`, `email`, `url`, `min`, `max`, `minLength`, `maxLength`, `pattern`, `unique`, `exists`.
+  - `pattern` için özel `panel_regex` validator eklendi.
+  - `unique` / `exists` kuralları GORM üzerinden DB kontrolü yapıyor.
+  - Mesaj önceliği: `props.validation_messages` override > rule message > i18n key (`validation.*`) > fallback.
+  - Hata response formatı standardize edildi:
+    - HTTP `422 Unprocessable Entity`
+    - `code: "VALIDATION_ERROR"`
+    - `errors` ve `details` içinde field bazlı mesajlar.
+- Store/Update endpoint’lerine validasyon adımı eklendi:
+  - `pkg/handler/resource_store_controller.go`
+  - `pkg/handler/resource_update_controller.go`
+
+#### Frontend
+
+- `web/src/components/forms/UniversalResourceForm.tsx`:
+  - Backend `422` response’undaki `errors/details` parse edilip `react-hook-form` ile `form.setError(field, ...)` uygulanıyor.
+  - Böylece hata mesajı direkt ilgili field altında gösteriliyor.
+- `web/src/pages/resource/index.tsx`:
+  - Validation (`422`) durumunda generic toast bastırıldı, inline field hataları önceliklendirildi.
+
+#### i18n
+
+- Validation mesaj anahtarları eklendi:
+  - `locales/tr.yaml`
+  - `locales/en.yaml`
+  - `pkg/panel/locales/tr.yaml`
+  - `pkg/panel/locales/en.yaml`
+- Yeni anahtarlar: `validation.required`, `validation.email`, `validation.url`, `validation.min`, `validation.max`, `validation.minLength`, `validation.maxLength`, `validation.pattern`, `validation.unique`, `validation.exists`, `validation.invalid`.
+
+#### Dokümantasyon
+
+- Yeni doküman eklendi: `docs/Validation.md`
+- Doküman; backend validator akışı, mesaj önceliği, i18n, `422` response sözleşmesi ve frontend field-level hata gösterimini kapsar.
+
+#### Test / Doğrulama
+
+- Handler testlerine validation senaryoları eklendi:
+  - `pkg/handler/resource_store_controller_test.go`
+  - `pkg/handler/resource_update_controller_test.go`
+- ✅ `go test ./pkg/handler/...`
+- ✅ `bun run build` (`web/`)
+
 ### 🧩 Edit Form Select Initial Value Düzeltmesi (Dependent Fields / target_type)
 
 Edit formda backend `target_type` değeri gelse bile select alanının placeholder göstermesi sorunu giderildi.
@@ -259,7 +309,7 @@ Doğrulama:
 
 ### ✨ Yeni Özellikler (Frontend & Backend)
 
-#### 🚀 Detail View İyileştirmeleri (Laravel Nova Benzeri)
+#### 🚀 Detail View İyileştirmeleri (Nova Benzeri)
 
 Detail (Detay) sayfasındaki ilişki yönetimi ve kullanıcı deneyimi önemli ölçüde geliştirildi.
 
@@ -278,9 +328,9 @@ Detail (Detay) sayfasındaki ilişki yönetimi ve kullanıcı deneyimi önemli �
 - **Tel Field (Phone Input):** `Tel` tipindeki alanlar için gelişmiş `PhoneInput` (ülke bayraklı, formatlı) bileşeni entegre edildi.
 - **Akıllı Component Seçimi:** Backend `text-field` view'ı gönderse bile, eğer alanın tipi `tel` ise frontend otomatik olarak `TelInput` bileşenini kullanıyor.
 
-#### Resource Title Pattern (Laravel Nova Uyumlu)
+#### Resource Title Pattern (Nova Uyumlu)
 
-Panel.go'ya Laravel Nova'nın title pattern'i eklendi. Her resource için kayıt başlığı (record title) özelliği artık kullanılabilir. Bu, ilişki fieldlarında kayıtların okunabilir şekilde gösterilmesini sağlar.
+Panel.go'ya title pattern'i eklendi. Her resource için kayıt başlığı (record title) özelliği artık kullanılabilir. Bu, ilişki fieldlarında kayıtların okunabilir şekilde gösterilmesini sağlar.
 
 **Özellikler:**
 - `SetRecordTitleKey(key string)` - Kayıt başlığı için kullanılacak field adını ayarlar

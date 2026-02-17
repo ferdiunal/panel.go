@@ -21,7 +21,7 @@ import (
 
 // / # OptimizedResource Interface
 // /
-// / Bu interface, Laravel Nova'nın trait pattern'ini Go'ya uyarlayan optimize edilmiş
+// / Bu interface, admin panel yaklaşımındaki trait pattern'ini Go'ya uyarlayan optimize edilmiş
 // / resource interface'idir. Geleneksel Resource interface'ine göre daha az metod ile
 // / daha fazla işlevsellik sağlar ve mixin pattern kullanarak kod tekrarını azaltır.
 // /

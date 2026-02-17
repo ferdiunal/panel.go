@@ -36,6 +36,7 @@ Başlangıç rehberi: [Başlarken](Getting-Started)
 - [Başlarken](Getting-Started)
 - [Kaynaklar (Resource)](Resources)
 - [Alanlar (Fields)](Fields)
+- [Doğrulama (Validation)](Validation)
 - [İlişkiler (Relationships)](Relationships)
 
 ### 2. Güvenlik ve erişim
@@ -65,6 +66,7 @@ Başlangıç rehberi: [Başlarken](Getting-Started)
 ## Sık Kullanılan Linkler
 
 - [Resource Template](RESOURCE_TEMPLATE)
+- [Doğrulama (Validation)](Validation)
 - [İlişkiler API Referansı](Relationships-API)
 - [Bağımlı Alanlar](Dependent-Fields)
 - [Plugin CLI](PLUGIN_CLI)

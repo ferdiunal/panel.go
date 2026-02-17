@@ -1968,7 +1968,7 @@ type Resource interface {
 	/// RecordTitle, bir kayıt için okunabilir başlık döndürür.
 	///
 	/// Bu metod, ilişki fieldlarında kayıtların kullanıcı dostu şekilde gösterilmesi için kullanılır.
-	/// Laravel Nova'nın title() pattern'ini takip eder.
+	/// Record title üretimi için title() pattern'ini takip eder.
 	///
 	/// Parametreler:
 	/// - record: Başlığı alınacak kayıt (genellikle model instance'ı)

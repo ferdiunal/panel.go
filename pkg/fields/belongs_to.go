@@ -613,7 +613,7 @@ func (b *BelongsToField) GetOwnerKeyColumn() string {
 // Extract, BelongsTo ilişkisini minimal formatta serialize eder.
 //
 // Bu metod, ilişkili kaydı {"id": ..., "title": ...} formatında döndürür.
-// Laravel Nova'nın title pattern'ini takip eder.
+// Record title pattern'ini takip eder.
 //
 // # Çalışma Mantığı
 //

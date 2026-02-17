@@ -378,7 +378,7 @@ type VisibilityFunc func(ctx *ResourceContext) bool
 ///
 /// ## Benzer Kavramlar
 ///
-/// - **Laravel Storage**: Laravel'in Storage facade'i
+/// - **Storage Facade Yaklaşımı**: Frameworklerdeki storage abstraction modeli
 /// - **Multer (Node.js)**: Express için dosya yükleme middleware'i
 /// - **CarrierWave (Rails)**: Rails dosya yükleme gem'i
 type StorageCallbackFunc func(c *fiber.Ctx, file *multipart.FileHeader) (string, error)

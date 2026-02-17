@@ -8,7 +8,7 @@ import (
 /// # CardType - Kart Türü Tanımı
 ///
 /// `CardType`, panel arayüzünde gösterilecek kartların türünü temsil eden bir string türüdür.
-/// Laravel Nova'nın Card konseptine uygun olarak tasarlanmıştır.
+/// Panel kart konseptine uygun olarak tasarlanmıştır.
 ///
 /// ## Desteklenen Türler
 ///
@@ -44,7 +44,7 @@ const (
 /// # Card - Kart Arayüzü
 ///
 /// `Card`, panel sistemindeki tüm kart türlerinin uyması gereken temel arayüzü tanımlar.
-/// Laravel Nova'nın Card konseptine uygun olarak tasarlanmıştır.
+/// Panel kart konseptine uygun olarak tasarlanmıştır.
 /// Metrikler (Value, Trend) sadece Card'ın özel türleridir.
 ///
 /// ## Arayüz Metodları

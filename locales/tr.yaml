@@ -32,6 +32,19 @@ form:
   tooShort: "Çok kısa"
   tooLong: "Çok uzun"
 
+validation:
+  required: "{{.Field}} alanı zorunludur"
+  email: "Lütfen geçerli bir e-posta adresi girin"
+  url: "Lütfen geçerli bir URL girin"
+  min: "{{.Field}} en az {{.Min}} olmalıdır"
+  max: "{{.Field}} en fazla {{.Max}} olmalıdır"
+  minLength: "{{.Field}} en az {{.Length}} karakter olmalıdır"
+  maxLength: "{{.Field}} en fazla {{.Length}} karakter olmalıdır"
+  pattern: "{{.Field}} formatı geçersiz"
+  unique: "{{.Field}} değeri zaten kullanılıyor"
+  exists: "Seçilen {{.Field}} geçersiz"
+  invalid: "Geçersiz değer"
+
 fields:
   created_at: "Oluşturulma Tarihi"
   updated_at: "Güncellenme Tarihi"

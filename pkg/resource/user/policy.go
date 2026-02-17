@@ -43,7 +43,7 @@ import (
 //	}
 //
 // **Önemli Notlar:**
-// - Bu yapı, Laravel Nova benzeri bir yetkilendirme sistemi uygulamaktadır
+// - Bu yapı, resource bazlı bir yetkilendirme sistemi uygulamaktadır
 // - Tüm metotlar receiver olarak `UserPolicy` değerini alır (pointer değil)
 // - Delete metodu, kendini silme işlemini engelleme mantığı içerir
 // ============================================================================
