@@ -85,8 +85,10 @@ type Schema struct {
 	AutoOptionsConfig  core.AutoOptionsConfig                                              `json:"-"`
 
 	// Validation (Kategori 1)
-	ValidationRules  []ValidationRule `json:"validation_rules"`
-	CustomValidators []ValidatorFunc  `json:"-"`
+	ValidationRules         []ValidationRule `json:"validation_rules"`
+	CreationValidationRules []ValidationRule `json:"creation_validation_rules,omitempty"`
+	UpdateValidationRules   []ValidationRule `json:"update_validation_rules,omitempty"`
+	CustomValidators        []ValidatorFunc  `json:"-"`
 
 	// Display (Kategori 2)
 	DisplayCallback        func(value interface{}, item interface{}) interface{} `json:"-"`
@@ -1763,6 +1765,33 @@ func (s *Schema) IsVisibleInContext(ctx VisibilityContext) bool {
 func (s *Schema) AddValidationRule(rule interface{}) core.Element {
 	if vr, ok := rule.(ValidationRule); ok {
 		s.ValidationRules = append(s.ValidationRules, vr)
+	}
+	return s
+}
+
+func (s *Schema) Rules(rules ...interface{}) core.Element {
+	for _, rule := range rules {
+		if vr, ok := rule.(ValidationRule); ok {
+			s.ValidationRules = append(s.ValidationRules, vr)
+		}
+	}
+	return s
+}
+
+func (s *Schema) CreationRules(rules ...interface{}) core.Element {
+	for _, rule := range rules {
+		if vr, ok := rule.(ValidationRule); ok {
+			s.CreationValidationRules = append(s.CreationValidationRules, vr)
+		}
+	}
+	return s
+}
+
+func (s *Schema) UpdateRules(rules ...interface{}) core.Element {
+	for _, rule := range rules {
+		if vr, ok := rule.(ValidationRule); ok {
+			s.UpdateValidationRules = append(s.UpdateValidationRules, vr)
+		}
 	}
 	return s
 }
@@ -3507,6 +3536,24 @@ func (s *Schema) GetCustomValidators() []interface{} {
 		validators[i] = v
 	}
 	return validators
+}
+
+func (s *Schema) GetCreationValidationRules() []interface{} {
+	merged := MergeValidationRules(s.ValidationRules, s.CreationValidationRules)
+	result := make([]interface{}, len(merged))
+	for i, r := range merged {
+		result[i] = r
+	}
+	return result
+}
+
+func (s *Schema) GetUpdateValidationRules() []interface{} {
+	merged := MergeValidationRules(s.ValidationRules, s.UpdateValidationRules)
+	result := make([]interface{}, len(merged))
+	for i, r := range merged {
+		result[i] = r
+	}
+	return result
 }
 
 // Missing Extended Field System Methods - Genişletilmiş Alan Sistemi Getter Metodları

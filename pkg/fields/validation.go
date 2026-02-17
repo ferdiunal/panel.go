@@ -615,3 +615,15 @@ func GetCustomValidator(name string) (ValidatorFunc, bool) {
 func ApplyCustomValidator(name string, value interface{}, context interface{}) error {
 	return globalValidatorRegistry.Apply(name, value, context)
 }
+
+func MergeValidationRules(base, extra []ValidationRule) []ValidationRule {
+	if len(extra) == 0 {
+		result := make([]ValidationRule, len(base))
+		copy(result, base)
+		return result
+	}
+	merged := make([]ValidationRule, 0, len(base)+len(extra))
+	merged = append(merged, base...)
+	merged = append(merged, extra...)
+	return merged
+}

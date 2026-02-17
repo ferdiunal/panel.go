@@ -1416,6 +1416,16 @@ type Element interface {
 	//   }
 	GetCustomValidators() []interface{}
 
+	Rules(rules ...interface{}) Element
+
+	CreationRules(rules ...interface{}) Element
+
+	UpdateRules(rules ...interface{}) Element
+
+	GetCreationValidationRules() []interface{}
+
+	GetUpdateValidationRules() []interface{}
+
 	// ============================================================================
 	// Görüntüleme Metodları (Display Methods)
 	// ============================================================================

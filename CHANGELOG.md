@@ -4,6 +4,52 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### ✅ Create/Update Bağlamına Duyarlı Validation API (Rules / CreationRules / UpdateRules)
+
+Field bazlı doğrulama sistemine `Rules()`, `CreationRules()`, `UpdateRules()` fluent API'si eklendi. Artık create ve update akışlarına özel doğrulama kuralları tanımlanabilir.
+
+#### Backend
+
+- `pkg/fields/base.go`:
+  - Schema struct'a `CreationValidationRules` ve `UpdateValidationRules` alanları eklendi.
+  - Yeni fluent API metotları: `Rules(...)`, `CreationRules(...)`, `UpdateRules(...)` (variadic).
+  - Yeni getter metotları: `GetCreationValidationRules()`, `GetUpdateValidationRules()` (base + context rules merge).
+- `pkg/core/element.go`:
+  - Element interface'e `Rules()`, `CreationRules()`, `UpdateRules()`, `GetCreationValidationRules()`, `GetUpdateValidationRules()` metotları eklendi.
+- `pkg/fields/validation.go`:
+  - `MergeValidationRules(base, extra)` helper fonksiyonu eklendi.
+- `pkg/handler/request_validation.go`:
+  - `collectFieldValidationRules` fonksiyonuna `visibilityCtx` parametresi eklendi.
+  - `ContextCreate` → `GetCreationValidationRules()`, `ContextUpdate` → `GetUpdateValidationRules()` ile bağlama duyarlı kural seçimi yapılıyor.
+
+#### Kullanım Örneği
+
+```go
+// Create/Update ayrımı
+fields.Email("E-posta", "email").
+    Rules(fields.EmailRule()).
+    CreationRules(fields.Required(), fields.Unique("users", "email")).
+    UpdateRules(fields.Unique("users", "email"))
+
+// Sadece create'de zorunlu
+fields.Password("Şifre", "password").
+    CreationRules(fields.Required(), fields.MinLength(8)).
+    UpdateRules(fields.MinLength(8))
+```
+
+#### Geriye Uyumluluk
+
+- Mevcut `AddValidationRule()`, `Required()`, `Email()`, `Min()`, `Max()` vb. metotlar aynen çalışmaya devam eder.
+- `CreationRules`/`UpdateRules` tanımlanmadığında yalnızca base rules uygulanır.
+
+#### Dokümantasyon
+
+- `docs/Validation.md` güncellendi: `Rules / CreationRules / UpdateRules API` bölümü ve örnekler eklendi.
+
+#### Doğrulama
+
+- ✅ `go build ./...`
+
 ### ✅ Field-Level Validator Entegrasyonu (go-playground/validator)
 
 Backend ve frontend form akışına field-level hata döndüren server-side validasyon katmanı eklendi.

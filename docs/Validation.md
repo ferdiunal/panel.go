@@ -44,6 +44,8 @@ Notlar:
 
 ## Field tanımı örneği
 
+### Klasik API (geriye uyumlu)
+
 ```go
 fieldDefs := []fields.Element{
 	fields.Text("Ad Soyad", "full_name").
@@ -62,6 +64,41 @@ fieldDefs := []fields.Element{
 
 	fields.Text("Profil URL", "profile_url").
 		AddValidationRule(fields.URL()),
+}
+```
+
+### Rules / CreationRules / UpdateRules API
+
+`Rules()`, `CreationRules()` ve `UpdateRules()` metotları ile create/update bağlamına duyarlı
+doğrulama kuralları tanımlanabilir.
+
+- `Rules(...)` — Her iki akışta (create + update) geçerli olan temel kurallar.
+- `CreationRules(...)` — Sadece create akışında ek olarak uygulanan kurallar.
+- `UpdateRules(...)` — Sadece update akışında ek olarak uygulanan kurallar.
+
+Create akışında çalışan kurallar: `Rules() + CreationRules()` birleşimi.
+Update akışında çalışan kurallar: `Rules() + UpdateRules()` birleşimi.
+
+```go
+fieldDefs := []fields.Element{
+	// Temel kullanım: variadic Rules ile toplu kural ekleme
+	fields.Text("Ad Soyad", "full_name").
+		Rules(fields.Required(), fields.MinLength(3), fields.MaxLength(80)),
+
+	// Create/Update ayrımı
+	fields.Email("E-posta", "email").
+		Rules(fields.EmailRule()).
+		CreationRules(fields.Required(), fields.Unique("users", "email")).
+		UpdateRules(fields.Unique("users", "email")),
+
+	// Sadece create'de zorunlu
+	fields.Password("Şifre", "password").
+		CreationRules(fields.Required(), fields.MinLength(8)).
+		UpdateRules(fields.MinLength(8)),
+
+	// Klasik API ile birlikte kullanılabilir
+	fields.Text("Profil URL", "profile_url").
+		Rules(fields.URL()),
 }
 ```
 
@@ -131,6 +168,11 @@ Not:
 - `422` dışı hatalarda standart hata toast akışı devam eder
 
 ## Create vs Update davranışı
+
+`CreationRules()` ve `UpdateRules()` kullanıldığında:
+- Create akışında: `Rules() + CreationRules()` birleşimi uygulanır
+- Update akışında: `Rules() + UpdateRules()` birleşimi uygulanır
+- `CreationRules`/`UpdateRules` tanımlanmadığında yalnızca `Rules()` (base rules) uygulanır
 
 `required` kuralı için:
 - Create: field yoksa/boşsa hata döner

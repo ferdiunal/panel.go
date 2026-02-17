@@ -150,7 +150,7 @@ func (h *FieldHandler) validateRequestPayload(
 		}
 
 		value, hasValue := payload[key]
-		rules := collectFieldValidationRules(element, serialized)
+		rules := collectFieldValidationRules(element, serialized, visibilityCtx)
 		customValidators := collectFieldCustomValidators(element)
 		if len(rules) == 0 && len(customValidators) == 0 {
 			continue
@@ -297,8 +297,17 @@ func localizeOrFallbackMessage(c *fiber.Ctx, message string, templateData map[st
 	return interpolateValidationMessage(message, templateData)
 }
 
-func collectFieldValidationRules(element fields.Element, serialized map[string]interface{}) []fields.ValidationRule {
-	rawRules := element.GetValidationRules()
+func collectFieldValidationRules(element fields.Element, serialized map[string]interface{}, visibilityCtx fields.VisibilityContext) []fields.ValidationRule {
+	var rawRules []interface{}
+	switch visibilityCtx {
+	case fields.ContextCreate:
+		rawRules = element.GetCreationValidationRules()
+	case fields.ContextUpdate:
+		rawRules = element.GetUpdateValidationRules()
+	default:
+		rawRules = element.GetValidationRules()
+	}
+
 	rules := make([]fields.ValidationRule, 0, len(rawRules)+1)
 
 	hasRequiredRule := false
