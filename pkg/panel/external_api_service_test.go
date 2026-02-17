@@ -134,6 +134,31 @@ func TestExternalAPI_ReturnsPlainFieldValues(t *testing.T) {
 	}
 }
 
+func TestExternalAPI_AllowsPanelAPIKey(t *testing.T) {
+	p := setupInternalRESTAPIPanel(t, Config{
+		Features: FeatureConfig{
+			ExternalAPI: true,
+		},
+		APIKey: APIKeyConfig{
+			Enabled: true,
+			Header:  "X-API-Key",
+			Keys:    []string{"panel-shared-key"},
+		},
+	})
+
+	req := httptest.NewRequest("GET", "/external-api/internal-rest-users", nil)
+	req.Header.Set("X-API-Key", "panel-shared-key")
+
+	resp, err := testFiberRequest(p.Fiber, req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected status 200 with panel api key, got %d", resp.StatusCode)
+	}
+}
+
 func TestExternalAPI_ValidationMatchesResourceRules(t *testing.T) {
 	p := setupInternalRESTAPIPanel(t, Config{
 		Features: FeatureConfig{

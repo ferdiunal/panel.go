@@ -34,6 +34,10 @@ func (p *Panel) resolveExternalAPIRuntimeConfig() externalAPIRuntimeConfig {
 
 	cfg.Enabled = p.Config.Features.ExternalAPI
 	if len(cfg.Keys) == 0 {
+		apiKeyCfg := p.resolveAPIKeyRuntimeConfig()
+		if apiKeyCfg.Enabled {
+			return cfg
+		}
 		cfg.Enabled = false
 	}
 
@@ -105,8 +109,7 @@ func (p *Panel) registerExternalAPIRoutes(app *fiber.App) {
 
 	externalAPI := app.Group(cfg.BasePath)
 	externalAPI.Use(func(c *fiber.Ctx) error {
-		incoming := strings.TrimSpace(c.Get(cfg.Header))
-		if incoming == "" || !containsAPIKey(cfg.Keys, incoming) {
+		if !p.isExternalAPIAuthorized(c, cfg) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Unauthorized",
 			})
@@ -120,6 +123,50 @@ func (p *Panel) registerExternalAPIRoutes(app *fiber.App) {
 	externalAPI.Put("/:resource/:id", context.Wrap(p.handleExternalResourceUpdate))
 	externalAPI.Patch("/:resource/:id", context.Wrap(p.handleExternalResourceUpdate))
 	externalAPI.Delete("/:resource/:id", context.Wrap(p.handleExternalResourceDestroy))
+}
+
+func (p *Panel) isExternalAPIAuthorized(c *fiber.Ctx, cfg externalAPIRuntimeConfig) bool {
+	if c == nil {
+		return false
+	}
+
+	incomingExternal := strings.TrimSpace(c.Get(cfg.Header))
+	if incomingExternal != "" && containsAPIKey(cfg.Keys, incomingExternal) {
+		return true
+	}
+
+	if p == nil {
+		return false
+	}
+
+	panelAPIKeyCfg := p.resolveAPIKeyRuntimeConfig()
+	if !panelAPIKeyCfg.Enabled {
+		return false
+	}
+
+	if p.matchesPanelAPIKey(c, incomingExternal, panelAPIKeyCfg) {
+		return true
+	}
+
+	if panelAPIKeyCfg.Header == cfg.Header {
+		return false
+	}
+
+	incomingPanelHeader := strings.TrimSpace(c.Get(panelAPIKeyCfg.Header))
+	return p.matchesPanelAPIKey(c, incomingPanelHeader, panelAPIKeyCfg)
+}
+
+func (p *Panel) matchesPanelAPIKey(c *fiber.Ctx, incoming string, cfg apiKeyRuntimeConfig) bool {
+	incoming = strings.TrimSpace(incoming)
+	if incoming == "" {
+		return false
+	}
+
+	if containsAPIKey(cfg.Keys, incoming) {
+		return true
+	}
+
+	return p.validateManagedAPIKey(c, incoming)
 }
 
 func (p *Panel) handleExternalResourceIndex(c *context.Context) error {

@@ -3,7 +3,9 @@ package panel
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	appContext "github.com/ferdiunal/panel.go/pkg/context"
@@ -52,7 +54,8 @@ func newInternalRESTAPIUserResource() *internalRESTAPIUserResource {
 func setupInternalRESTAPIPanel(t *testing.T, cfg Config) *Panel {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to connect db: %v", err)
 	}
