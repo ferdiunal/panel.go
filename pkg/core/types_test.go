@@ -62,6 +62,7 @@ func TestElementContextConstants(t *testing.T) {
 		{"HIDE_ON_DETAIL", core.HIDE_ON_DETAIL, "hide_on_detail"},
 		{"HIDE_ON_CREATE", core.HIDE_ON_CREATE, "hide_on_create"},
 		{"HIDE_ON_UPDATE", core.HIDE_ON_UPDATE, "hide_on_update"},
+		{"HIDE_ON_API", core.HIDE_ON_API, "hide_on_api"},
 		{"ONLY_ON_LIST", core.ONLY_ON_LIST, "only_on_list"},
 		{"ONLY_ON_DETAIL", core.ONLY_ON_DETAIL, "only_on_detail"},
 		{"ONLY_ON_CREATE", core.ONLY_ON_CREATE, "only_on_create"},

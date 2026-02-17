@@ -105,7 +105,7 @@ func (p *Panel) registerInternalRESTAPIRoutes(app *fiber.App) {
 	internalAPI := app.Group(cfg.BasePath)
 	internalAPI.Use(func(c *fiber.Ctx) error {
 		incoming := strings.TrimSpace(c.Get(cfg.Header))
-		if incoming == "" || !containsInternalRESTAPIKey(cfg.Keys, incoming) {
+		if incoming == "" || !containsAPIKey(cfg.Keys, incoming) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Unauthorized",
 			})
@@ -120,7 +120,7 @@ func (p *Panel) registerInternalRESTAPIRoutes(app *fiber.App) {
 	internalAPI.Delete("/:resource/:id", context.Wrap(p.handleResourceDestroy))
 }
 
-func containsInternalRESTAPIKey(keys []string, incoming string) bool {
+func containsAPIKey(keys []string, incoming string) bool {
 	for _, key := range keys {
 		if subtle.ConstantTimeCompare([]byte(incoming), []byte(key)) == 1 {
 			return true
@@ -135,7 +135,12 @@ func isPanelAPIPath(path string, cfg Config) bool {
 	}
 
 	basePath := baseInternalRESTAPIRuntimeConfig(cfg).BasePath
-	return hasPathPrefix(path, basePath)
+	if hasPathPrefix(path, basePath) {
+		return true
+	}
+
+	externalBasePath := baseExternalAPIRuntimeConfig(cfg).BasePath
+	return hasPathPrefix(path, externalBasePath)
 }
 
 func hasPathPrefix(path string, prefix string) bool {

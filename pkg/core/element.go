@@ -503,6 +503,15 @@ type Element interface {
 	//       OnForm().HideOnUpdate() // Şifre sadece create'te ayarlanabilir
 	HideOnUpdate() Element
 
+	// HideOnApi, element'i external API yanıtlarında gizler.
+	//
+	// Bu metod, internal panel davranışını bozmadan sadece external API
+	// çıktısından alanı gizlemek için kullanılır.
+	//
+	// Döndürür:
+	//   - Yapılandırılmış Element pointer'ı (method chaining için)
+	HideOnApi() Element
+
 	// OnlyOnList, element'i sadece liste görünümünde gösterir.
 	//
 	// Bu metod, element'i diğer tüm görünümlerden (detail, form) gizler.

@@ -1598,6 +1598,12 @@ const (
 	// - Değişmez (immutable) alanlar
 	HIDE_ON_UPDATE ElementContext = "hide_on_update"
 
+	// HIDE_ON_API, alanın external API yanıtlarında gizlenmesi gerektiğini belirtir.
+	//
+	// Bu context özellikle external API kullanımında hassas/sistem alanlarının
+	// dış dünyaya açılmasını engellemek için kullanılır.
+	HIDE_ON_API ElementContext = "hide_on_api"
+
 	// ONLY_ON_LIST, alanın SADECE liste görünümünde gösterilmesi gerektiğini belirtir.
 	//
 	// Bu context, alanın SADECE kayıt listesi/tablo görünümünde gösterilmesini sağlar.

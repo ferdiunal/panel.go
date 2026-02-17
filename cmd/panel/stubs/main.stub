@@ -41,11 +41,17 @@ func main() {
 			Register:       true,
 			ForgotPassword: true,
 			RestAPI:        os.Getenv("FEATURE_REST_API") == "true",
+			ExternalAPI:    os.Getenv("FEATURE_EXTERNAL_API") == "true",
 		},
 		RESTAPI: panel.RESTAPIConfig{
 			BasePath: os.Getenv("INTERNAL_REST_API_BASE_PATH"),
 			Header:   os.Getenv("INTERNAL_REST_API_HEADER"),
 			Keys:     []string{os.Getenv("INTERNAL_REST_API_KEY")},
+		},
+		ExternalAPI: panel.ExternalAPIConfig{
+			BasePath: os.Getenv("EXTERNAL_API_BASE_PATH"),
+			Header:   os.Getenv("EXTERNAL_API_HEADER"),
+			Keys:     []string{os.Getenv("EXTERNAL_API_KEY")},
 		},
 		Server: panel.ServerConfig{
 			Host: os.Getenv("HOST"),

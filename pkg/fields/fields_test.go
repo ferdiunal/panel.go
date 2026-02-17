@@ -160,3 +160,10 @@ func TestSchemaImplementsElement(t *testing.T) {
 		t.Error("Fluent methods should return Element interface")
 	}
 }
+
+func TestHideOnApiSetsContext(t *testing.T) {
+	f := Text("Secret", "secret").HideOnApi()
+	if f.GetContext() != HIDE_ON_API {
+		t.Fatalf("expected context %q, got %q", HIDE_ON_API, f.GetContext())
+	}
+}

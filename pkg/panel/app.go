@@ -851,6 +851,9 @@ func New(config Config) *Panel {
 	// Internal REST API routes (independent from /api service).
 	p.registerInternalRESTAPIRoutes(app)
 
+	// External API routes (independent plain JSON service).
+	p.registerExternalAPIRoutes(app)
+
 	// Notification Routes (dual route registration dışında)
 	notificationProvider := data.NewGormDataProvider(db, &notificationDomain.Notification{})
 	notificationService := notification.NewService(notificationProvider)

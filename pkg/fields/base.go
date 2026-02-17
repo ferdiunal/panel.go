@@ -581,6 +581,21 @@ func (s *Schema) HideOnUpdate() Element {
 	return s.SetContext(HIDE_ON_UPDATE)
 }
 
+// HideOnApi, alanı external API yanıtlarında gizler.
+//
+// Bu metod, alanın external API çıktısında yer almamasını sağlar.
+//
+// # Döndürür
+//
+//   - Element: Zincirleme çağrılar için Schema pointer'ı
+//
+// # Örnek
+//
+//	field := Text("secret", "secret").HideOnApi()
+func (s *Schema) HideOnApi() Element {
+	return s.SetContext(HIDE_ON_API)
+}
+
 // OnlyOnList, alanı sadece liste görünümünde gösterir.
 //
 // Bu metod, alanın yalnızca tablo/liste görünümünde görünür olmasını sağlar.

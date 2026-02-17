@@ -51,6 +51,11 @@ type FeatureConfig struct {
 	/// true: Internal REST API endpoint'leri yayınlanır
 	/// false: Internal REST API endpoint'leri kapalı kalır
 	RestAPI bool
+
+	/// ExternalAPI, harici tüketim için bağımsız external API servisinin aktif olup olmadığını belirtir.
+	/// true: External API endpoint'leri yayınlanır
+	/// false: External API endpoint'leri kapalı kalır
+	ExternalAPI bool
 }
 
 // / # OAuthConfig - OAuth Sağlayıcı Yapılandırması
@@ -256,6 +261,22 @@ type RESTAPIConfig struct {
 	Keys []string
 }
 
+// ExternalAPIConfig holds external API service settings.
+// External API returns plain field values (name => value) without field resolver wrappers.
+type ExternalAPIConfig struct {
+	// BasePath is the URL prefix where the external API is exposed.
+	// Default: /external-api
+	BasePath string
+
+	// Header is the header name that carries the external API key.
+	// Default: X-External-API-Key
+	Header string
+
+	// Keys is the allowed key list for external API requests.
+	// If empty and EXTERNAL_API_KEY env var is set, env value is used.
+	Keys []string
+}
+
 // ConcurrencyConfig controls request-time concurrency behavior for hot paths.
 // Defaults:
 // - EnablePipelineV2: false
@@ -404,6 +425,9 @@ type Config struct {
 
 	/// RESTAPI, mevcut /api servisinden bağımsız internal REST API ayarlarını tutar
 	RESTAPI RESTAPIConfig
+
+	/// ExternalAPI, internal servislerden bağımsız dış tüketim API ayarlarını tutar
+	ExternalAPI ExternalAPIConfig
 
 	/// Concurrency, resource hot-path eşzamanlılık davranışını yapılandırır.
 	/// EnablePipelineV2 false ise mevcut davranış korunur.

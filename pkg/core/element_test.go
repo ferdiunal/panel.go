@@ -53,6 +53,7 @@ func TestElementInterfaceHasRequiredMethods(t *testing.T) {
 		_ = element.HideOnDetail()
 		_ = element.HideOnCreate()
 		_ = element.HideOnUpdate()
+		_ = element.HideOnApi()
 		_ = element.OnlyOnList()
 		_ = element.OnlyOnDetail()
 		_ = element.OnlyOnCreate()

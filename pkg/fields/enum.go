@@ -86,6 +86,7 @@ const (
 	HIDE_ON_DETAIL ElementContext = core.HIDE_ON_DETAIL
 	HIDE_ON_CREATE ElementContext = core.HIDE_ON_CREATE
 	HIDE_ON_UPDATE ElementContext = core.HIDE_ON_UPDATE
+	HIDE_ON_API    ElementContext = core.HIDE_ON_API
 
 	ONLY_ON_LIST   ElementContext = core.ONLY_ON_LIST
 	ONLY_ON_DETAIL ElementContext = core.ONLY_ON_DETAIL

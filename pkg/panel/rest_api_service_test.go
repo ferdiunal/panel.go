@@ -14,8 +14,9 @@ import (
 )
 
 type internalRESTAPIUser struct {
-	ID   uint   `json:"id" gorm:"primaryKey"`
-	Name string `json:"name"`
+	ID     uint   `json:"id" gorm:"primaryKey"`
+	Name   string `json:"name"`
+	Secret string `json:"secret"`
 }
 
 func (internalRESTAPIUser) TableName() string {
@@ -28,6 +29,7 @@ func (r *internalRESTAPIUserFieldResolver) ResolveFields(_ *appContext.Context) 
 	return []fields.Element{
 		fields.ID(),
 		fields.Text("Name", "name").Required(),
+		fields.Text("Secret", "secret").HideOnApi(),
 	}
 }
 
@@ -57,7 +59,7 @@ func setupInternalRESTAPIPanel(t *testing.T, cfg Config) *Panel {
 	if err := db.AutoMigrate(&internalRESTAPIUser{}); err != nil {
 		t.Fatalf("failed to auto migrate test model: %v", err)
 	}
-	if err := db.Create(&internalRESTAPIUser{Name: "First User"}).Error; err != nil {
+	if err := db.Create(&internalRESTAPIUser{Name: "First User", Secret: "top-secret"}).Error; err != nil {
 		t.Fatalf("failed to seed test model: %v", err)
 	}
 
