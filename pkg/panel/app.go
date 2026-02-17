@@ -242,6 +242,9 @@ func New(config Config) *Panel {
 	// configRef, closure'ların her zaman güncel config'i okumasını sağlar.
 	// Panel oluşturulduktan sonra p.Config'e yeniden atanır.
 	configRef := &config
+	isAPIPath := func(path string) bool {
+		return isPanelAPIPath(path, *configRef)
+	}
 
 	// SECURITY: Configure Fiber with TrustProxy for production deployments behind reverse proxy
 	// This is REQUIRED for earlydata middleware to work securely
@@ -421,7 +424,7 @@ func New(config Config) *Panel {
 	staticCompress := compress.New(compress.Config{
 		Level: compress.LevelBestCompression,
 		Next: func(c *fiber.Ctx) bool {
-			return strings.HasPrefix(c.Path(), "/api")
+			return isAPIPath(c.Path())
 		},
 	})
 
@@ -446,7 +449,7 @@ func New(config Config) *Panel {
 		// HTML files with dynamic injection
 		app.Get("/*", func(c *fiber.Ctx) error {
 			// Skip API routes
-			if strings.HasPrefix(c.Path(), "/api") {
+			if isAPIPath(c.Path()) {
 				return c.Next()
 			}
 
@@ -479,7 +482,7 @@ func New(config Config) *Panel {
 
 			// HTML files with dynamic injection
 			app.Get("/*", func(c *fiber.Ctx) error {
-				if strings.HasPrefix(c.Path(), "/api") {
+				if isAPIPath(c.Path()) {
 					return c.Next()
 				}
 
@@ -512,7 +515,7 @@ func New(config Config) *Panel {
 					Browse: false,
 					Next: func(c *fiber.Ctx) bool {
 						// Skip API routes and HTML files
-						return strings.HasPrefix(c.Path(), "/api") ||
+						return isAPIPath(c.Path()) ||
 							c.Path() == "/" ||
 							!strings.Contains(c.Path(), ".")
 					},
@@ -520,7 +523,7 @@ func New(config Config) *Panel {
 
 				// HTML with injection (read from embedded FS)
 				app.Get("/*", func(c *fiber.Ctx) error {
-					if strings.HasPrefix(c.Path(), "/api") {
+					if isAPIPath(c.Path()) {
 						return c.Next()
 					}
 
@@ -561,7 +564,7 @@ func New(config Config) *Panel {
 				Root:   http.FS(assetsFS),
 				Browse: false,
 				Next: func(c *fiber.Ctx) bool {
-					return strings.HasPrefix(c.Path(), "/api") ||
+					return isAPIPath(c.Path()) ||
 						c.Path() == "/" ||
 						!strings.Contains(c.Path(), ".")
 				},
@@ -569,7 +572,7 @@ func New(config Config) *Panel {
 
 			// HTML with injection
 			app.Get("/*", func(c *fiber.Ctx) error {
-				if strings.HasPrefix(c.Path(), "/api") {
+				if isAPIPath(c.Path()) {
 					return c.Next()
 				}
 
@@ -844,6 +847,9 @@ func New(config Config) *Panel {
 		apiLang.Use(langMiddleware(config))
 		registerAPIRoutes(apiLang)
 	}
+
+	// Internal REST API routes (independent from /api service).
+	p.registerInternalRESTAPIRoutes(app)
 
 	// Notification Routes (dual route registration dışında)
 	notificationProvider := data.NewGormDataProvider(db, &notificationDomain.Notification{})

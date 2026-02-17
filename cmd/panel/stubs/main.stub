@@ -40,6 +40,12 @@ func main() {
 		Features: panel.FeatureConfig{
 			Register:       true,
 			ForgotPassword: true,
+			RestAPI:        os.Getenv("FEATURE_REST_API") == "true",
+		},
+		RESTAPI: panel.RESTAPIConfig{
+			BasePath: os.Getenv("INTERNAL_REST_API_BASE_PATH"),
+			Header:   os.Getenv("INTERNAL_REST_API_HEADER"),
+			Keys:     []string{os.Getenv("INTERNAL_REST_API_KEY")},
 		},
 		Server: panel.ServerConfig{
 			Host: os.Getenv("HOST"),

@@ -46,6 +46,11 @@ type FeatureConfig struct {
 	/// true: Kullanıcılar şifrelerini sıfırlayabilir
 	/// false: Şifre sıfırlama devre dışı (admin tarafından sıfırlanması gerekir)
 	ForgotPassword bool
+
+	/// RestAPI, internal REST API servisinin aktif olup olmadığını belirtir.
+	/// true: Internal REST API endpoint'leri yayınlanır
+	/// false: Internal REST API endpoint'leri kapalı kalır
+	RestAPI bool
 }
 
 // / # OAuthConfig - OAuth Sağlayıcı Yapılandırması
@@ -235,6 +240,22 @@ type APIKeyConfig struct {
 	Keys []string
 }
 
+// RESTAPIConfig holds internal REST API service settings.
+// This service is independent from /api routes and can be gated via FeatureConfig.RestAPI.
+type RESTAPIConfig struct {
+	// BasePath is the URL prefix where the internal REST API is exposed.
+	// Default: /internal-api
+	BasePath string
+
+	// Header is the header name that carries the internal REST API key.
+	// Default: X-Internal-API-Key
+	Header string
+
+	// Keys is the allowed key list for internal REST API requests.
+	// If empty and INTERNAL_REST_API_KEY env var is set, env value is used.
+	Keys []string
+}
+
 // ConcurrencyConfig controls request-time concurrency behavior for hot paths.
 // Defaults:
 // - EnablePipelineV2: false
@@ -380,6 +401,9 @@ type Config struct {
 
 	/// APIKey, API endpoint'leri için API key kimlik doğrulamasını yapılandırır
 	APIKey APIKeyConfig
+
+	/// RESTAPI, mevcut /api servisinden bağımsız internal REST API ayarlarını tutar
+	RESTAPI RESTAPIConfig
 
 	/// Concurrency, resource hot-path eşzamanlılık davranışını yapılandırır.
 	/// EnablePipelineV2 false ise mevcut davranış korunur.
