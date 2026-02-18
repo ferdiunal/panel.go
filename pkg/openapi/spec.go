@@ -204,10 +204,9 @@ func (g *SpecGenerator) InvalidateCache() {
 //
 // ## Davranış
 //  1. Temel spec yapısını oluşturur
-//  2. Statik endpoint'leri ekler (auth, init, navigation)
-//  3. Dinamik resource endpoint'lerini ekler
-//  4. Component'leri (schemas, security schemes) ekler
-//  5. Tag'leri ekler
+//  2. Dinamik resource endpoint'lerini ekler
+//  3. Component'leri (schemas, security schemes) ekler
+//  4. Tag'leri ekler
 //
 // ## Dönüş Değeri
 //   - *OpenAPISpec: Oluşturulan OpenAPI spesifikasyonu
@@ -234,13 +233,7 @@ func (g *SpecGenerator) generateSpec() (*OpenAPISpec, error) {
 		Tags: []Tag{},
 	}
 
-	// Security scheme ekle (cookie-based authentication)
-	spec.Components.SecuritySchemes["cookieAuth"] = SecurityScheme{
-		Type:        "apiKey",
-		In:          "cookie",
-		Name:        "session_token",
-		Description: "Session cookie authentication",
-	}
+	// Security scheme ekle (API key authentication)
 	spec.Components.SecuritySchemes["apiKeyAuth"] = SecurityScheme{
 		Type:        "apiKey",
 		In:          "header",
@@ -250,13 +243,7 @@ func (g *SpecGenerator) generateSpec() (*OpenAPISpec, error) {
 
 	// Global security requirement ekle
 	spec.Security = []SecurityRequirement{
-		{"cookieAuth": []string{}},
 		{"apiKeyAuth": []string{}},
-	}
-
-	// Statik endpoint'leri ekle
-	if err := g.addStaticEndpoints(spec); err != nil {
-		return nil, fmt.Errorf("failed to add static endpoints: %w", err)
 	}
 
 	// Dinamik resource endpoint'lerini ekle

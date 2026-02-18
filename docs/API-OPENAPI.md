@@ -1,11 +1,12 @@
 # OpenAPI/Swagger Entegrasyonu
 
-Panel.go, tüm REST API endpoint'leri için otomatik OpenAPI 3.0.3 spesifikasyonu oluşturur ve Swagger UI arayüzü sağlar.
+Panel.go, external API resource endpoint'leri için otomatik OpenAPI 3.0.3 spesifikasyonu oluşturur ve Swagger UI arayüzü sağlar.
 
 ## İçindekiler
 
 - [Özellikler](#özellikler)
 - [Endpoint'ler](#endpointler)
+- [Kapsam ve Sınırlar](#kapsam-ve-sınırlar)
 - [Kullanım](#kullanım)
 - [Swagger UI](#swagger-ui)
 - [OpenAPI Spec](#openapi-spec)
@@ -37,24 +38,19 @@ Her resource için aşağıdaki endpoint'ler otomatik oluşturulur:
 
 | Endpoint | Method | Açıklama |
 |----------|--------|----------|
-| `/api/resources/{slug}` | GET | Resource listesi (paginated) |
-| `/api/resources/{slug}` | POST | Yeni kayıt oluştur |
-| `/api/resources/{slug}/{id}` | GET | Tek kayıt getir |
-| `/api/resources/{slug}/{id}` | PUT | Kayıt güncelle |
-| `/api/resources/{slug}/{id}` | DELETE | Kayıt sil |
-| `/api/resources/{slug}/actions/{action}` | POST | Action çalıştır |
+| `/api/{slug}` | GET | Resource listesi (paginated) |
+| `/api/{slug}` | POST | Yeni kayıt oluştur |
+| `/api/{slug}/{id}` | GET | Tek kayıt getir |
+| `/api/{slug}/{id}` | PUT | Kayıt güncelle |
+| `/api/{slug}/{id}` | DELETE | Kayıt sil |
+| `/api/{slug}/actions/{action}` | POST | Action çalıştır |
 
-### Static Endpoint'ler
+## Kapsam ve Sınırlar
 
-| Endpoint | Method | Açıklama |
-|----------|--------|----------|
-| `/api/auth/sign-in/email` | POST | Email ile giriş |
-| `/api/auth/sign-up/email` | POST | Email ile kayıt |
-| `/api/auth/sign-out` | POST | Çıkış |
-| `/api/auth/forgot-password` | POST | Şifre sıfırlama |
-| `/api/auth/session` | GET | Oturum bilgisi |
-| `/api/init` | GET | Uygulama başlatma |
-| `/api/navigation` | GET | Navigasyon menüsü |
+- OpenAPI/Swagger çıktısı yalnızca external API (`/api/:resource`) yüzeyini dokümante eder.
+- Internal panel endpoint'leri (`/api/internal/*`) ve internal REST endpoint'leri (`/api/internal/rest/*`) `/api/openapi.json` içinde yer almaz.
+- Swagger operasyon tag'leri resource `Group()` değerine göre değil, resource bazlı (title/slug tabanlı) üretilir.
+- `/api/docs` ve `/api/openapi.json` endpoint'leri publictir; session gerektirmez.
 
 ## Kullanım
 
@@ -83,7 +79,7 @@ Swagger UI, API'nizi interaktif olarak test etmenizi sağlar:
 ### Özellikler
 
 - **Try it out**: Endpoint'leri doğrudan tarayıcıdan test edin
-- **Authentication**: Session cookie veya API key ile kimlik doğrulama
+- **Authentication**: API key ile kimlik doğrulama
 - **Request/Response**: Örnek request ve response'ları görün
 - **Schema**: Veri modellerini inceleyin
 - **Filter**: Endpoint'leri arayın ve filtreleyin
@@ -91,7 +87,7 @@ Swagger UI, API'nizi interaktif olarak test etmenizi sağlar:
 ### Kullanım
 
 1. Swagger UI'yı açın: `http://localhost:8080/api/docs`
-2. Bir endpoint seçin (örn: `GET /api/resources/users`)
+2. Bir endpoint seçin (örn: `GET /api/users`)
 3. "Try it out" butonuna tıklayın
 4. Parametreleri doldurun
 5. "Execute" butonuna tıklayın

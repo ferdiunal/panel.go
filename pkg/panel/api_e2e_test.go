@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TestE2EInitEndpoint, /api/init endpoint'ini test eder
+// TestE2EInitEndpoint, /api/internal/init endpoint'ini test eder
 func TestE2EInitEndpoint(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 
@@ -37,12 +37,12 @@ func TestE2EInitEndpoint(t *testing.T) {
 
 	p := New(cfg)
 
-	// Test /api/init endpoint
-	req := httptest.NewRequest("GET", "/api/init", nil)
+	// Test /api/internal/init endpoint
+	req := httptest.NewRequest("GET", "/api/internal/init", nil)
 	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
-		t.Errorf("Failed to test /api/init: %v", err)
+		t.Errorf("Failed to test /api/internal/init: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -50,7 +50,7 @@ func TestE2EInitEndpoint(t *testing.T) {
 	}
 }
 
-// TestE2ENavigationEndpoint, /api/navigation endpoint'ini test eder
+// TestE2ENavigationEndpoint, /api/internal/navigation endpoint'ini test eder
 func TestE2ENavigationEndpoint(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 
@@ -72,12 +72,12 @@ func TestE2ENavigationEndpoint(t *testing.T) {
 
 	p := New(cfg)
 
-	// Test /api/navigation endpoint
-	req := httptest.NewRequest("GET", "/api/navigation", nil)
+	// Test /api/internal/navigation endpoint
+	req := httptest.NewRequest("GET", "/api/internal/navigation", nil)
 	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
-		t.Errorf("Failed to test /api/navigation: %v", err)
+		t.Errorf("Failed to test /api/internal/navigation: %v", err)
 	}
 
 	// Should be 401 (unauthorized) or 200 (if auth middleware is not enforced in test)
@@ -86,7 +86,7 @@ func TestE2ENavigationEndpoint(t *testing.T) {
 	}
 }
 
-// TestE2EResourceListEndpoint, /api/resource/:resource endpoint'ini test eder
+// TestE2EResourceListEndpoint, /api/internal/resource/:resource endpoint'ini test eder
 func TestE2EResourceListEndpoint(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	db.AutoMigrate(&resourceUser.UserResource{})
@@ -104,12 +104,12 @@ func TestE2EResourceListEndpoint(t *testing.T) {
 
 	p := New(cfg)
 
-	// Test /api/resource/users endpoint
-	req := httptest.NewRequest("GET", "/api/resource/users", nil)
+	// Test /api/internal/resource/users endpoint
+	req := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
-		t.Errorf("Failed to test /api/resource/users: %v", err)
+		t.Errorf("Failed to test /api/internal/resource/users: %v", err)
 	}
 
 	// Should be 401 (unauthorized) or 200 (if auth middleware is not enforced in test)
@@ -118,7 +118,7 @@ func TestE2EResourceListEndpoint(t *testing.T) {
 	}
 }
 
-// TestE2EResourceCreateEndpoint, /api/resource/:resource/create endpoint'ini test eder
+// TestE2EResourceCreateEndpoint, /api/internal/resource/:resource/create endpoint'ini test eder
 func TestE2EResourceCreateEndpoint(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 
@@ -135,12 +135,12 @@ func TestE2EResourceCreateEndpoint(t *testing.T) {
 
 	p := New(cfg)
 
-	// Test /api/resource/users/create endpoint
-	req := httptest.NewRequest("GET", "/api/resource/users/create", nil)
+	// Test /api/internal/resource/users/create endpoint
+	req := httptest.NewRequest("GET", "/api/internal/resource/users/create", nil)
 	resp, err := testFiberRequest(p.Fiber, req)
 
 	if err != nil {
-		t.Errorf("Failed to test /api/resource/users/create: %v", err)
+		t.Errorf("Failed to test /api/internal/resource/users/create: %v", err)
 	}
 
 	// Should be 401 (unauthorized) or 200 (if auth middleware is not enforced in test)

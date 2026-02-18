@@ -13,6 +13,56 @@ Bir resource tipik olarak şu parçaları içerir:
 - Repository
 - Menü bilgileri (`slug`, `title`, `icon`, `group`)
 
+## API Yüzeyleri (Panel / Internal / External)
+
+Aynı resource tanımı (`model + fields + policy + repository`) üç farklı API yüzeyinde kullanılabilir:
+
+| Servis | Varsayılan Base Path | Feature Gate | Kimlik Doğrulama | Response Format |
+|---|---|---|---|---|
+| Panel API (Internal) | `/api/internal` | Yok (çekirdek servis) | Session veya API key middleware | Field resolver payload (standart panel formatı) |
+| Internal REST API | `/api/internal/rest` | `Features.RestAPI` | `RESTAPI.Header` + `RESTAPI.Keys` | Standart panel resource response |
+| External API | `/api` | `Features.ExternalAPI` | `ExternalAPI.Header` + `ExternalAPI.Keys` veya Panel API key | Flatten JSON (`name => value`) |
+
+Endpoint kapsamı:
+- Panel API (Internal): `GET/POST /api/internal/resource/:resource`, `GET/PUT/DELETE /api/internal/resource/:resource/:id` (+ panel odaklı yardımcı endpoint'ler)
+- Internal REST API: `GET /api/internal/rest/:resource`, `GET /api/internal/rest/:resource/:id`, `PUT/PATCH /api/internal/rest/:resource/:id`, `DELETE /api/internal/rest/:resource/:id`
+- External API: `GET /api/:resource`, `GET /api/:resource/:id`, `POST /api/:resource`, `PUT/PATCH /api/:resource/:id`, `DELETE /api/:resource/:id`
+
+Notlar:
+- Internal ve external servisler, resource validasyonunu aynı handler zinciri üzerinden çalıştırır. `422` validasyon davranışı panel API ile uyumludur.
+- External API yanıtında field payload flatten edilir ve `HideOnApi()` işaretli alanlar response'a dahil edilmez.
+
+Örnek konfigürasyon:
+
+```go
+cfg := panel.Config{
+	Features: panel.FeatureConfig{
+		RestAPI:     os.Getenv("FEATURE_REST_API") == "true",
+		ExternalAPI: os.Getenv("FEATURE_EXTERNAL_API") == "true",
+	},
+	RESTAPI: panel.RESTAPIConfig{
+		BasePath: os.Getenv("INTERNAL_REST_API_BASE_PATH"),
+		Header:   os.Getenv("INTERNAL_REST_API_HEADER"),
+		Keys:     []string{os.Getenv("INTERNAL_REST_API_KEY")},
+	},
+	ExternalAPI: panel.ExternalAPIConfig{
+		BasePath: os.Getenv("EXTERNAL_API_BASE_PATH"),
+		Header:   os.Getenv("EXTERNAL_API_HEADER"),
+		Keys:     []string{os.Getenv("EXTERNAL_API_KEY")},
+	},
+}
+```
+
+Kullanılan env anahtarları:
+- `FEATURE_REST_API`
+- `FEATURE_EXTERNAL_API`
+- `INTERNAL_REST_API_BASE_PATH`
+- `INTERNAL_REST_API_HEADER`
+- `INTERNAL_REST_API_KEY`
+- `EXTERNAL_API_BASE_PATH`
+- `EXTERNAL_API_HEADER`
+- `EXTERNAL_API_KEY`
+
 ## Hızlı Akış (Önerilen Sıra)
 
 1. Model'i oluştur
@@ -169,7 +219,7 @@ r.SetIndexRowClickAction(resource.IndexRowClickActionEdit)
 r.SetIndexRowClickAction(resource.IndexRowClickActionDetail)
 ```
 
-Frontend tarafına `GET /api/resource/:resource` yanıtında şu meta alanı gelir:
+Frontend tarafına `GET /api/internal/resource/:resource` yanıtında şu meta alanı gelir:
 
 ```json
 {
@@ -198,7 +248,7 @@ r.SetIndexPaginationType(resource.IndexPaginationTypeSimple)
 r.SetIndexPaginationType(resource.IndexPaginationTypeLoadMore)
 ```
 
-Frontend tarafına `GET /api/resource/:resource` yanıtında şu meta alanı gelir:
+Frontend tarafına `GET /api/internal/resource/:resource` yanıtında şu meta alanı gelir:
 
 ```json
 {
@@ -255,7 +305,7 @@ Notlar:
 
 Satır sıralaması değiştiğinde frontend aşağıdaki endpoint'i çağırır:
 
-`POST /api/resource/:resource/reorder`
+`POST /api/internal/resource/:resource/reorder`
 
 İstek gövdesi:
 

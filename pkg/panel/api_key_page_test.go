@@ -34,7 +34,7 @@ func TestAPIKeyPageSave_RefreshesMiddleware(t *testing.T) {
 		"api_keys":        "client-secret-key",
 	})
 
-	saveReq := httptest.NewRequest("POST", "/api/pages/api-settings", bytes.NewReader(saveBody))
+	saveReq := httptest.NewRequest("POST", "/api/internal/pages/api-settings", bytes.NewReader(saveBody))
 	saveReq.Header.Set("Content-Type", "application/json")
 	saveReq.AddCookie(sessionCookie)
 
@@ -46,7 +46,7 @@ func TestAPIKeyPageSave_RefreshesMiddleware(t *testing.T) {
 		t.Fatalf("expected status 200 from api settings save, got %d", saveResp.StatusCode)
 	}
 
-	validKeyReq := httptest.NewRequest("GET", "/api/resource/users", nil)
+	validKeyReq := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	validKeyReq.Header.Set("X-App-Key", "client-secret-key")
 
 	validKeyResp, err := testFiberRequest(p.Fiber, validKeyReq)
@@ -57,7 +57,7 @@ func TestAPIKeyPageSave_RefreshesMiddleware(t *testing.T) {
 		t.Fatalf("expected status 404 with valid api key on internal resource, got %d", validKeyResp.StatusCode)
 	}
 
-	invalidKeyReq := httptest.NewRequest("GET", "/api/resource/users", nil)
+	invalidKeyReq := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	invalidKeyReq.Header.Set("X-App-Key", "wrong-key")
 
 	invalidKeyResp, err := testFiberRequest(p.Fiber, invalidKeyReq)
@@ -77,7 +77,7 @@ func registerAndLoginTestUser(t *testing.T, p *Panel, email string) *http.Cookie
 		"email":    email,
 		"password": "password",
 	})
-	registerReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(registerBody))
+	registerReq := httptest.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(registerBody))
 	registerReq.Header.Set("Content-Type", "application/json")
 
 	if _, err := testFiberRequest(p.Fiber, registerReq); err != nil {
@@ -92,7 +92,7 @@ func registerAndLoginTestUser(t *testing.T, p *Panel, email string) *http.Cookie
 		"email":    email,
 		"password": "password",
 	})
-	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
+	loginReq := httptest.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 
 	loginResp, err := testFiberRequest(p.Fiber, loginReq)

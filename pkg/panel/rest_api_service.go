@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultInternalRESTAPIBasePath = "/internal-api"
+	defaultInternalRESTAPIBasePath = "/api/internal/rest"
 	defaultInternalRESTAPIHeader   = "X-Internal-API-Key"
 )
 

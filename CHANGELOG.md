@@ -4,6 +4,48 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### 🔐 Internal/External API Servis Ayrımı ve External Plain JSON
+
+`/api` external API yüzeyi olarak konumlandırıldı; internal endpoint'ler `/api/internal/*` altında toplandı.
+
+#### Backend
+
+- `pkg/panel/rest_api_service.go`:
+  - Internal REST servisi bağımsız base path + header + key ile çalışır.
+  - Feature gate: `Features.RestAPI`.
+  - Varsayılan base path: `/api/internal/rest`.
+  - Endpoint seti: `GET index`, `GET detail`, `PUT/PATCH update`, `DELETE`.
+- `pkg/panel/external_api_service.go`:
+  - External API servisi bağımsız base path + header + key ile çalışır.
+  - Feature gate: `Features.ExternalAPI`.
+  - Varsayılan base path: `/api`.
+  - Endpoint seti: `GET index`, `GET show`, `POST store`, `PUT/PATCH update`, `DELETE`.
+  - Response flatten akışı eklendi: field resolver payload yerine doğrudan `name => value` JSON döner.
+  - `HideOnApi` context'ine sahip alanlar external yanıtta otomatik gizlenir.
+  - External servis auth'u external key yanında panel API key ve managed API key doğrulamasını da kabul eder.
+- `pkg/panel/app.go`:
+  - Eski `/api/*` panel endpoint'leri `/api/internal/*` altına taşındı.
+  - Auth/System endpoint'leri: `/api/internal/auth/*`, `/api/internal/init`, `/api/internal/navigation`.
+  - OpenAPI spec sadece external endpoint yüzeyini üretir.
+- `pkg/core/types.go`, `pkg/core/element.go`, `pkg/fields/base.go`, `pkg/fields/enum.go`:
+  - Yeni context: `HIDE_ON_API`.
+  - Yeni fluent API: `HideOnApi()`.
+
+#### Config / Env
+
+- `cmd/panel/stubs/main.stub`, `cmd/panel/stubs/main-postgres.stub`, `cmd/panel/stubs/main-mysql.stub`, `cmd/panel/stubs/env.stub`:
+  - Feature env anahtarları: `FEATURE_REST_API`, `FEATURE_EXTERNAL_API`
+  - Internal REST env anahtarları: `INTERNAL_REST_API_BASE_PATH`, `INTERNAL_REST_API_HEADER`, `INTERNAL_REST_API_KEY`
+  - External API env anahtarları: `EXTERNAL_API_BASE_PATH`, `EXTERNAL_API_HEADER`, `EXTERNAL_API_KEY`
+  - Varsayılanlar güncellendi: `INTERNAL_REST_API_BASE_PATH=/api/internal/rest`, `EXTERNAL_API_BASE_PATH=/api`
+
+#### Test / Doğrulama
+
+- `pkg/panel/rest_api_service_test.go`: internal servis auth + detail/update/delete + validation senaryoları
+- `pkg/panel/external_api_service_test.go`: flatten response, `HideOnApi`, panel API key fallback, validation uyumu
+- `pkg/core/types_test.go`, `pkg/core/element_test.go`, `pkg/fields/fields_test.go`: yeni context/fluent API kapsamı
+- ✅ `go test ./...`
+
 ### ✅ Create/Update Bağlamına Duyarlı Validation API (Rules / CreationRules / UpdateRules)
 
 Field bazlı doğrulama sistemine `Rules()`, `CreationRules()`, `UpdateRules()` fluent API'si eklendi. Artık create ve update akışlarına özel doğrulama kuralları tanımlanabilir.

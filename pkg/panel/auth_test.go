@@ -50,7 +50,7 @@ func TestAuthFlow(t *testing.T) {
 			"email":    email,
 			"password": password,
 		})
-		req, _ := http.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(body))
+		req, _ := http.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp := doReq(t, req)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -67,7 +67,7 @@ func TestAuthFlow(t *testing.T) {
 			"email":    email,
 			"password": password,
 		})
-		req, _ := http.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(body))
+		req, _ := http.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp := doReq(t, req)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -86,7 +86,7 @@ func TestAuthFlow(t *testing.T) {
 
 	// 3. Get Session
 	t.Run("GetSession", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/api/auth/session", nil)
+		req, _ := http.NewRequest("GET", "/api/internal/auth/session", nil)
 		cookie := &http.Cookie{Name: "session_token", Value: sessionToken}
 		req.AddCookie(cookie)
 		resp := doReq(t, req)
@@ -100,14 +100,14 @@ func TestAuthFlow(t *testing.T) {
 
 	// 4. Sign Out
 	t.Run("SignOut", func(t *testing.T) {
-		req, _ := http.NewRequest("POST", "/api/auth/sign-out", nil)
+		req, _ := http.NewRequest("POST", "/api/internal/auth/sign-out", nil)
 		cookie := &http.Cookie{Name: "session_token", Value: sessionToken}
 		req.AddCookie(cookie)
 		resp := doReq(t, req)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// Verify Session is gone
-		req2, _ := http.NewRequest("GET", "/api/auth/session", nil)
+		req2, _ := http.NewRequest("GET", "/api/internal/auth/session", nil)
 		req2.AddCookie(cookie) // Send old cookie
 		resp2 := doReq(t, req2)
 

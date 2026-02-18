@@ -17,7 +17,7 @@ func TestExternalAPI_FeatureDisabled(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest("GET", "/external-api/internal-rest-users", nil)
+	req := httptest.NewRequest("GET", "/api/internal-rest-users", nil)
 	req.Header.Set("X-External-API-Key", "external-secret")
 
 	resp, err := testFiberRequest(p.Fiber, req)
@@ -40,7 +40,7 @@ func TestExternalAPI_RequiresValidKey(t *testing.T) {
 		},
 	})
 
-	missingKeyReq := httptest.NewRequest("GET", "/external-api/internal-rest-users", nil)
+	missingKeyReq := httptest.NewRequest("GET", "/api/internal-rest-users", nil)
 	missingKeyResp, err := testFiberRequest(p.Fiber, missingKeyReq)
 	if err != nil {
 		t.Fatalf("missing key request failed: %v", err)
@@ -49,7 +49,7 @@ func TestExternalAPI_RequiresValidKey(t *testing.T) {
 		t.Fatalf("expected status 401 without key, got %d", missingKeyResp.StatusCode)
 	}
 
-	invalidKeyReq := httptest.NewRequest("GET", "/external-api/internal-rest-users", nil)
+	invalidKeyReq := httptest.NewRequest("GET", "/api/internal-rest-users", nil)
 	invalidKeyReq.Header.Set("X-External-API-Key", "wrong-key")
 	invalidKeyResp, err := testFiberRequest(p.Fiber, invalidKeyReq)
 	if err != nil {
@@ -70,7 +70,7 @@ func TestExternalAPI_ReturnsPlainFieldValues(t *testing.T) {
 		},
 	})
 
-	indexReq := httptest.NewRequest("GET", "/external-api/internal-rest-users", nil)
+	indexReq := httptest.NewRequest("GET", "/api/internal-rest-users", nil)
 	indexReq.Header.Set("X-External-API-Key", "external-secret")
 	indexResp, err := testFiberRequest(p.Fiber, indexReq)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestExternalAPI_ReturnsPlainFieldValues(t *testing.T) {
 		t.Fatalf("expected secret field to be hidden by HideOnApi on index response")
 	}
 
-	showReq := httptest.NewRequest("GET", "/external-api/internal-rest-users/1", nil)
+	showReq := httptest.NewRequest("GET", "/api/internal-rest-users/1", nil)
 	showReq.Header.Set("X-External-API-Key", "external-secret")
 	showResp, err := testFiberRequest(p.Fiber, showReq)
 	if err != nil {
@@ -146,7 +146,7 @@ func TestExternalAPI_AllowsPanelAPIKey(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest("GET", "/external-api/internal-rest-users", nil)
+	req := httptest.NewRequest("GET", "/api/internal-rest-users", nil)
 	req.Header.Set("X-API-Key", "panel-shared-key")
 
 	resp, err := testFiberRequest(p.Fiber, req)
@@ -172,7 +172,7 @@ func TestExternalAPI_ValidationMatchesResourceRules(t *testing.T) {
 	body, _ := json.Marshal(map[string]any{
 		"name": "",
 	})
-	updateReq := httptest.NewRequest("PUT", "/external-api/internal-rest-users/1", bytes.NewReader(body))
+	updateReq := httptest.NewRequest("PUT", "/api/internal-rest-users/1", bytes.NewReader(body))
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateReq.Header.Set("X-External-API-Key", "external-secret")
 	updateResp, err := testFiberRequest(p.Fiber, updateReq)

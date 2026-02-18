@@ -35,7 +35,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 		"api_key_header":  "X-API-Key",
 		"api_keys":        "",
 	})
-	enableReq := httptest.NewRequest("POST", "/api/pages/api-settings", bytes.NewReader(enableBody))
+	enableReq := httptest.NewRequest("POST", "/api/internal/pages/api-settings", bytes.NewReader(enableBody))
 	enableReq.Header.Set("Content-Type", "application/json")
 	enableReq.AddCookie(sessionCookie)
 	enableResp, err := testFiberRequest(p.Fiber, enableReq)
@@ -49,7 +49,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 	createBody, _ := json.Marshal(map[string]any{
 		"name": "CI Key",
 	})
-	createReq := httptest.NewRequest("POST", "/api/api-keys", bytes.NewReader(createBody))
+	createReq := httptest.NewRequest("POST", "/api/internal/api-keys", bytes.NewReader(createBody))
 	createReq.Header.Set("Content-Type", "application/json")
 	createReq.AddCookie(sessionCookie)
 
@@ -77,7 +77,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 		t.Fatal("created api key secret is empty")
 	}
 
-	listReq := httptest.NewRequest("GET", "/api/api-keys", nil)
+	listReq := httptest.NewRequest("GET", "/api/internal/api-keys", nil)
 	listReq.AddCookie(sessionCookie)
 	listResp, err := testFiberRequest(p.Fiber, listReq)
 	if err != nil {
@@ -87,7 +87,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 		t.Fatalf("expected status 200 from api key list, got %d", listResp.StatusCode)
 	}
 
-	validResourceReq := httptest.NewRequest("GET", "/api/resource/users", nil)
+	validResourceReq := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	validResourceReq.Header.Set("X-API-Key", created.Key)
 	validResourceResp, err := testFiberRequest(p.Fiber, validResourceReq)
 	if err != nil {
@@ -98,7 +98,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 	}
 
 	// API key-authenticated requests should not manage API keys.
-	forbiddenMgmtReq := httptest.NewRequest("GET", "/api/api-keys", nil)
+	forbiddenMgmtReq := httptest.NewRequest("GET", "/api/internal/api-keys", nil)
 	forbiddenMgmtReq.Header.Set("X-API-Key", created.Key)
 	forbiddenMgmtResp, err := testFiberRequest(p.Fiber, forbiddenMgmtReq)
 	if err != nil {
@@ -108,7 +108,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 		t.Fatalf("expected status 403 for api-key based management access, got %d", forbiddenMgmtResp.StatusCode)
 	}
 
-	revokeReq := httptest.NewRequest("DELETE", fmt.Sprintf("/api/api-keys/%d", created.Data.ID), nil)
+	revokeReq := httptest.NewRequest("DELETE", fmt.Sprintf("/api/internal/api-keys/%d", created.Data.ID), nil)
 	revokeReq.AddCookie(sessionCookie)
 	revokeResp, err := testFiberRequest(p.Fiber, revokeReq)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestManagedAPIKeyLifecycle(t *testing.T) {
 		t.Fatalf("expected status 200 from api key revoke, got %d", revokeResp.StatusCode)
 	}
 
-	revokedReq := httptest.NewRequest("GET", "/api/resource/users", nil)
+	revokedReq := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	revokedReq.Header.Set("X-API-Key", created.Key)
 	revokedResp, err := testFiberRequest(p.Fiber, revokedReq)
 	if err != nil {
@@ -191,13 +191,22 @@ func TestOpenAPISpec_ExcludesSystemResources(t *testing.T) {
 	if !strings.Contains(specBody, "\"apiKeyAuth\"") {
 		t.Fatal("openapi spec should include apiKeyAuth security scheme")
 	}
-	if !strings.Contains(specBody, "\"name\":\"X-API-Key\"") {
-		t.Fatal("openapi spec should use X-API-Key header for apiKeyAuth")
+	if !strings.Contains(specBody, "\"name\":\"X-External-API-Key\"") {
+		t.Fatal("openapi spec should use X-External-API-Key header for apiKeyAuth")
 	}
-	if strings.Contains(specBody, "/api/resources/users") {
+	if strings.Contains(specBody, "/api/users") {
 		t.Fatal("openapi spec should not expose system users resource")
 	}
-	if strings.Contains(specBody, "/api/resources/verifications") {
+	if strings.Contains(specBody, "/api/verifications") {
 		t.Fatal("openapi spec should not expose system verifications resource")
+	}
+	if strings.Contains(specBody, "/api/internal/auth/sign-in/email") {
+		t.Fatal("openapi spec should not expose internal auth endpoints")
+	}
+	if strings.Contains(specBody, "/api/internal/init") {
+		t.Fatal("openapi spec should not expose internal init endpoint")
+	}
+	if strings.Contains(specBody, "/api/internal/navigation") {
+		t.Fatal("openapi spec should not expose internal navigation endpoint")
 	}
 }

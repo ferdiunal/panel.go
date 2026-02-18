@@ -753,29 +753,8 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 		db = db.Preload(relName)
 	}
 
-	// Apply Relationship Filter (ViaResource & ViaResourceId)
-	// Bu blok, HasMany ilişkilerinde child kayıtları parent ID'ye göre filtrelemek için kullanılır.
-	// Frontend'den gelen viaResource ve viaResourceId parametreleri kullanılır.
-	if req.ViaResource != "" && req.ViaResourceId != "" {
-		stmt := &gorm.Statement{DB: p.DB}
-		if err := stmt.Parse(p.Model); err == nil {
-			for _, rel := range stmt.Schema.Relationships.Relations {
-				if rel.Type == schema.BelongsTo {
-					// İlişkili tablo adını kontrol et (örn: "organizations")
-					if normalizeResourceTableIdentifier(rel.FieldSchema.Table) == normalizeResourceTableIdentifier(req.ViaResource) {
-						// İlişkiyi bulduk! Foreign key'i alıp filtre ekle.
-						for _, ref := range rel.References {
-							if !ref.OwnPrimaryKey { // Child tablodaki FK (örn: organization_id)
-								columnName := ref.ForeignKey.DBName
-								db = db.Where(fmt.Sprintf("%s = ?", columnName), req.ViaResourceId)
-								break
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	// Apply relationship filter (ViaResource, ViaResourceId, ViaRelationship)
+	db = p.applyViaRelationshipFilter(db, req)
 
 	// Apply Advanced Filters
 	if len(req.Filters) > 0 {
@@ -924,6 +903,275 @@ func shouldSkipPreloadForViaResource(preloadName string, viaResource string, rel
 	}
 
 	return normalizeResourceTableIdentifier(relationTable) == normalizeResourceTableIdentifier(viaResource)
+}
+
+func (p *GormDataProvider) applyViaRelationshipFilter(db *gorm.DB, req QueryRequest) *gorm.DB {
+	if strings.TrimSpace(req.ViaResource) == "" || strings.TrimSpace(req.ViaResourceId) == "" {
+		return db
+	}
+
+	if filteredDB, applied := p.applyViaRelationshipConfigFilter(db, req); applied {
+		return filteredDB
+	}
+
+	if filteredDB, applied := p.applyViaRelationshipFromParentModel(db, req); applied {
+		return filteredDB
+	}
+
+	return p.applyLegacyViaResourceFilter(db, req)
+}
+
+func (p *GormDataProvider) applyViaRelationshipConfigFilter(db *gorm.DB, req QueryRequest) (*gorm.DB, bool) {
+	if req.ViaRelationshipConfig == nil {
+		return db, false
+	}
+
+	stmt := &gorm.Statement{DB: p.DB}
+	if err := stmt.Parse(p.Model); err != nil || stmt.Schema == nil {
+		return db, false
+	}
+
+	pivotTable := strings.TrimSpace(req.ViaRelationshipConfig.PivotTable)
+	parentPivotCol := strings.TrimSpace(req.ViaRelationshipConfig.ParentPivotColumn)
+	childPivotCol := strings.TrimSpace(req.ViaRelationshipConfig.ChildPivotColumn)
+	if pivotTable == "" || parentPivotCol == "" || childPivotCol == "" {
+		return db, false
+	}
+
+	childPrimaryColumn := relationshipPrimaryColumn(stmt.Schema)
+	if childPrimaryColumn == "" {
+		return db, false
+	}
+
+	joinClause := fmt.Sprintf(
+		"JOIN %s ON %s.%s = %s.%s",
+		pivotTable,
+		stmt.Schema.Table,
+		childPrimaryColumn,
+		pivotTable,
+		childPivotCol,
+	)
+
+	db = db.Joins(joinClause).
+		Where(fmt.Sprintf("%s.%s = ?", pivotTable, parentPivotCol), req.ViaResourceId)
+
+	morphTypeColumn := strings.TrimSpace(req.ViaRelationshipConfig.MorphTypeColumn)
+	morphTypeValue := strings.TrimSpace(req.ViaRelationshipConfig.MorphTypeValue)
+	if morphTypeColumn != "" && morphTypeValue != "" {
+		db = db.Where(fmt.Sprintf("%s.%s = ?", pivotTable, morphTypeColumn), morphTypeValue)
+	}
+
+	return db, true
+}
+
+func (p *GormDataProvider) applyViaRelationshipFromParentModel(db *gorm.DB, req QueryRequest) (*gorm.DB, bool) {
+	if req.ViaParentModel == nil || strings.TrimSpace(req.ViaRelationship) == "" {
+		return db, false
+	}
+
+	parentStmt := &gorm.Statement{DB: p.DB}
+	if err := parentStmt.Parse(req.ViaParentModel); err != nil || parentStmt.Schema == nil {
+		return db, false
+	}
+
+	rel := findRelationshipByName(parentStmt.Schema.Relationships.Relations, req.ViaRelationship)
+	if rel == nil {
+		return db, false
+	}
+
+	childStmt := &gorm.Statement{DB: p.DB}
+	if err := childStmt.Parse(p.Model); err != nil || childStmt.Schema == nil {
+		return db, false
+	}
+
+	if rel.FieldSchema == nil {
+		return db, false
+	}
+
+	if normalizeResourceTableIdentifier(rel.FieldSchema.Table) != normalizeResourceTableIdentifier(childStmt.Schema.Table) {
+		return db, false
+	}
+
+	switch rel.Type {
+	case schema.HasMany, schema.HasOne:
+		if rel.Polymorphic != nil {
+			typeColumn := rel.Polymorphic.PolymorphicType
+			idColumn := rel.Polymorphic.PolymorphicID
+			if typeColumn == nil || idColumn == nil {
+				return db, false
+			}
+
+			db = db.Where(fmt.Sprintf("%s = ?", typeColumn.DBName), rel.Polymorphic.Value).
+				Where(fmt.Sprintf("%s = ?", idColumn.DBName), req.ViaResourceId)
+			return db, true
+		}
+
+		foreignColumn := ""
+		for _, ref := range rel.References {
+			if ref == nil || ref.ForeignKey == nil {
+				continue
+			}
+			if ref.OwnPrimaryKey && strings.TrimSpace(ref.PrimaryValue) == "" {
+				foreignColumn = ref.ForeignKey.DBName
+				break
+			}
+		}
+		if foreignColumn == "" {
+			return db, false
+		}
+
+		db = db.Where(fmt.Sprintf("%s = ?", foreignColumn), req.ViaResourceId)
+		return db, true
+
+	case schema.Many2Many:
+		joinedDB, ok := p.applyManyToManyRelationshipFilter(db, rel, req.ViaResourceId, childStmt.Schema.Table)
+		return joinedDB, ok
+	}
+
+	return db, false
+}
+
+func (p *GormDataProvider) applyManyToManyRelationshipFilter(
+	db *gorm.DB,
+	rel *schema.Relationship,
+	parentID string,
+	childTable string,
+) (*gorm.DB, bool) {
+	if rel == nil || rel.JoinTable == nil {
+		return db, false
+	}
+
+	pivotTable := strings.TrimSpace(rel.JoinTable.Table)
+	if pivotTable == "" {
+		return db, false
+	}
+
+	parentPivotColumn := ""
+	childPivotColumn := ""
+	childPrimaryColumn := ""
+
+	for _, ref := range rel.References {
+		if ref == nil || ref.ForeignKey == nil {
+			continue
+		}
+
+		if ref.OwnPrimaryKey {
+			if parentPivotColumn == "" {
+				parentPivotColumn = ref.ForeignKey.DBName
+			}
+			continue
+		}
+
+		if childPivotColumn == "" {
+			childPivotColumn = ref.ForeignKey.DBName
+		}
+		if childPrimaryColumn == "" && ref.PrimaryKey != nil {
+			childPrimaryColumn = ref.PrimaryKey.DBName
+		}
+	}
+
+	if parentPivotColumn == "" || childPivotColumn == "" {
+		return db, false
+	}
+	if childPrimaryColumn == "" {
+		return db, false
+	}
+
+	joinClause := fmt.Sprintf(
+		"JOIN %s ON %s.%s = %s.%s",
+		pivotTable,
+		childTable,
+		childPrimaryColumn,
+		pivotTable,
+		childPivotColumn,
+	)
+
+	db = db.Joins(joinClause).
+		Where(fmt.Sprintf("%s.%s = ?", pivotTable, parentPivotColumn), parentID)
+	return db, true
+}
+
+func (p *GormDataProvider) applyLegacyViaResourceFilter(db *gorm.DB, req QueryRequest) *gorm.DB {
+	if strings.TrimSpace(req.ViaResource) == "" || strings.TrimSpace(req.ViaResourceId) == "" {
+		return db
+	}
+
+	stmt := &gorm.Statement{DB: p.DB}
+	if err := stmt.Parse(p.Model); err != nil || stmt.Schema == nil {
+		return db
+	}
+
+	for _, rel := range stmt.Schema.Relationships.Relations {
+		if rel == nil || rel.Type != schema.BelongsTo {
+			continue
+		}
+		if rel.FieldSchema == nil {
+			continue
+		}
+		if normalizeResourceTableIdentifier(rel.FieldSchema.Table) != normalizeResourceTableIdentifier(req.ViaResource) {
+			continue
+		}
+
+		for _, ref := range rel.References {
+			if ref == nil || ref.ForeignKey == nil {
+				continue
+			}
+			if ref.OwnPrimaryKey {
+				continue
+			}
+
+			columnName := ref.ForeignKey.DBName
+			db = db.Where(fmt.Sprintf("%s = ?", columnName), req.ViaResourceId)
+			return db
+		}
+	}
+
+	return db
+}
+
+func findRelationshipByName(
+	relations map[string]*schema.Relationship,
+	relationshipName string,
+) *schema.Relationship {
+	needle := normalizeRelationshipIdentifier(relationshipName)
+	if needle == "" {
+		return nil
+	}
+
+	for relName, rel := range relations {
+		if rel == nil {
+			continue
+		}
+		if normalizeRelationshipIdentifier(relName) == needle {
+			return rel
+		}
+	}
+
+	return nil
+}
+
+func normalizeRelationshipIdentifier(value string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	if normalized == "" {
+		return ""
+	}
+
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strcase.ToSnake(normalized)
+	return normalized
+}
+
+func relationshipPrimaryColumn(modelSchema *schema.Schema) string {
+	if modelSchema == nil {
+		return ""
+	}
+	if modelSchema.PrioritizedPrimaryField != nil {
+		return modelSchema.PrioritizedPrimaryField.DBName
+	}
+	if len(modelSchema.PrimaryFields) > 0 && modelSchema.PrimaryFields[0] != nil {
+		return modelSchema.PrimaryFields[0].DBName
+	}
+	return ""
 }
 
 func normalizeResourceTableIdentifier(value string) string {

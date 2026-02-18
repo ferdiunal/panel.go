@@ -89,6 +89,7 @@ type FieldHandler struct {
 	StoragePath         string
 	StorageURL          string
 	Resource            resource.Resource
+	ResolveResource     func(slug string) resource.Resource
 	Lens                resource.Lens
 	Cards               []widget.Card
 	Title               string

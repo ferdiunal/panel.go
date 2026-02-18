@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultExternalAPIBasePath = "/external-api"
+	defaultExternalAPIBasePath = "/api"
 	defaultExternalAPIHeader   = "X-External-API-Key"
 )
 
@@ -108,21 +108,24 @@ func (p *Panel) registerExternalAPIRoutes(app *fiber.App) {
 	}
 
 	externalAPI := app.Group(cfg.BasePath)
-	externalAPI.Use(func(c *fiber.Ctx) error {
-		if !p.isExternalAPIAuthorized(c, cfg) {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized",
-			})
-		}
-		return c.Next()
-	})
+	withExternalAuth := func(next func(*context.Context) error) fiber.Handler {
+		return context.Wrap(func(c *context.Context) error {
+			if c == nil || c.Ctx == nil || !p.isExternalAPIAuthorized(c.Ctx, cfg) {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "Unauthorized",
+				})
+			}
+			return next(c)
+		})
+	}
 
-	externalAPI.Get("/:resource", context.Wrap(p.handleExternalResourceIndex))
-	externalAPI.Get("/:resource/:id", context.Wrap(p.handleExternalResourceShow))
-	externalAPI.Post("/:resource", context.Wrap(p.handleExternalResourceStore))
-	externalAPI.Put("/:resource/:id", context.Wrap(p.handleExternalResourceUpdate))
-	externalAPI.Patch("/:resource/:id", context.Wrap(p.handleExternalResourceUpdate))
-	externalAPI.Delete("/:resource/:id", context.Wrap(p.handleExternalResourceDestroy))
+	externalAPI.Get("/:resource", withExternalAuth(p.handleExternalResourceIndex))
+	externalAPI.Get("/:resource/:id", withExternalAuth(p.handleExternalResourceShow))
+	externalAPI.Post("/:resource", withExternalAuth(p.handleExternalResourceStore))
+	externalAPI.Put("/:resource/:id", withExternalAuth(p.handleExternalResourceUpdate))
+	externalAPI.Patch("/:resource/:id", withExternalAuth(p.handleExternalResourceUpdate))
+	externalAPI.Delete("/:resource/:id", withExternalAuth(p.handleExternalResourceDestroy))
+	externalAPI.Post("/:resource/actions/:action", withExternalAuth(p.handleResourceActionExecute))
 }
 
 func (p *Panel) isExternalAPIAuthorized(c *fiber.Ctx, cfg externalAPIRuntimeConfig) bool {

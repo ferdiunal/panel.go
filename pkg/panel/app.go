@@ -677,8 +677,8 @@ func New(config Config) *Panel {
 	}
 
 	// Register Dynamic Routes
-	// /api/resource/:resource -> List/Index
-	// /api/resource/:resource/:id -> Detail/Show/Update/Delete
+	// /api/internal/resource/:resource -> List/Index
+	// /api/internal/resource/:resource/:id -> Detail/Show/Update/Delete
 
 	// Freeze registration as soon as the app starts serving traffic.
 	app.Use(func(c *fiber.Ctx) error {
@@ -686,11 +686,13 @@ func New(config Config) *Panel {
 		return c.Next()
 	})
 
-	api := app.Group("/api")
+	internalAPI := app.Group("/api/internal")
 	apiKeyConfig := p.resolveAPIKeyRuntimeConfig()
 	p.apiKeyAuth = middleware.NewAPIKeyAuth(apiKeyConfig.Enabled, apiKeyConfig.Header, apiKeyConfig.Keys)
 	p.apiKeyAuth.SetAtomicSnapshotEnabled(config.Concurrency.EnableMiddlewareV2)
 	p.apiKeyAuth.SetDynamicValidator(p.validateManagedAPIKey)
+
+	externalAPIConfig := p.resolveExternalAPIRuntimeConfig()
 
 	// Public OpenAPI routes (must stay outside API auth middleware).
 	openAPIConfig := openapi.SpecGeneratorConfig{
@@ -698,7 +700,7 @@ func New(config Config) *Panel {
 		Version:             "1.0.0",
 		Description:         "Panel.go Admin Panel API",
 		ServerURL:           "",
-		APIKeyHeader:        apiKeyConfig.Header,
+		APIKeyHeader:        externalAPIConfig.Header,
 		EnableParallelBuild: config.Concurrency.EnableOpenAPIV2,
 		ParallelWorkers:     config.Concurrency.OpenAPIWorkers,
 	}
@@ -765,11 +767,11 @@ func New(config Config) *Panel {
 		})
 
 		// Circuit Breaker'ı API route'larına uygula
-		api.Use(circuitbreaker.Middleware(cb))
+		internalAPI.Use(circuitbreaker.Middleware(cb))
 	}
 
 	// langMiddleware: URL parametresinden veya request'ten dil bilgisini al
-	api.Use(langMiddleware(config))
+	internalAPI.Use(langMiddleware(config))
 
 	// registerAPIRoutes: Tüm API route'larını kaydet
 	// Bu closure fonksiyon, dual route registration için kullanılır
@@ -788,8 +790,35 @@ func New(config Config) *Panel {
 		apiGroup.Get("/init", context.Wrap(p.handleInit)) // App Initialization
 
 		// Middleware
-		apiGroup.Use(p.apiKeyAuth.Middleware())
-		apiGroup.Use(context.Wrap(authH.SessionMiddleware))
+		// NOTE: /api/internal/rest/* path'i dedicated internal REST servisine aittir.
+		// Bu yüzden internal panel middleware zinciri bu path'i bypass eder.
+		apiKeyMiddleware := p.apiKeyAuth.Middleware()
+		sessionMiddleware := context.Wrap(authH.SessionMiddleware)
+		internalRESTBasePath := p.resolveInternalRESTAPIRuntimeConfig().BasePath
+		isInternalPanelPath := func(path string) bool {
+			if hasPathPrefix(path, "/api/internal") {
+				return true
+			}
+
+			trimmed := strings.Trim(strings.TrimSpace(path), "/")
+			parts := strings.Split(trimmed, "/")
+			return len(parts) >= 3 && parts[0] == "api" && parts[2] == "internal"
+		}
+
+		apiGroup.Use(func(c *fiber.Ctx) error {
+			path := c.Path()
+			if hasPathPrefix(path, internalRESTBasePath) || !isInternalPanelPath(path) {
+				return c.Next()
+			}
+			return apiKeyMiddleware(c)
+		})
+		apiGroup.Use(func(c *fiber.Ctx) error {
+			path := c.Path()
+			if hasPathPrefix(path, internalRESTBasePath) || !isInternalPanelPath(path) {
+				return c.Next()
+			}
+			return sessionMiddleware(c)
+		})
 		// SECURITY: Rate limiting for general API endpoints (100 req/min)
 		// TEMPORARY: Rate limiting disabled for development
 		// apiGroup.Use(middleware.APIRateLimiter())
@@ -839,11 +868,11 @@ func New(config Config) *Panel {
 	}
 
 	// Prefix'siz route'lar (varsayılan dil veya URL prefix kapalı)
-	registerAPIRoutes(api)
+	registerAPIRoutes(internalAPI)
 
 	// Prefix'li route'lar (URL prefix açıksa)
 	if config.I18n.Enabled && config.I18n.UseURLPrefix {
-		apiLang := app.Group("/api/:lang")
+		apiLang := app.Group("/api/:lang/internal")
 		apiLang.Use(langMiddleware(config))
 		registerAPIRoutes(apiLang)
 	}
@@ -858,9 +887,9 @@ func New(config Config) *Panel {
 	notificationProvider := data.NewGormDataProvider(db, &notificationDomain.Notification{})
 	notificationService := notification.NewService(notificationProvider)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
-	api.Get("/notifications", context.Wrap(notificationHandler.HandleGetUnreadNotifications))
-	api.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
-	api.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
+	internalAPI.Get("/notifications", context.Wrap(notificationHandler.HandleGetUnreadNotifications))
+	internalAPI.Post("/notifications/:id/read", context.Wrap(notificationHandler.HandleMarkAsRead))
+	internalAPI.Post("/notifications/read-all", context.Wrap(notificationHandler.HandleMarkAllAsRead))
 
 	// Boot Plugins: Load plugins from global registry and boot them
 	// Plugins register themselves via init() functions
@@ -1288,6 +1317,13 @@ func (p *Panel) withResourceHandler(c *context.Context, fn func(*handler.FieldHa
 		})
 	}
 	h := handler.NewResourceHandler(p.Db, res, p.Config.Storage.Path, p.Config.Storage.URL)
+	h.ResolveResource = func(targetSlug string) resource.Resource {
+		target, ok := p.resolveResourceForRequest(c, targetSlug)
+		if !ok {
+			return nil
+		}
+		return target
+	}
 	h.SetConcurrencyConfig(handler.ConcurrencyConfig{
 		EnablePipelineV2: p.Config.Concurrency.EnablePipelineV2,
 		FailFast:         p.Config.Concurrency.FailFast,

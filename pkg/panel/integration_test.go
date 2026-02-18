@@ -413,7 +413,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 		"email":    "test@example.com",
 		"password": "password",
 	})
-	registerReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(registerBody))
+	registerReq := httptest.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(registerBody))
 	registerReq.Header.Set("Content-Type", "application/json")
 	registerResp, err := testFiberRequest(p.Fiber, registerReq)
 	if err != nil {
@@ -430,7 +430,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 		"email":    "test@example.com",
 		"password": "password",
 	})
-	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
+	loginReq := httptest.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginResp, err := testFiberRequest(p.Fiber, loginReq)
 	if err != nil {
@@ -448,7 +448,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	}
 
 	// 6. Test API: Get User (Index)
-	req := httptest.NewRequest("GET", "/api/resource/users", nil)
+	req := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
@@ -501,7 +501,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	}
 
 	// 7. Test API: Get Blog (Index to check ManyToMany and Polymorphic)
-	reqBlog := httptest.NewRequest("GET", "/api/resource/blogs", nil)
+	reqBlog := httptest.NewRequest("GET", "/api/internal/resource/blogs", nil)
 	if sessionCookie != nil {
 		reqBlog.AddCookie(sessionCookie)
 	}
@@ -536,7 +536,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	}
 
 	// 8. Test API: Get Lens (Most Popular Blogs)
-	reqLens := httptest.NewRequest("GET", "/api/resource/blogs/lens/most-popular", nil)
+	reqLens := httptest.NewRequest("GET", "/api/internal/resource/blogs/lens/most-popular", nil)
 	if sessionCookie != nil {
 		reqLens.AddCookie(sessionCookie)
 	}
@@ -562,7 +562,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	}
 
 	// 9. Test API: Lens Actions List
-	reqLensActions := httptest.NewRequest("GET", "/api/resource/blogs/lens/most-popular/actions", nil)
+	reqLensActions := httptest.NewRequest("GET", "/api/internal/resource/blogs/lens/most-popular/actions", nil)
 	if sessionCookie != nil {
 		reqLensActions.AddCookie(sessionCookie)
 	}
@@ -604,7 +604,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 		"ids":    []string{fmt.Sprintf("%.0f", idFloat)},
 		"fields": map[string]interface{}{},
 	})
-	reqLensActionExec := httptest.NewRequest("POST", "/api/resource/blogs/lens/most-popular/actions/mark-popular", bytes.NewReader(execBody))
+	reqLensActionExec := httptest.NewRequest("POST", "/api/internal/resource/blogs/lens/most-popular/actions/mark-popular", bytes.NewReader(execBody))
 	reqLensActionExec.Header.Set("Content-Type", "application/json")
 	if sessionCookie != nil {
 		reqLensActionExec.AddCookie(sessionCookie)
@@ -638,13 +638,13 @@ func TestIntegration_Navigation(t *testing.T) {
 	db.AutoMigrate(&user.User{}) // Ensure User table exists for Auth
 	// Register
 	regBody, _ := json.Marshal(map[string]string{"name": "Nav", "email": "nav@example.com", "password": "password"})
-	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
+	regReq := httptest.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
 	testFiberRequest(p.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "nav@example.com", "password": "password"})
-	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
+	loginReq := httptest.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginResp, _ := testFiberRequest(p.Fiber, loginReq)
 
@@ -657,7 +657,7 @@ func TestIntegration_Navigation(t *testing.T) {
 	}
 
 	// 5. Test API: Navigation
-	reqNav := httptest.NewRequest("GET", "/api/navigation", nil)
+	reqNav := httptest.NewRequest("GET", "/api/internal/navigation", nil)
 	if sessionCookie != nil {
 		reqNav.AddCookie(sessionCookie)
 	}

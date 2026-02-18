@@ -175,13 +175,13 @@ func TestPanel_DynamicRouting(t *testing.T) {
 
 	// Register
 	regBody, _ := json.Marshal(map[string]string{"name": "Panel Tester", "email": "panel@example.com", "password": "password"})
-	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
+	regReq := httptest.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
 	testFiberRequest(app.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "panel@example.com", "password": "password"})
-	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
+	loginReq := httptest.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginResp, _ := testFiberRequest(app.Fiber, loginReq)
 
@@ -195,7 +195,7 @@ func TestPanel_DynamicRouting(t *testing.T) {
 
 	// Test Request to Dynamic Route
 	// Test Request to Dynamic Route
-	req := httptest.NewRequest("GET", "/api/resource/users", nil)
+	req := httptest.NewRequest("GET", "/api/internal/resource/users", nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
@@ -240,13 +240,13 @@ func TestPanel_ResourceNotFound(t *testing.T) {
 	db.AutoMigrate(&user.User{})
 	// Register
 	regBody, _ := json.Marshal(map[string]string{"name": "RNF", "email": "rnf@example.com", "password": "password"})
-	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
+	regReq := httptest.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
 	testFiberRequest(app.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "rnf@example.com", "password": "password"})
-	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
+	loginReq := httptest.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginResp, _ := testFiberRequest(app.Fiber, loginReq)
 
@@ -259,7 +259,7 @@ func TestPanel_ResourceNotFound(t *testing.T) {
 	}
 
 	// Test Request to Non-existent Resource
-	req := httptest.NewRequest("GET", "/api/resource/unknown", nil)
+	req := httptest.NewRequest("GET", "/api/internal/resource/unknown", nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
@@ -290,13 +290,13 @@ func TestPanel_CRUD(t *testing.T) {
 	db.AutoMigrate(&user.User{}) // Ensure User table
 	// Register
 	regBody, _ := json.Marshal(map[string]string{"name": "CRUD", "email": "crud@example.com", "password": "password"})
-	regReq := httptest.NewRequest("POST", "/api/auth/sign-up/email", bytes.NewReader(regBody))
+	regReq := httptest.NewRequest("POST", "/api/internal/auth/sign-up/email", bytes.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
 	testFiberRequest(app.Fiber, regReq)
 
 	// Login
 	loginBody, _ := json.Marshal(map[string]string{"email": "crud@example.com", "password": "password"})
-	loginReq := httptest.NewRequest("POST", "/api/auth/sign-in/email", bytes.NewReader(loginBody))
+	loginReq := httptest.NewRequest("POST", "/api/internal/auth/sign-in/email", bytes.NewReader(loginBody))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginResp, _ := testFiberRequest(app.Fiber, loginReq)
 
@@ -312,7 +312,7 @@ func TestPanel_CRUD(t *testing.T) {
 	createBody, _ := json.Marshal(map[string]interface{}{
 		"name": "New User",
 	})
-	req := httptest.NewRequest("POST", "/api/resource/users", bytes.NewReader(createBody))
+	req := httptest.NewRequest("POST", "/api/internal/resource/users", bytes.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
@@ -337,7 +337,7 @@ func TestPanel_CRUD(t *testing.T) {
 	id := idData["data"].(float64) // JSON numbers are float64
 
 	// 2. SHOW
-	req = httptest.NewRequest("GET", fmt.Sprintf("/api/resource/users/%d", int(id)), nil)
+	req = httptest.NewRequest("GET", fmt.Sprintf("/api/internal/resource/users/%d", int(id)), nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
@@ -348,7 +348,7 @@ func TestPanel_CRUD(t *testing.T) {
 
 	// 3. UPDATE
 	putBody := `{"name": "Updated User"}`
-	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/resource/users/%d", int(id)), strings.NewReader(putBody))
+	req = httptest.NewRequest("PUT", fmt.Sprintf("/api/internal/resource/users/%d", int(id)), strings.NewReader(putBody))
 	req.Header.Set("Content-Type", "application/json")
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
@@ -359,7 +359,7 @@ func TestPanel_CRUD(t *testing.T) {
 	}
 
 	// Verify Update
-	req = httptest.NewRequest("GET", fmt.Sprintf("/api/resource/users/%d", int(id)), nil)
+	req = httptest.NewRequest("GET", fmt.Sprintf("/api/internal/resource/users/%d", int(id)), nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
@@ -379,7 +379,7 @@ func TestPanel_CRUD(t *testing.T) {
 	}
 
 	// 4. DELETE
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/api/resource/users/%d", int(id)), nil)
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/api/internal/resource/users/%d", int(id)), nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
@@ -389,7 +389,7 @@ func TestPanel_CRUD(t *testing.T) {
 	}
 
 	// Verify Delete (Expect 404)
-	req = httptest.NewRequest("GET", fmt.Sprintf("/api/resource/users/%d", int(id)), nil)
+	req = httptest.NewRequest("GET", fmt.Sprintf("/api/internal/resource/users/%d", int(id)), nil)
 	if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}

@@ -340,6 +340,7 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 		ViaResourceId:   queryParams.ViaResourceId,
 		ViaRelationship: queryParams.ViaRelationship,
 	}
+	enrichViaRelationshipContext(h, c, resourceName, &req)
 
 	// In nested relationship context, hide reverse relationship fields that point
 	// back to parent resource (prevents products->variants->products style 3rd breakouts).
@@ -433,6 +434,120 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			},
 		},
 	})
+}
+
+func enrichViaRelationshipContext(
+	h *FieldHandler,
+	c *context.Context,
+	resourceName string,
+	req *data.QueryRequest,
+) {
+	if h == nil || req == nil {
+		return
+	}
+	if strings.TrimSpace(req.ViaResource) == "" || strings.TrimSpace(req.ViaRelationship) == "" {
+		return
+	}
+
+	var parentResource resource.Resource
+	if h.ResolveResource != nil {
+		parentResource = h.ResolveResource(req.ViaResource)
+	}
+	if parentResource == nil {
+		parentResource = resource.Get(req.ViaResource)
+	}
+	if parentResource == nil {
+		return
+	}
+
+	req.ViaParentModel = parentResource.Model()
+
+	parentElements := parentResource.GetFields(c)
+	if len(parentElements) == 0 {
+		parentElements = parentResource.Fields()
+	}
+
+	relationshipElement := findRelationshipElementByKey(parentElements, req.ViaRelationship)
+	if relationshipElement == nil {
+		return
+	}
+
+	morphField, ok := relationshipElement.(*fields.MorphToMany)
+	if !ok {
+		return
+	}
+
+	req.ViaRelationshipConfig = buildMorphToManyViaConfig(morphField, resourceName)
+}
+
+func findRelationshipElementByKey(elements []fields.Element, relationshipKey string) fields.Element {
+	needle := normalizeResourceIdentifier(relationshipKey)
+	if needle == "" {
+		return nil
+	}
+
+	for _, element := range elements {
+		if element == nil {
+			continue
+		}
+
+		if normalizeResourceIdentifier(element.GetKey()) == needle {
+			return element
+		}
+	}
+
+	for _, element := range elements {
+		if element == nil {
+			continue
+		}
+
+		if normalizeResourceIdentifier(element.GetName()) == needle {
+			return element
+		}
+	}
+
+	return nil
+}
+
+func buildMorphToManyViaConfig(field *fields.MorphToMany, childResource string) *data.ViaRelationshipConfig {
+	if field == nil {
+		return nil
+	}
+
+	config := &data.ViaRelationshipConfig{
+		PivotTable:        strings.TrimSpace(field.PivotTableName),
+		ParentPivotColumn: strings.TrimSpace(field.ForeignKeyColumn),
+		ChildPivotColumn:  strings.TrimSpace(field.RelatedKeyColumn),
+		MorphTypeColumn:   strings.TrimSpace(field.MorphTypeColumn),
+	}
+
+	if config.PivotTable == "" || config.ParentPivotColumn == "" || config.ChildPivotColumn == "" {
+		return nil
+	}
+
+	if config.MorphTypeColumn != "" {
+		config.MorphTypeValue = resolveMorphToManyTypeValue(field.GetTypes(), childResource)
+		if config.MorphTypeValue == "" {
+			return nil
+		}
+	}
+
+	return config
+}
+
+func resolveMorphToManyTypeValue(typeMappings map[string]string, childResource string) string {
+	needle := normalizeResourceIdentifier(childResource)
+	if needle == "" || len(typeMappings) == 0 {
+		return ""
+	}
+
+	for typeValue, resourceSlug := range typeMappings {
+		if normalizeResourceIdentifier(resourceSlug) == needle {
+			return typeValue
+		}
+	}
+
+	return ""
 }
 
 func shouldSkipViaBackReferenceField(element fields.Element, viaResource string) bool {

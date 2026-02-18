@@ -27,9 +27,9 @@ Bu endpointler public erişime açıktır (session gerektirmez).
 
 OpenAI/better-auth benzeri çoklu key lifecycle için:
 
-- `GET /api/api-keys` -> key listesini döner
-- `POST /api/api-keys` -> yeni key üretir
-- `DELETE /api/api-keys/:id` -> key revoke eder
+- `GET /api/internal/api-keys` -> key listesini döner
+- `POST /api/internal/api-keys` -> yeni key üretir
+- `DELETE /api/internal/api-keys/:id` -> key revoke eder
 
 ### Create Request
 
@@ -62,9 +62,32 @@ Veritabanında raw key değil, yalnızca SHA-256 hash saklanır.
 
 ## Yetki Kuralları
 
-- Managed key yönetim endpointleri (`/api/api-keys*`) için **admin session** gerekir.
+- Managed key yönetim endpointleri (`/api/internal/api-keys*`) için **admin session** gerekir.
 - API key ile authenticate olmuş istekler bu yönetim endpointlerine erişemez (`403`).
 - API key doğrulanan istekler resource API’lerine erişebilir.
+
+## External API ile Birlikte Kullanım
+
+External API (`/api/:resource`) için iki farklı key kaynağı desteklenir:
+
+- External API key: `ExternalAPI.Keys` veya `EXTERNAL_API_KEY(S)` üzerinden (`ExternalAPI.Header`, varsayılan: `X-External-API-Key`)
+- Panel API key: `APIKey.Keys`, `PANEL_API_KEY` veya managed key tablosunda üretilen key'ler (`APIKey.Header`, varsayılan: `X-API-Key`)
+
+Çalışma koşulları:
+- `Features.ExternalAPI` açık olmalıdır.
+- External key seti boş olsa bile panel API key auth aktifse `/api` external endpointleri panel API key ile authorize olabilir.
+
+Örnekler:
+
+```bash
+# External API key ile
+curl -H "X-External-API-Key: external-secret" \
+  http://localhost:8080/api/verifications
+
+# Panel API key (managed veya statik) ile
+curl -H "X-API-Key: pnl_very_secret_generated_value" \
+  http://localhost:8080/api/verifications
+```
 
 ## Örnek Kullanım (cURL)
 
@@ -72,14 +95,14 @@ Veritabanında raw key değil, yalnızca SHA-256 hash saklanır.
 
 ```bash
 curl -H "X-API-Key: pnl_very_secret_generated_value" \
-  http://localhost:8080/api/resource/verifications
+  http://localhost:8080/api/internal/resource/verifications
 ```
 
 ### Geçersiz key
 
 ```bash
 curl -H "X-API-Key: wrong-key" \
-  http://localhost:8080/api/resource/verifications
+  http://localhost:8080/api/internal/resource/verifications
 ```
 
 Beklenen cevap: `401 Unauthorized`

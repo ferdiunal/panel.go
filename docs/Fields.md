@@ -837,9 +837,14 @@ field.HideOnCreate()
 // Güncellemede gizle
 field.HideOnUpdate()
 
+// External API yanıtında gizle
+field.HideOnApi()
+
 // Tüm yerlerde göster
 field.OnList().OnDetail().OnForm()
 ```
+
+`HideOnApi()` sadece external API (`/api`) çıktısını etkiler; internal panel endpoint'leri (`/api/internal/*`) ve internal REST API (`/api/internal/rest/*`) davranışını değiştirmez.
 
 ### Validasyon
 

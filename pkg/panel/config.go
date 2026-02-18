@@ -249,7 +249,7 @@ type APIKeyConfig struct {
 // This service is independent from /api routes and can be gated via FeatureConfig.RestAPI.
 type RESTAPIConfig struct {
 	// BasePath is the URL prefix where the internal REST API is exposed.
-	// Default: /internal-api
+	// Default: /api/internal/rest
 	BasePath string
 
 	// Header is the header name that carries the internal REST API key.
@@ -265,7 +265,7 @@ type RESTAPIConfig struct {
 // External API returns plain field values (name => value) without field resolver wrappers.
 type ExternalAPIConfig struct {
 	// BasePath is the URL prefix where the external API is exposed.
-	// Default: /external-api
+	// Default: /api
 	BasePath string
 
 	// Header is the header name that carries the external API key.

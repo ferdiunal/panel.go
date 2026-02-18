@@ -58,17 +58,17 @@ func (g *DynamicSpecGenerator) GenerateResourcePaths(resources map[string]resour
 			continue
 		}
 
-		// Collection endpoint: GET /api/resources/{slug}
-		collectionPath := fmt.Sprintf("/api/resources/%s", slug)
+		// Collection endpoint: GET /api/{slug}
+		collectionPath := fmt.Sprintf("/api/%s", slug)
 		paths[collectionPath] = *g.generateCollectionPathItem(res)
 
-		// Item endpoint: GET /api/resources/{slug}/{id}
-		itemPath := fmt.Sprintf("/api/resources/%s/{id}", slug)
+		// Item endpoint: GET /api/{slug}/{id}
+		itemPath := fmt.Sprintf("/api/%s/{id}", slug)
 		paths[itemPath] = *g.generateItemPathItem(res)
 
 		// Action endpoints
 		for _, action := range res.GetActions() {
-			actionPath := fmt.Sprintf("/api/resources/%s/actions/%s", slug, action.GetSlug())
+			actionPath := fmt.Sprintf("/api/%s/actions/%s", slug, action.GetSlug())
 			paths[actionPath] = *g.generateActionPathItem(res, action)
 		}
 	}
@@ -102,14 +102,14 @@ func (g *DynamicSpecGenerator) GenerateResourcePathsParallel(resources map[strin
 			}
 
 			result := make(map[string]PathItem, 2+len(res.GetActions()))
-			collectionPath := fmt.Sprintf("/api/resources/%s", slug)
+			collectionPath := fmt.Sprintf("/api/%s", slug)
 			result[collectionPath] = *g.generateCollectionPathItem(res)
 
-			itemPath := fmt.Sprintf("/api/resources/%s/{id}", slug)
+			itemPath := fmt.Sprintf("/api/%s/{id}", slug)
 			result[itemPath] = *g.generateItemPathItem(res)
 
 			for _, action := range res.GetActions() {
-				actionPath := fmt.Sprintf("/api/resources/%s/actions/%s", slug, action.GetSlug())
+				actionPath := fmt.Sprintf("/api/%s/actions/%s", slug, action.GetSlug())
 				result[actionPath] = *g.generateActionPathItem(res, action)
 			}
 

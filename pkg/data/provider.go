@@ -54,6 +54,16 @@ type Sort struct {
 	Direction string `json:"direction"`
 }
 
+// ViaRelationshipConfig, relationship context'inde özel JOIN/WHERE kuralları
+// gerektiren sorgular için (özellikle MorphToMany) ek metadata taşır.
+type ViaRelationshipConfig struct {
+	PivotTable        string `json:"pivot_table"`
+	ParentPivotColumn string `json:"parent_pivot_column"`
+	ChildPivotColumn  string `json:"child_pivot_column"`
+	MorphTypeColumn   string `json:"morph_type_column"`
+	MorphTypeValue    string `json:"morph_type_value"`
+}
+
 // QueryRequest, veri sorgulama işlemleri için kullanılan istek yapısıdır.
 //
 // Bu yapı, sayfalama, sıralama, filtreleme ve arama gibi tüm sorgu parametrelerini
@@ -136,6 +146,10 @@ type QueryRequest struct {
 	ViaResource     string `json:"via_resource"`
 	ViaResourceId   string `json:"via_resource_id"`
 	ViaRelationship string `json:"via_relationship"`
+
+	// Internal relationship resolution context
+	ViaParentModel        interface{}            `json:"-"`
+	ViaRelationshipConfig *ViaRelationshipConfig `json:"-"`
 }
 
 // QueryResponse, veri sorgulama işlemlerinin sonucunu temsil eden yapıdır.

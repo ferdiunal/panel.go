@@ -84,7 +84,7 @@ func TestInternalRESTAPI_FeatureDisabled(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest("GET", "/internal-api/internal-rest-users", nil)
+	req := httptest.NewRequest("GET", "/api/internal/rest/internal-rest-users", nil)
 	req.Header.Set("X-Internal-API-Key", "internal-secret")
 
 	resp, err := testFiberRequest(p.Fiber, req)
@@ -107,7 +107,7 @@ func TestInternalRESTAPI_RequiresValidKey(t *testing.T) {
 		},
 	})
 
-	missingKeyReq := httptest.NewRequest("GET", "/internal-api/internal-rest-users", nil)
+	missingKeyReq := httptest.NewRequest("GET", "/api/internal/rest/internal-rest-users", nil)
 	missingKeyResp, err := testFiberRequest(p.Fiber, missingKeyReq)
 	if err != nil {
 		t.Fatalf("missing key request failed: %v", err)
@@ -116,7 +116,7 @@ func TestInternalRESTAPI_RequiresValidKey(t *testing.T) {
 		t.Fatalf("expected status 401 without key, got %d", missingKeyResp.StatusCode)
 	}
 
-	invalidKeyReq := httptest.NewRequest("GET", "/internal-api/internal-rest-users", nil)
+	invalidKeyReq := httptest.NewRequest("GET", "/api/internal/rest/internal-rest-users", nil)
 	invalidKeyReq.Header.Set("X-Internal-API-Key", "wrong-key")
 	invalidKeyResp, err := testFiberRequest(p.Fiber, invalidKeyReq)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestInternalRESTAPI_RequiresValidKey(t *testing.T) {
 		t.Fatalf("expected status 401 with invalid key, got %d", invalidKeyResp.StatusCode)
 	}
 
-	validKeyReq := httptest.NewRequest("GET", "/internal-api/internal-rest-users", nil)
+	validKeyReq := httptest.NewRequest("GET", "/api/internal/rest/internal-rest-users", nil)
 	validKeyReq.Header.Set("X-Internal-API-Key", "internal-secret")
 	validKeyResp, err := testFiberRequest(p.Fiber, validKeyReq)
 	if err != nil {
@@ -147,7 +147,7 @@ func TestInternalRESTAPI_DetailUpdateDeleteAndValidate(t *testing.T) {
 		},
 	})
 
-	detailReq := httptest.NewRequest("GET", "/internal-api/internal-rest-users/1", nil)
+	detailReq := httptest.NewRequest("GET", "/api/internal/rest/internal-rest-users/1", nil)
 	detailReq.Header.Set("X-Internal-API-Key", "internal-secret")
 	detailResp, err := testFiberRequest(p.Fiber, detailReq)
 	if err != nil {
@@ -160,7 +160,7 @@ func TestInternalRESTAPI_DetailUpdateDeleteAndValidate(t *testing.T) {
 	invalidUpdateBody, _ := json.Marshal(map[string]any{
 		"name": "",
 	})
-	updateReq := httptest.NewRequest("PUT", "/internal-api/internal-rest-users/1", bytes.NewReader(invalidUpdateBody))
+	updateReq := httptest.NewRequest("PUT", "/api/internal/rest/internal-rest-users/1", bytes.NewReader(invalidUpdateBody))
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateReq.Header.Set("X-Internal-API-Key", "internal-secret")
 	updateResp, err := testFiberRequest(p.Fiber, updateReq)
@@ -171,7 +171,7 @@ func TestInternalRESTAPI_DetailUpdateDeleteAndValidate(t *testing.T) {
 		t.Fatalf("expected status 422 for validation error, got %d", updateResp.StatusCode)
 	}
 
-	deleteReq := httptest.NewRequest("DELETE", "/internal-api/internal-rest-users/1", nil)
+	deleteReq := httptest.NewRequest("DELETE", "/api/internal/rest/internal-rest-users/1", nil)
 	deleteReq.Header.Set("X-Internal-API-Key", "internal-secret")
 	deleteResp, err := testFiberRequest(p.Fiber, deleteReq)
 	if err != nil {
