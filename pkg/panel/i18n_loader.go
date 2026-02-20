@@ -72,7 +72,7 @@ func (l *mergedLocaleLoader) LoadMessage(requestPath string) ([]byte, error) {
 		return nil, os.ErrNotExist
 	}
 
-	return marshalLocaleBytes(merged, ext)
+	return marshalLocaleBytes(flattenLocaleMessages(merged), ext)
 }
 
 func preferredEmbeddedLocaleExtensions(primary string) []string {
@@ -190,4 +190,79 @@ func normalizeLocaleValue(value interface{}) interface{} {
 	default:
 		return value
 	}
+}
+
+var localeMessageReservedKeys = map[string]struct{}{
+	"id":          {},
+	"description": {},
+	"hash":        {},
+	"leftdelim":   {},
+	"rightdelim":  {},
+	"zero":        {},
+	"one":         {},
+	"two":         {},
+	"few":         {},
+	"many":        {},
+	"other":       {},
+	"translation": {},
+}
+
+func flattenLocaleMessages(input map[string]interface{}) map[string]interface{} {
+	flattened := make(map[string]interface{})
+	for key, value := range input {
+		flattenLocaleValue(key, value, flattened)
+	}
+	return flattened
+}
+
+func flattenLocaleValue(prefix string, value interface{}, out map[string]interface{}) {
+	if prefix == "" {
+		return
+	}
+
+	switch v := value.(type) {
+	case map[string]interface{}:
+		if isLocaleMessageDefinition(v) {
+			out[prefix] = v
+			return
+		}
+
+		for key, child := range v {
+			flattenLocaleValue(prefix+"."+key, child, out)
+		}
+	case map[interface{}]interface{}:
+		normalized := make(map[string]interface{}, len(v))
+		for mk, mv := range v {
+			normalized[fmt.Sprint(mk)] = normalizeLocaleValue(mv)
+		}
+		flattenLocaleValue(prefix, normalized, out)
+	default:
+		out[prefix] = v
+	}
+}
+
+func isLocaleMessageDefinition(values map[string]interface{}) bool {
+	hasReserved := false
+	for key, value := range values {
+		if isLocaleReservedMessageKey(key, value) {
+			hasReserved = true
+			continue
+		}
+		return false
+	}
+	return hasReserved
+}
+
+func isLocaleReservedMessageKey(key string, value interface{}) bool {
+	lowerKey := strings.ToLower(key)
+	if _, ok := localeMessageReservedKeys[lowerKey]; !ok {
+		return false
+	}
+
+	if lowerKey == "translation" {
+		return true
+	}
+
+	_, isString := value.(string)
+	return isString
 }
