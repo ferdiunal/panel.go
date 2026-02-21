@@ -4,6 +4,42 @@ Tüm önemli değişiklikler bu dosyada dökümante edilir.
 
 ## [Unreleased]
 
+### 🧩 Grid View İnce Ayarları (HideOnGrid Card-Only + Card Header Padding)
+
+`HideOnGrid` davranışı kart/listing görünümüne odaklanacak şekilde netleştirildi ve grid kart başlığının görselden ayrışması için ek spacing eklendi.
+
+#### Backend
+
+- `HideOnGrid` artık grid kart/listing alanlarını (`headers`) filtreler; row payload (`data`) içindeki alanları düşürmez.
+- Grid görünümünde header'da gizlenen ama index context'inde görünür olan alanlar, payload tarafında korunur.
+- Uygulanan dosyalar:
+  - `pkg/handler/grid_visibility.go` (yeni)
+  - `pkg/handler/resource_index_controller.go`
+  - `pkg/handler/lens_controller.go`
+  - `pkg/handler/resource_index_controller_test.go`
+  - `pkg/handler/lens_controller_test.go`
+
+#### Frontend
+
+- Grid kartta görsel sonrası başlık satırına üst padding eklendi (başlık/görsel arasındaki sıkışma giderildi).
+- Uygulanan dosya:
+  - `web/src/components/views/ResourceGridView.tsx`
+
+#### Dokümantasyon
+
+- `HideOnGrid` semantiği “kart/listing filtreleme” olarak netleştirildi.
+- `HideOnGrid` alanlarının payload'da korunmasının beklenen davranış olduğu dokümante edildi.
+- Güncellenen dosyalar:
+  - `docs/Grid-View.md`
+  - `docs/Fields.md`
+  - `docs/API-Reference.md`
+
+#### Doğrulama
+
+- ✅ `go test ./pkg/handler -run 'TestHandleResourceIndex_GridViewVisibility|TestHandleResourceIndex_GridViewVisibilityWithoutContextMiddleware|TestHandleLens_GridViewVisibility|TestHandleLens_GridViewVisibilityWithoutContextMiddleware'`
+- ✅ `bun test src/lib/resource-grid-card.test.ts` (`web/`)
+- ✅ `bun run build` (`web/`)
+
 ### 🔐 Internal/External API Servis Ayrımı ve External Plain JSON
 
 `/api` external API yüzeyi olarak konumlandırıldı; internal endpoint'ler `/api/internal/*` altında toplandı.

@@ -25,6 +25,7 @@ Bu doküman, detaylı ve düşük seviye API bakışı içindir. Uçtan uca baş
 - [Relationship Fields](#relationship-fields)
 - [Policy Interface](#policy-interface)
 - [Query Builder](#query-builder)
+- [Index ve Lens View Parametreleri](#index-ve-lens-view-parametreleri)
 - [Context](#context)
 - [Error Handling](#error-handling)
 
@@ -338,6 +339,33 @@ func (f *TextField) Validate(value interface{}) error {
 
 ---
 
+### Ortak UI Props (`WithProps`)
+
+Field UI davranışı için `WithProps(key, value)` ile frontend'e ek metadata geçebilirsiniz.
+
+Addon destekli anahtarlar:
+- `startAddon`: Alanın başında render edilir
+- `endAddon`: Alanın sonunda render edilir
+
+Uyumluluk alias'ları:
+- Baş addon: `start_component`, `prefix`, `prepend`
+- Son addon: `end_component`, `suffix`, `append`
+
+```go
+fields.Text("Website", "website").
+    OnForm().
+    WithProps("startAddon", "https://")
+
+fields.Number("Fiyat", "price").
+    OnForm().
+    WithProps("startAddon", "₺").
+    WithProps("endAddon", "/ay")
+```
+
+Detaylı field davranışları için: [Fields](Fields)
+
+---
+
 ### Görünürlük Metodları
 
 #### `OnlyOnIndex() *TextField`
@@ -431,6 +459,56 @@ fields.BelongsTo("Yazar", "user_id", "users").
 
 **Parametreler:**
 - `columns`: Sütun adları
+
+**Dönüş Değeri:** Alan (fluent API)
+
+---
+
+### Layout Metodları
+
+#### `Span(columns int) Element`
+
+Form ve detail görünümünde alanın 12 kolon grid içindeki genişliğini ayarlar.
+
+```go
+fields.Text("Ad", "first_name").Span(6)
+fields.Text("Soyad", "last_name").Span(6)
+```
+
+**Parametreler:**
+- `columns`: Kolon genişliği (`1..12`)
+
+**Notlar:**
+- Varsayılan span değeri `12` (tam genişlik)
+- Geçersiz değerler clamp edilir (`<1 => 1`, `>12 => 12`)
+- Sadece form/detail görünümünde etkilidir
+
+**Dönüş Değeri:** Alan (fluent API)
+
+---
+
+#### `ShowNumberControls(show bool) Element`
+
+Number field formundaki artı/eksi butonlarının görünürlüğünü ayarlar.
+
+```go
+fields.Number("Fiyat", "price").ShowNumberControls(false)
+```
+
+**Parametreler:**
+- `show`: `true` ise kontroller görünür, `false` ise gizli
+
+**Dönüş Değeri:** Alan (fluent API)
+
+---
+
+#### `HideNumberControls() Element`
+
+Number field formundaki artı/eksi butonlarını gizler (`ShowNumberControls(false)` kısayolu).
+
+```go
+fields.Number("Fiyat", "price").HideNumberControls()
+```
 
 **Dönüş Değeri:** Alan (fluent API)
 
@@ -810,6 +888,92 @@ query.Select("id", "name", "email")
 - `columns`: Sütun adları
 
 **Dönüş Değeri:** Query (fluent API)
+
+---
+
+## Index ve Lens View Parametreleri
+
+Resource index, relationship index ve lens endpoint'lerinde `table/grid` görünümü
+`view` query parametresi ile yönetilir.
+
+### Varsayılan davranış
+
+- `view` gönderilmezse varsayılan görünüm `table` olur.
+
+### Resource index (nested query format)
+
+```http
+GET /api/resource/users?users[view]=grid
+```
+
+Alternatif:
+```http
+GET /api/resource/users?view=grid
+```
+
+### Relationship index (nested query + via parametreleri)
+
+```http
+GET /api/resource/tags?tags[view]=grid&viaResource=products&viaResourceId=42&viaRelationship=tags
+```
+
+### Lens endpoint
+
+```http
+GET /api/resource/users/lens/active-users?view=grid
+```
+
+### Desteklenen değerler
+
+- `table`
+- `grid`
+
+Geçersiz bir değer gelirse backend otomatik olarak `table` kabul eder.
+
+### Response'a eklenen başlık alanı
+
+Grid kart başlığı için backend, resource tarafındaki `GetRecordTitleKey()` değerini döner:
+
+- Resource index response: `meta.grid_enabled`
+- Resource index response: `meta.record_title_key`
+- Lens response: `grid_enabled` (top-level)
+- Lens response: `record_title_key` (top-level)
+
+Grid visibility notu:
+- `HideOnGrid` alanları `headers`/kart listing tarafında filtreler.
+- Aynı alanların row payload (`data`) içinde kalması beklenen davranıştır.
+
+Örnek (resource index):
+
+```json
+{
+  "data": [...],
+  "meta": {
+    "grid_enabled": true,
+    "record_title_key": "name",
+    "headers": [...]
+  }
+}
+```
+
+Örnek (lens):
+
+```json
+{
+  "name": "Active Users",
+  "grid_enabled": true,
+  "record_title_key": "full_name",
+  "headers": [...],
+  "data": [...]
+}
+```
+
+### Resource tarafında title key ayarı
+
+```go
+r.SetRecordTitleKey("name")
+r.SetGridEnabled(true) // optional, varsayılan true
+```
 
 ---
 

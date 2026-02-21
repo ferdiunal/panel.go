@@ -39,7 +39,9 @@ func (p *Panel) registerResourceWithScope(slug string, res resource.Resource, in
 		p.internalResourceSlugs = make(map[string]struct{})
 	}
 
-	res.SetDialogType(resource.DialogTypeSheet)
+	if res.GetDialogType() == "" {
+		res.SetDialogType(resource.DialogTypeSheet)
+	}
 	p.resources[slug] = res
 
 	if internal {

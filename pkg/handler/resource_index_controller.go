@@ -272,12 +272,16 @@ import (
 //
 // ```
 func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
-	ctx := c.Resource()
+	// Parse Query Request using new parser
+	resourceName := c.Params("resource")
+	queryParams := query.ParseResourceQuery(c.Ctx, resourceName)
+	if h.Resource != nil {
+		h.IndexGridEnabled = resolveIndexGridEnabled(h.Resource)
+	}
 
 	// Set visibility context for proper field filtering
-	if ctx != nil {
-		ctx.VisibilityCtx = fields.ContextIndex
-	}
+	visibilityCtx := resolveIndexVisibilityContext(queryParams.View, h.IndexGridEnabled)
+	ctx := ensureResourceContext(c, h.Resource, nil, visibilityCtx)
 
 	if h.Policy != nil && !h.Policy.ViewAny(c) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
@@ -296,10 +300,6 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			"error": "No fields defined for this resource",
 		})
 	}
-
-	// Parse Query Request using new parser
-	resourceName := c.Params("resource")
-	queryParams := query.ParseResourceQuery(c.Ctx, resourceName)
 
 	// Convert query.Sort to data.Sort
 	var sorts []data.Sort
@@ -386,6 +386,17 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
+	// HideOnGrid should affect card listing (headers) only, not row payload.
+	// Keep index-visible/grid-hidden fields in row data for downstream actions.
+	if visibilityCtx == fields.ContextGrid {
+		extraElements := gridHiddenDataElements(elements, c.Resource())
+		if err := mergeGridHiddenDataIntoRows(h, c, result.Items, resources, extraElements); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+	}
+
 	// Generate headers for frontend table order
 	headers := make([]map[string]interface{}, 0)
 
@@ -394,17 +405,15 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			continue
 		}
 
-		ctxStr := element.GetContext()
 		serialized := element.JsonSerialize()
-		normalizeRelationshipCollectionData(element.GetView(), serialized)
+		normalizeHeaderFieldData(element.GetView(), serialized)
+		headers = append(headers, serialized)
+	}
 
-		// logic for headers (Index/List)
-		if ctxStr != fields.HIDE_ON_LIST &&
-			ctxStr != fields.ONLY_ON_CREATE &&
-			ctxStr != fields.ONLY_ON_UPDATE &&
-			ctxStr != fields.ONLY_ON_FORM &&
-			ctxStr != fields.ONLY_ON_DETAIL {
-			headers = append(headers, serialized)
+	recordTitleKey := "id"
+	if h.Resource != nil {
+		if key := strings.TrimSpace(h.Resource.GetRecordTitleKey()); key != "" {
+			recordTitleKey = key
 		}
 	}
 
@@ -424,8 +433,11 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 				"enabled": h.IndexReorderConfig.Enabled,
 				"column":  h.IndexReorderConfig.Column,
 			},
-			"title":   h.Resource.TitleWithContext(c.Ctx),
-			"headers": headers,
+			"title":            h.Resource.TitleWithContext(c.Ctx),
+			"description":      resource.DescriptionWithContext(h.Resource, c.Ctx, resourceName),
+			"record_title_key": recordTitleKey,
+			"grid_enabled":     h.IndexGridEnabled,
+			"headers":          headers,
 			"policy": fiber.Map{
 				"create":   h.Policy == nil || h.Policy.Create(c),
 				"view_any": h.Policy == nil || h.Policy.ViewAny(c),
@@ -434,6 +446,13 @@ func HandleResourceIndex(h *FieldHandler, c *context.Context) error {
 			},
 		},
 	})
+}
+
+func resolveIndexVisibilityContext(view string, gridEnabled bool) fields.VisibilityContext {
+	if gridEnabled && strings.EqualFold(strings.TrimSpace(view), "grid") {
+		return fields.ContextGrid
+	}
+	return fields.ContextIndex
 }
 
 func enrichViaRelationshipContext(

@@ -728,3 +728,68 @@ func TestResolveResourceFields_AppliesDisplayCallbackStackResult(t *testing.T) {
 		t.Fatalf("expected stack to have 2 children, got %d", len(children))
 	}
 }
+
+func TestResolveResourceFields_ResolvesStackChildDataAndVisibility(t *testing.T) {
+	h := &FieldHandler{}
+	item := map[string]interface{}{
+		"name":  "Salmon",
+		"price": 250,
+		"sku":   "SM-001",
+	}
+
+	stackField := fields.Stack([]core.Element{
+		fields.Text("Name", "name"),
+		fields.Number("Price", "price"),
+		fields.Text("SKU", "sku").OnlyOnUpdate(),
+	})
+
+	resolved, err := h.resolveResourceFields(
+		nil,
+		&core.ResourceContext{VisibilityCtx: fields.ContextDetail},
+		item,
+		[]fields.Element{stackField},
+	)
+	if err != nil {
+		t.Fatalf("resolveResourceFields returned error: %v", err)
+	}
+
+	fieldData, ok := resolved["stack"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected resolved stack field to be a map, got %T", resolved["stack"])
+	}
+
+	props, ok := fieldData["props"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected stack props to be map[string]interface{}, got %T", fieldData["props"])
+	}
+
+	children, ok := props["fields"].([]map[string]interface{})
+	if !ok {
+		t.Fatalf("expected stack props.fields to be []map[string]interface{}, got %T", props["fields"])
+	}
+
+	if len(children) != 2 {
+		t.Fatalf("expected only detail-visible stack children, got %d", len(children))
+	}
+
+	childByKey := make(map[string]map[string]interface{}, len(children))
+	for _, child := range children {
+		key, _ := child["key"].(string)
+		if key == "" {
+			t.Fatalf("expected child key to be non-empty, got %+v", child)
+		}
+		childByKey[key] = child
+	}
+
+	if got := childByKey["name"]["data"]; got != "Salmon" {
+		t.Fatalf("expected stack child name data to be Salmon, got %v", got)
+	}
+
+	if got := childByKey["price"]["data"]; got != 250 {
+		t.Fatalf("expected stack child price data to be 250, got %v", got)
+	}
+
+	if _, exists := childByKey["sku"]; exists {
+		t.Fatalf("expected sku child to be hidden on detail context")
+	}
+}

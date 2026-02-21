@@ -1405,6 +1405,9 @@ const (
 	// ```
 	CONTEXT_LIST ElementContext = "list"
 
+	// CONTEXT_GRID, alanın grid görünümü bağlamında olduğunu belirtir.
+	CONTEXT_GRID ElementContext = "grid"
+
 	// SHOW_ON_FORM, alanın form sayfalarında gösterilmesi gerektiğini belirtir.
 	//
 	// Bu context, alanın hem oluşturma (create) hem de güncelleme (update)
@@ -1481,6 +1484,9 @@ const (
 	// - ONLY_ON_LIST: SADECE liste görünümünde gösterilir
 	SHOW_ON_LIST ElementContext = "show_on_list"
 
+	// SHOW_ON_GRID, alanın grid görünümünde gösterilmesi gerektiğini belirtir.
+	SHOW_ON_GRID ElementContext = "show_on_grid"
+
 	// HIDE_ON_LIST, alanın liste görünümünde gizlenmesi gerektiğini belirtir.
 	//
 	// Bu context, alanın kayıt listesi/tablo görünümünde gizlenmesini sağlar.
@@ -1511,6 +1517,9 @@ const (
 	// - Tablo genişliğini optimize eder
 	// - Kullanıcı deneyimini iyileştirir
 	HIDE_ON_LIST ElementContext = "hide_on_list"
+
+	// HIDE_ON_GRID, alanın grid görünümünde gizlenmesi gerektiğini belirtir.
+	HIDE_ON_GRID ElementContext = "hide_on_grid"
 
 	// HIDE_ON_DETAIL, alanın detay sayfasında gizlenmesi gerektiğini belirtir.
 	//
@@ -1634,6 +1643,10 @@ const (
 	// - Diğer tüm görünümlerden gizler
 	// - Performans optimizasyonu için kullanılabilir
 	ONLY_ON_LIST ElementContext = "only_on_list"
+
+	// ONLY_ON_GRID, alanın sadece index kapsamlarında (table/grid) görünmesini sağlar.
+	// Detay ve form bağlamlarında gizlenir.
+	ONLY_ON_GRID ElementContext = "only_on_grid"
 
 	// ONLY_ON_DETAIL, alanın SADECE detay sayfasında gösterilmesi gerektiğini belirtir.
 	//
@@ -1886,6 +1899,9 @@ const (
 	// - Uzun metin alanlarını index'ten gizleyin
 	// - İlişkisel alanlar için eager loading kullanın
 	ContextIndex VisibilityContext = "index"
+
+	// ContextGrid, alanın grid görünümü bağlamında olduğunu belirtir.
+	ContextGrid VisibilityContext = "grid"
 
 	// ContextDetail, alanın detay görünümü bağlamında olduğunu belirtir.
 	//

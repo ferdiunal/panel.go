@@ -77,18 +77,22 @@ const (
 	CONTEXT_FORM   ElementContext = core.CONTEXT_FORM
 	CONTEXT_DETAIL ElementContext = core.CONTEXT_DETAIL
 	CONTEXT_LIST   ElementContext = core.CONTEXT_LIST
+	CONTEXT_GRID   ElementContext = core.CONTEXT_GRID
 
 	SHOW_ON_FORM   ElementContext = core.SHOW_ON_FORM
 	SHOW_ON_DETAIL ElementContext = core.SHOW_ON_DETAIL
 	SHOW_ON_LIST   ElementContext = core.SHOW_ON_LIST
+	SHOW_ON_GRID   ElementContext = core.SHOW_ON_GRID
 
 	HIDE_ON_LIST   ElementContext = core.HIDE_ON_LIST
+	HIDE_ON_GRID   ElementContext = core.HIDE_ON_GRID
 	HIDE_ON_DETAIL ElementContext = core.HIDE_ON_DETAIL
 	HIDE_ON_CREATE ElementContext = core.HIDE_ON_CREATE
 	HIDE_ON_UPDATE ElementContext = core.HIDE_ON_UPDATE
 	HIDE_ON_API    ElementContext = core.HIDE_ON_API
 
 	ONLY_ON_LIST   ElementContext = core.ONLY_ON_LIST
+	ONLY_ON_GRID   ElementContext = core.ONLY_ON_GRID
 	ONLY_ON_DETAIL ElementContext = core.ONLY_ON_DETAIL
 	ONLY_ON_CREATE ElementContext = core.ONLY_ON_CREATE
 	ONLY_ON_UPDATE ElementContext = core.ONLY_ON_UPDATE
@@ -97,6 +101,7 @@ const (
 
 const (
 	ContextIndex   VisibilityContext = core.ContextIndex
+	ContextGrid    VisibilityContext = core.ContextGrid
 	ContextDetail  VisibilityContext = core.ContextDetail
 	ContextCreate  VisibilityContext = core.ContextCreate
 	ContextUpdate  VisibilityContext = core.ContextUpdate

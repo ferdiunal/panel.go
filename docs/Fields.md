@@ -828,6 +828,15 @@ field.OnlyOnForm()
 // Listede gizle
 field.HideOnList()
 
+// Grid kart/listing görünümünde gizle
+field.HideOnGrid()
+
+// Grid'de zorunlu göster (HideOnList varsa grid'de override eder)
+field.ShowOnGrid()
+
+// Index kapsamlarında (table + grid) göster, form/detail'da gizle
+field.ShowOnlyGrid()
+
 // Detayda gizle
 field.HideOnDetail()
 
@@ -845,6 +854,21 @@ field.OnList().OnDetail().OnForm()
 ```
 
 `HideOnApi()` sadece external API (`/api`) çıktısını etkiler; internal panel endpoint'leri (`/api/internal/*`) ve internal REST API (`/api/internal/rest/*`) davranışını değiştirmez.
+
+#### Grid görünürlük kuralları (özet)
+
+- `HideOnGrid`: Grid kart/listing görünümünde gizler; table/detail/form etkilenmez.
+- `ShowOnGrid`: Grid'de görünür olmasını zorlar. Özellikle `HideOnList().ShowOnGrid()` kombinasyonunda table'da gizli, grid'de görünür olur.
+- `ShowOnlyGrid`: Kaydı index kapsamlarında (table + grid) görünür tutar, create/update/detail'da gizler.
+
+Öncelik:
+- `HideOnGrid`, grid görünümünde baskındır.
+- `HideOnList`, grid'de de gizler; `ShowOnGrid` ile override edilebilir.
+- `OnlyOnDetail/OnlyOnForm/OnlyOnCreate/OnlyOnUpdate` kısıtları grid'de de korunur.
+
+Not:
+- `HideOnGrid`, kart/listing render'ını etkiler.
+- Alan değeri row payload'da korunur.
 
 ### Validasyon
 
@@ -922,7 +946,29 @@ field.Filterable()
 
 // Yığılı gösterim
 field.Stacked()
+
+// Grid kolon genişliği (Form + Detail)
+// 1-12 arası desteklenir
+field.Span(6)
 ```
+
+### Form/Detail Grid Yerleşimi (`Span`)
+
+Alanları form ve detail görünümünde 12 kolonlu grid üzerinde konumlandırabilirsiniz.
+
+```go
+fields.Text("Ad", "first_name").Span(6)
+fields.Text("Soyad", "last_name").Span(6)
+fields.Email("E-posta", "email").Span(12)
+```
+
+**Notlar:**
+- `Span(1)` ile `Span(12)` arası desteklenir.
+- `Span` verilmezse varsayılan değer `12`'dir (tam genişlik).
+- Geçersiz değerler otomatik düzeltilir: `<1 => 1`, `>12 => 12`.
+- Bu özellik **form** ve **detail** görünümü için geçerlidir.
+- **Index/list** görünümünde `Span` kullanılmaz.
+- `has-many`, `belongs-to-many`, `morph-to-many` gibi ilişki tablo alanları detail'da tam genişlikte kalır.
 
 ## Gelişmiş Özellikler
 
@@ -1008,6 +1054,63 @@ backend bunu otomatik algılar ve frontend tarafı render eder.
 
 `Display` callback içinde `fields.Stack(...)` döndürürseniz, içindeki `fields` listesi
 de recursive serialize edilir ve çocuk bileşenler birlikte render edilir.
+
+### Grid kartı + Stack kullanımı (önerilen akış)
+
+Grid kartında içerik sırası backend/frontend tarafından otomatik uygulanır:
+
+1. Varsa ilk görünür `image-field` kart başında gösterilir
+2. Altına resource `record_title_key` değeri başlık olarak yazılır
+3. Kalan görünür alanlar field sırasına göre kart gövdesinde gösterilir
+4. `Display(...)->fields.Stack(...)` dönen computed içerik doğrudan kart gövdesinde render edilir
+
+```go
+func NewProductResource() resource.Resource {
+	r := resource.New("products")
+
+	// Resource seviyesinde grid görünümünü aç/kapat
+	r.SetGridEnabled(true)
+
+	// Kart başlığında kullanılacak alan
+	r.SetRecordTitleKey("name")
+
+	r.SetFields([]fields.Element{
+		fields.ID(),
+
+		// Grid kartı üst görseli
+		fields.Image("Görsel", "image").
+			OnList().
+			OnDetail(),
+
+		fields.Text("Ad", "name").
+			OnList().
+			OnDetail().
+			OnForm(),
+
+		// Table'da gizli, grid kartında görünür computed blok
+		fields.Text("Özet", "summary").
+			HideOnList().
+			ShowOnGrid().
+			Display(func(value interface{}, item interface{}) core.Element {
+				p, ok := item.(*Product)
+				if !ok || p == nil {
+					return fields.Stack([]core.Element{})
+				}
+
+				return fields.Stack([]core.Element{
+					fields.Badge(fmt.Sprintf("Stok: %d", p.Stock)).WithProps("variant", "secondary"),
+					fields.Badge(fmt.Sprintf("Fiyat: ₺%.2f", p.Price)).WithProps("variant", "outline"),
+				})
+			}),
+	})
+
+	return r
+}
+```
+
+Notlar:
+- Bu akışta ek bir `Line` API yoktur; computed kart içeriği için mevcut `Display + Stack` kullanılır.
+- Boş değerler kartta `—` olarak gösterilir.
 
 `Display` için desteklenen callback imzaları:
 
@@ -1096,6 +1199,12 @@ fields.File("Dökümanlar", "documents").
 	Store("private", "documents").
 	HelpText("PDF veya Word dosyaları yükleyebilirsiniz")
 ```
+
+**Image Preview Notu**
+- `fields.Image(...)` alanları formda mevcut resmi otomatik önizler.
+- Kayıt değeri tam URL (`https://...`) veya root-relative (`/storage/...`) ise doğrudan gösterilir.
+- Sadece dosya adı tutuyorsanız varsayılan olarak `/storage/<dosyaAdı>` üzerinden preview yapılır.
+- Farklı storage prefix için `WithProps("storageUrl", "/uploads")` veya `WithProps("storageURL", "...")` verebilirsiniz.
 
 ### Repeater Fields
 
@@ -1411,6 +1520,16 @@ fields.Number("Miktar", "quantity").
 	WithProps("step", 1).
 	WithProps("min", 0).
 	WithProps("max", 100)
+
+// Number input +/- kontrollerini gizle
+fields.Number("Fiyat", "price").
+	OnForm().
+	HideNumberControls()
+
+// Aynı davranışın açık hali
+fields.Number("Stok", "stock").
+	OnForm().
+	ShowNumberControls(false)
 ```
 
 ## Örnek: Tam Alan Tanımı
@@ -3116,6 +3235,65 @@ tooltip="Kullanıcı adı" // Çok kısa, ek bilgi yok
 tooltip="Bu alan kullanıcı adınızı girmeniz için kullanılır. Kullanıcı adınız benzersiz olmalıdır..." // Çok uzun
 tooltip="Girin" // Belirsiz
 ```
+
+## InputGroup Addon Desteği
+
+Form field'larında `shadcn/ui` `InputGroup` pattern'i ile alanın başına/sonuna bileşen veya metin ekleyebilirsiniz.
+
+Referans: [shadcn Input Group](https://ui.shadcn.com/docs/components/base/input-group.md)
+
+### Ne İşe Yarar?
+
+- Para birimi, birim, protokol gibi sabit ön/son ekler (`₺`, `%`, `https://`)
+- Inline aksiyonlar (örn. şifre göster/gizle) ile aynı hizada kullanım
+- Formda tutarlı input-group görünümü
+
+### Desteklenen Props (Backend `WithProps`)
+
+Önerilen anahtarlar:
+- Baş addon: `startAddon`
+- Son addon: `endAddon`
+
+Uyumluluk için desteklenen alias'lar:
+- Baş addon alias: `start_component`, `prefix`, `prepend`
+- Son addon alias: `end_component`, `suffix`, `append`
+
+> Not: Alias'lar eski/karma kullanımlar için desteklenir. Yeni tanımlarda `startAddon` / `endAddon` kullanın.
+
+### Backend Örnekleri
+
+```go
+// Basit para birimi + birim
+fields.Number("Fiyat", "price").
+	OnForm().
+	WithProps("startAddon", "₺").
+	WithProps("endAddon", "/ay")
+```
+
+```go
+// URL alanında protokol sabitleme
+fields.URL("Web Site", "website").
+	OnForm().
+	WithProps("prefix", "https://")
+```
+
+```go
+// Relationship/combobox alanlarında da aynı props çalışır
+fields.BelongsTo("Kategori", "category_id", "categories").
+	OnForm().
+	WithProps("startAddon", "🔎")
+```
+
+### Kapsam
+
+Addon çözümleyici (`resolveFieldInputAddons`) tüm form field component'lerinde uygulanır.
+
+- Input/textarea/select/combobox tabanlı field'larda doğrudan `InputGroup` render edilir.
+- Relationship chips, file, tabs, dialog gibi kompleks field'larda container-level addon uygulanır.
+
+Uygulama dosyaları:
+- `/Users/ferdiunal/Web/panel.go/web/src/components/fields/form/input-group-addon.tsx`
+- `/Users/ferdiunal/Web/panel.go/web/src/components/fields/form/input-group-addon-utils.ts`
 
 ## Sık Hata Kontrolü (Field Odaklı)
 

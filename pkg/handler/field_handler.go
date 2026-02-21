@@ -24,8 +24,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const formNullSentinel = "__PANEL_NULL__"
-
 // ConcurrencyConfig controls request-time concurrency behavior for handler hot paths.
 type ConcurrencyConfig struct {
 	EnablePipelineV2 bool
@@ -95,6 +93,7 @@ type FieldHandler struct {
 	Title               string
 	DialogType          resource.DialogType
 	DialogSize          resource.DialogSize
+	IndexGridEnabled    bool
 	IndexRowClickAction resource.IndexRowClickAction
 	IndexPaginationType resource.IndexPaginationType
 	IndexReorderConfig  resource.IndexReorderConfig
@@ -268,6 +267,18 @@ type indexPaginationTypeProvider interface {
 	GetIndexPaginationType() resource.IndexPaginationType
 }
 
+type indexGridEnabledProvider interface {
+	IsGridEnabled() bool
+}
+
+func resolveIndexGridEnabled(res resource.Resource) bool {
+	if provider, ok := res.(indexGridEnabledProvider); ok {
+		return provider.IsGridEnabled()
+	}
+
+	return true
+}
+
 func resolveIndexRowClickAction(res resource.Resource) resource.IndexRowClickAction {
 	if provider, ok := res.(indexRowClickActionProvider); ok {
 		return resource.NormalizeIndexRowClickAction(provider.GetIndexRowClickAction())
@@ -336,6 +347,7 @@ func resolveIndexReorderConfig(res resource.Resource) resource.IndexReorderConfi
 func NewFieldHandler(provider data.DataProvider) *FieldHandler {
 	return &FieldHandler{
 		Provider:            provider,
+		IndexGridEnabled:    true,
 		IndexRowClickAction: resource.IndexRowClickActionEdit,
 		IndexPaginationType: resource.IndexPaginationTypeLinks,
 		IndexReorderConfig: resource.IndexReorderConfig{
@@ -510,6 +522,7 @@ func NewResourceHandler(client interface{}, res resource.Resource, storagePath, 
 		Title:               res.Title(),
 		DialogType:          res.GetDialogType(),
 		DialogSize:          res.GetDialogSize(),
+		IndexGridEnabled:    resolveIndexGridEnabled(res),
 		IndexRowClickAction: resolveIndexRowClickAction(res),
 		IndexPaginationType: resolveIndexPaginationType(res),
 		IndexReorderConfig:  resolveIndexReorderConfig(res),
@@ -630,6 +643,7 @@ func NewLensHandler(client interface{}, res resource.Resource, lens resource.Len
 		Lens:                lens,
 		DialogType:          res.GetDialogType(),
 		DialogSize:          res.GetDialogSize(),
+		IndexGridEnabled:    resolveIndexGridEnabled(res),
 		IndexRowClickAction: resolveIndexRowClickAction(res),
 		IndexPaginationType: resolveIndexPaginationType(res),
 		IndexReorderConfig:  resolveIndexReorderConfig(res),
@@ -724,6 +738,11 @@ func cloneResourceContextForIsolation(ctx *core.ResourceContext) *core.ResourceC
 // / 4. Cache'de yoksa GetFieldsWithContext ile resolve et ve cache'e ekle
 // / 5. GetFieldsWithContext yoksa fallback (Resource.Fields() çağır)
 func (h *FieldHandler) getElements(ctx *context.Context) []fields.Element {
+	// Explicit handler elements override resource/lens resolvers.
+	if len(h.Elements) > 0 {
+		return h.Elements
+	}
+
 	// Lens-specific field resolution has priority.
 	if h.Lens != nil {
 		if ctx != nil {
@@ -738,6 +757,9 @@ func (h *FieldHandler) getElements(ctx *context.Context) []fields.Element {
 
 	if ctx == nil {
 		// Fallback: context yoksa eski davranış
+		if h.Resource == nil {
+			return nil
+		}
 		return h.Resource.Fields()
 	}
 
@@ -749,6 +771,9 @@ func (h *FieldHandler) getElements(ctx *context.Context) []fields.Element {
 	}
 
 	// Fallback: eski davranış
+	if h.Resource == nil {
+		return nil
+	}
 	return h.Resource.Fields()
 }
 
@@ -1010,6 +1035,7 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 
 		// Resolve options
 		h.ResolveFieldOptions(element, serialized, item)
+		h.resolveStackFieldChildren(ctx, item, serialized)
 
 		// Resolve MorphTo display fields
 		if element.GetView() == "morph-to-field" {
@@ -1060,10 +1086,16 @@ func (h *FieldHandler) resolveResourceFields(c *fiber.Ctx, ctx *core.ResourceCon
 	return resourceData, nil
 }
 
+func normalizeHeaderFieldData(view string, serialized map[string]interface{}) {
+	normalizeRelationshipCollectionData(view, serialized)
+	if isRelationshipCollectionView(view) {
+		return
+	}
+	serialized["data"] = nil
+}
+
 func normalizeRelationshipCollectionData(view string, serialized map[string]interface{}) {
-	switch view {
-	case "has-many-field", "belongs-to-many-field", "morph-to-many-field":
-	default:
+	if !isRelationshipCollectionView(view) {
 		return
 	}
 
@@ -1076,6 +1108,98 @@ func normalizeRelationshipCollectionData(view string, serialized map[string]inte
 	v := reflect.ValueOf(data)
 	if v.Kind() == reflect.Slice && v.IsNil() {
 		serialized["data"] = []interface{}{}
+	}
+}
+
+func (h *FieldHandler) resolveStackFieldChildren(ctx *core.ResourceContext, item interface{}, serialized map[string]interface{}) {
+	if !isStackSerializedField(serialized) {
+		return
+	}
+
+	props, ok := serialized["props"].(map[string]interface{})
+	if !ok || props == nil {
+		return
+	}
+
+	rawChildren, exists := props["fields"]
+	if !exists {
+		return
+	}
+
+	resolveChildElement := func(child fields.Element) (map[string]interface{}, bool) {
+		if child == nil {
+			return nil, false
+		}
+		if ctx != nil && !child.IsVisible(ctx) {
+			return nil, false
+		}
+
+		child.Extract(item)
+		childSerialized := child.JsonSerialize()
+		normalizeRelationshipCollectionData(child.GetView(), childSerialized)
+		h.ResolveFieldOptions(child, childSerialized, item)
+		h.resolveStackFieldChildren(ctx, item, childSerialized)
+		applyDisplayCallback(child, childSerialized, item)
+		return childSerialized, true
+	}
+
+	switch children := rawChildren.(type) {
+	case []core.Element:
+		serializedChildren := make([]map[string]interface{}, 0, len(children))
+		for _, child := range children {
+			if childSerialized, ok := resolveChildElement(child); ok {
+				serializedChildren = append(serializedChildren, childSerialized)
+			}
+		}
+		props["fields"] = serializedChildren
+		serialized["props"] = props
+	case []interface{}:
+		serializedChildren := make([]map[string]interface{}, 0, len(children))
+		for _, rawChild := range children {
+			switch child := rawChild.(type) {
+			case map[string]interface{}:
+				if isStackSerializedField(child) {
+					h.resolveStackFieldChildren(ctx, item, child)
+				}
+				serializedChildren = append(serializedChildren, child)
+			case core.Element:
+				if childSerialized, ok := resolveChildElement(child); ok {
+					serializedChildren = append(serializedChildren, childSerialized)
+				}
+			}
+		}
+
+		if len(serializedChildren) > 0 {
+			props["fields"] = serializedChildren
+			serialized["props"] = props
+		}
+	case []map[string]interface{}:
+		for _, child := range children {
+			if isStackSerializedField(child) {
+				h.resolveStackFieldChildren(ctx, item, child)
+			}
+		}
+		props["fields"] = children
+		serialized["props"] = props
+	}
+}
+
+func isStackSerializedField(serialized map[string]interface{}) bool {
+	view, _ := serialized["view"].(string)
+	if view == "stack-field" || strings.HasPrefix(view, "stack-field-") {
+		return true
+	}
+
+	rawType, _ := serialized["type"].(string)
+	return strings.TrimSpace(rawType) == string(core.TYPE_STACK)
+}
+
+func isRelationshipCollectionView(view string) bool {
+	switch view {
+	case "has-many-field", "belongs-to-many-field", "morph-to-many-field":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1649,10 +1773,10 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 				}
 
 				if isFileType {
-					// File fields are populated from form.File, but keep explicit null sentinel
-					// so frontend can clear an existing file value.
-					if len(values) == 1 && values[0] == formNullSentinel {
-						body[normalizedKey] = values[0]
+					// File fields are populated from form.File.
+					// Empty string acts as an explicit clear signal when no file is uploaded.
+					if len(values) == 1 && strings.TrimSpace(values[0]) == "" {
+						body[normalizedKey] = nil
 					}
 					continue
 				}
@@ -1716,7 +1840,7 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 		}
 	}
 
-	// Convert explicit frontend null sentinel values to nil for relationship fields.
+	// Normalize empty string clear signals to nil for nullable relationship and file fields.
 	for _, el := range elements {
 		key := el.GetKey()
 		rawVal, exists := body[key]
@@ -1724,8 +1848,12 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 			continue
 		}
 
+		if rawVal == nil {
+			continue
+		}
+
 		strVal, ok := rawVal.(string)
-		if !ok || strVal != formNullSentinel {
+		if !ok || strings.TrimSpace(strVal) != "" {
 			continue
 		}
 
@@ -1760,40 +1888,53 @@ func (h *FieldHandler) parseBody(c *context.Context) (map[string]interface{}, er
 			typeKey := key + "_type"
 			idKey := key + "_id"
 
-			if val, ok := body[key]; ok && val != nil {
-				// Parse MorphTo value - can be JSON string, map, or already separated
-				switch v := val.(type) {
-				case string:
-					if v == formNullSentinel {
-						body[typeKey] = nil
-						body[idKey] = nil
-						delete(body, key)
-						continue
-					}
-					// JSON string from form-data: {"type":"posts","id":"1"}
-					if strings.HasPrefix(v, "{") {
-						var morphData map[string]interface{}
-						if err := json.Unmarshal([]byte(v), &morphData); err == nil {
-							if morphType, ok := morphData["type"].(string); ok && morphType != "" {
-								body[typeKey] = morphType
-							}
-							if morphID, exists := morphData["id"]; exists {
-								body[idKey] = morphID
-							}
+			val, ok := body[key]
+			if !ok {
+				continue
+			}
+
+			if val == nil {
+				body[typeKey] = nil
+				body[idKey] = nil
+				delete(body, key)
+				continue
+			}
+
+			// Parse MorphTo value - can be JSON string, map, or already separated
+			switch v := val.(type) {
+			case string:
+				trimmed := strings.TrimSpace(v)
+				if trimmed == "" {
+					body[typeKey] = nil
+					body[idKey] = nil
+					delete(body, key)
+					continue
+				}
+
+				// JSON string from form-data: {"type":"posts","id":"1"}
+				if strings.HasPrefix(trimmed, "{") {
+					var morphData map[string]interface{}
+					if err := json.Unmarshal([]byte(trimmed), &morphData); err == nil {
+						if morphType, ok := morphData["type"].(string); ok && morphType != "" {
+							body[typeKey] = morphType
+						}
+						if morphID, exists := morphData["id"]; exists {
+							body[idKey] = morphID
 						}
 					}
-				case map[string]interface{}:
-					// Already parsed JSON object
-					if morphType, ok := v["type"].(string); ok && morphType != "" {
-						body[typeKey] = morphType
-					}
-					if morphID, exists := v["id"]; exists {
-						body[idKey] = morphID
-					}
 				}
-				// Remove the original composite key
-				delete(body, key)
+			case map[string]interface{}:
+				// Already parsed JSON object
+				if morphType, ok := v["type"].(string); ok && morphType != "" {
+					body[typeKey] = morphType
+				}
+				if morphID, exists := v["id"]; exists {
+					body[idKey] = morphID
+				}
 			}
+
+			// Remove the original composite key
+			delete(body, key)
 		}
 	}
 

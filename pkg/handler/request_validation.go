@@ -112,10 +112,7 @@ func (h *FieldHandler) validateRequestPayload(
 		return nil
 	}
 
-	resourceCtx := c.Resource()
-	if resourceCtx != nil {
-		resourceCtx.VisibilityCtx = visibilityCtx
-	}
+	resourceCtx := ensureResourceContext(c, h.Resource, h.Lens, visibilityCtx)
 
 	elements := h.resolveValidationElements(c, resourceCtx)
 	if len(elements) == 0 {

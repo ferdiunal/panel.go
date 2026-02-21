@@ -219,7 +219,7 @@ func TestHandleResolveDependencies_RelationFieldCascade(t *testing.T) {
 	}
 }
 
-func TestParseBody_RelationSentinelConvertedToNil(t *testing.T) {
+func TestParseBody_RelationNullConvertedToNil(t *testing.T) {
 	h := newRelationTestHandler([]fields.Element{
 		fields.BelongsTo("Category", "category_id", "categories"),
 	})
@@ -228,7 +228,7 @@ func TestParseBody_RelationSentinelConvertedToNil(t *testing.T) {
 		t,
 		h,
 		"application/json",
-		bytes.NewBufferString(`{"category_id":"__PANEL_NULL__"}`),
+		bytes.NewBufferString(`{"category_id":null}`),
 	)
 
 	value, exists := parsed["category_id"]
@@ -240,7 +240,7 @@ func TestParseBody_RelationSentinelConvertedToNil(t *testing.T) {
 	}
 }
 
-func TestParseBody_MorphToSentinelClearsTypeAndID(t *testing.T) {
+func TestParseBody_MorphToNullClearsTypeAndID(t *testing.T) {
 	h := newRelationTestHandler([]fields.Element{
 		fields.NewMorphTo("Commentable", "commentable"),
 	})
@@ -249,7 +249,7 @@ func TestParseBody_MorphToSentinelClearsTypeAndID(t *testing.T) {
 		t,
 		h,
 		"application/json",
-		bytes.NewBufferString(`{"commentable":"__PANEL_NULL__"}`),
+		bytes.NewBufferString(`{"commentable":null}`),
 	)
 
 	if _, exists := parsed["commentable"]; exists {
@@ -365,15 +365,15 @@ func TestParseBody_MultipartFileFieldUsesStorageCallback(t *testing.T) {
 	}
 }
 
-func TestParseBody_MultipartFileSentinelConvertedToNil(t *testing.T) {
+func TestParseBody_MultipartFileEmptyStringConvertedToNil(t *testing.T) {
 	h := newRelationTestHandler([]fields.Element{
 		fields.Image("Image", "image"),
 	})
 
 	var formBody bytes.Buffer
 	writer := multipart.NewWriter(&formBody)
-	if err := writer.WriteField("image", formNullSentinel); err != nil {
-		t.Fatalf("failed to write image sentinel field: %v", err)
+	if err := writer.WriteField("image", ""); err != nil {
+		t.Fatalf("failed to write image empty field: %v", err)
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatalf("failed to close multipart writer: %v", err)

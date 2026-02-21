@@ -2013,9 +2013,21 @@ func (p *GormDataProvider) Update(ctx *context.Context, id string, data map[stri
 		}
 	}
 
-	updates["updated_at"] = time.Now()
+	updateQuery := p.DB.WithContext(stdCtx).Model(item)
+	if updatedAtField := modelSchema.LookUpField("UpdatedAt"); updatedAtField != nil {
+		updatedAtColumn := updatedAtField.DBName
+		if updatedAtColumn != "" {
+			if p.DB.WithContext(stdCtx).Migrator().HasColumn(item, updatedAtColumn) {
+				updates[updatedAtColumn] = time.Now()
+			} else {
+				// If model has UpdatedAt but table does not, explicitly omit to avoid SQL errors.
+				updateQuery = updateQuery.Omit(updatedAtColumn)
+			}
+		}
+	}
+
 	if len(updates) > 0 {
-		if err := p.DB.WithContext(stdCtx).Model(item).Updates(updates).Error; err != nil {
+		if err := updateQuery.Updates(updates).Error; err != nil {
 			return nil, err
 		}
 	}

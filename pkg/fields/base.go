@@ -336,13 +336,22 @@ func (s *Schema) JsonSerialize() map[string]interface{} {
 			strings.HasSuffix(view, "-detail")
 
 		if !hasSuffix {
-			switch s.Context {
-			case CONTEXT_FORM, SHOW_ON_FORM, ONLY_ON_FORM, ONLY_ON_CREATE, ONLY_ON_UPDATE:
+			contextContains := func(target ElementContext) bool {
+				for _, part := range strings.Fields(string(s.Context)) {
+					if part == string(target) {
+						return true
+					}
+				}
+				return false
+			}
+
+			switch {
+			case contextContains(CONTEXT_FORM) || contextContains(SHOW_ON_FORM) || contextContains(ONLY_ON_FORM) || contextContains(ONLY_ON_CREATE) || contextContains(ONLY_ON_UPDATE):
 				view = view + "-form"
-			case CONTEXT_LIST, SHOW_ON_LIST, ONLY_ON_LIST:
-				view = view + "-index"
-			case CONTEXT_DETAIL, SHOW_ON_DETAIL, ONLY_ON_DETAIL:
+			case contextContains(CONTEXT_DETAIL) || contextContains(SHOW_ON_DETAIL) || contextContains(ONLY_ON_DETAIL):
 				view = view + "-detail"
+			case contextContains(CONTEXT_LIST) || contextContains(CONTEXT_GRID) || contextContains(SHOW_ON_LIST) || contextContains(SHOW_ON_GRID) || contextContains(ONLY_ON_LIST) || contextContains(ONLY_ON_GRID):
+				view = view + "-index"
 			}
 		}
 	}
@@ -596,6 +605,11 @@ func (s *Schema) HideOnApi() Element {
 	return s.SetContext(HIDE_ON_API)
 }
 
+// HideOnGrid, alanı grid görünümünde gizler.
+func (s *Schema) HideOnGrid() Element {
+	return s.SetContext(HIDE_ON_GRID)
+}
+
 // OnlyOnList, alanı sadece liste görünümünde gösterir.
 //
 // Bu metod, alanın yalnızca tablo/liste görünümünde görünür olmasını sağlar.
@@ -616,6 +630,12 @@ func (s *Schema) HideOnApi() Element {
 //	field := Text("summary", "Özet").OnlyOnList()
 func (s *Schema) OnlyOnList() Element {
 	return s.SetContext(ONLY_ON_LIST)
+}
+
+// ShowOnlyGrid, alanı index kapsamlarında (table/grid) gösterir,
+// detail ve form görünümlerinde gizler.
+func (s *Schema) ShowOnlyGrid() Element {
+	return s.SetContext(ONLY_ON_GRID)
 }
 
 // OnlyOnDetail, alanı sadece detay görünümünde gösterir.
@@ -704,6 +724,11 @@ func (s *Schema) OnlyOnUpdate() Element {
 //	field := Hidden("csrf_token", "CSRF Token").OnlyOnForm()
 func (s *Schema) OnlyOnForm() Element {
 	return s.SetContext(ONLY_ON_FORM)
+}
+
+// ShowOnGrid, alanı grid görünümünde görünür hale getirir.
+func (s *Schema) ShowOnGrid() Element {
+	return s.SetContext(SHOW_ON_GRID)
 }
 
 // ReadOnly, alanı salt okunur olarak işaretler.
@@ -1089,6 +1114,64 @@ func (s *Schema) IsSearchable() bool {
 func (s *Schema) Stacked() Element {
 	s.IsStacked = true
 	return s
+}
+
+// Span, alanın form/detail grid içindeki kolon genişliğini ayarlar.
+//
+// Span değeri 1 ile 12 arasındadır. Geçersiz değerler otomatik olarak clamp edilir:
+//   - 1'den küçükse 1
+//   - 12'den büyükse 12
+//
+// # Parametreler
+//
+//   - span: Grid kolon genişliği (1-12)
+//
+// # Döndürür
+//
+//   - Element: Zincirleme çağrılar için Schema pointer'ı
+//
+// # Örnek
+//
+//	fields.Text("Ad", "first_name").Span(6)
+//	fields.Text("Soyad", "last_name").Span(6)
+func (s *Schema) Span(span int) Element {
+	if span < 1 {
+		span = 1
+	}
+	if span > 12 {
+		span = 12
+	}
+
+	s.WithProps("span", span)
+	return s
+}
+
+// ShowNumberControls, number input alanındaki artı/eksi butonlarının görünürlüğünü ayarlar.
+//
+// Varsayılan değer true'dur (butonlar görünür).
+// false gönderildiğinde frontend'de +/- butonları gizlenir.
+//
+// # Parametreler
+//
+//   - show: true ise kontroller gösterilir, false ise gizlenir
+//
+// # Döndürür
+//
+//   - Element: Zincirleme çağrılar için Schema pointer'ı
+//
+// # Örnek
+//
+//	fields.Number("Fiyat", "price").ShowNumberControls(false)
+func (s *Schema) ShowNumberControls(show bool) Element {
+	s.WithProps("showControls", show)
+	return s
+}
+
+// HideNumberControls, number input alanındaki artı/eksi butonlarını gizler.
+//
+// Bu metod ShowNumberControls(false) için kısa yoldur.
+func (s *Schema) HideNumberControls() Element {
+	return s.ShowNumberControls(false)
 }
 
 // SetTextAlign, alan içeriğinin hizalamasını ayarlar.
@@ -1726,23 +1809,59 @@ func (s *Schema) GetMetadata() map[string]interface{} {
 //	    // Alanı oluşturma formunda göster
 //	}
 func (s *Schema) IsVisibleInContext(ctx VisibilityContext) bool {
-	// Helper function to check if context contains a specific value
+	contextTokens := make(map[string]struct{})
+	for _, part := range strings.Fields(string(s.Context)) {
+		contextTokens[part] = struct{}{}
+	}
 	contextContains := func(target ElementContext) bool {
-		return strings.Contains(string(s.Context), string(target))
+		_, exists := contextTokens[string(target)]
+		return exists
 	}
 
-	// Map VisibilityContext to ElementContext for compatibility
 	switch ctx {
 	case ContextIndex:
-		return !contextContains(HIDE_ON_LIST) && !contextContains(ONLY_ON_DETAIL) && !contextContains(ONLY_ON_FORM)
+		return !contextContains(HIDE_ON_LIST) &&
+			!contextContains(ONLY_ON_DETAIL) &&
+			!contextContains(ONLY_ON_FORM) &&
+			!contextContains(ONLY_ON_CREATE) &&
+			!contextContains(ONLY_ON_UPDATE)
+	case ContextGrid:
+		if contextContains(HIDE_ON_GRID) {
+			return false
+		}
+		if contextContains(ONLY_ON_DETAIL) || contextContains(ONLY_ON_FORM) || contextContains(ONLY_ON_CREATE) || contextContains(ONLY_ON_UPDATE) {
+			return false
+		}
+		if contextContains(HIDE_ON_LIST) && !contextContains(SHOW_ON_GRID) {
+			return false
+		}
+		return true
 	case ContextDetail:
-		return !contextContains(HIDE_ON_DETAIL) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_FORM)
+		return !contextContains(HIDE_ON_DETAIL) &&
+			!contextContains(ONLY_ON_LIST) &&
+			!contextContains(ONLY_ON_GRID) &&
+			!contextContains(ONLY_ON_FORM) &&
+			!contextContains(ONLY_ON_CREATE) &&
+			!contextContains(ONLY_ON_UPDATE)
 	case ContextCreate:
-		return !contextContains(HIDE_ON_CREATE) && !contextContains(ONLY_ON_UPDATE) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_DETAIL)
+		return !contextContains(HIDE_ON_CREATE) &&
+			!contextContains(ONLY_ON_UPDATE) &&
+			!contextContains(ONLY_ON_LIST) &&
+			!contextContains(ONLY_ON_GRID) &&
+			!contextContains(ONLY_ON_DETAIL)
 	case ContextUpdate:
-		return !contextContains(HIDE_ON_UPDATE) && !contextContains(ONLY_ON_CREATE) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_DETAIL)
+		return !contextContains(HIDE_ON_UPDATE) &&
+			!contextContains(ONLY_ON_CREATE) &&
+			!contextContains(ONLY_ON_LIST) &&
+			!contextContains(ONLY_ON_GRID) &&
+			!contextContains(ONLY_ON_DETAIL)
 	case ContextPreview:
-		return !contextContains(HIDE_ON_DETAIL) && !contextContains(ONLY_ON_LIST) && !contextContains(ONLY_ON_FORM)
+		return !contextContains(HIDE_ON_DETAIL) &&
+			!contextContains(ONLY_ON_LIST) &&
+			!contextContains(ONLY_ON_GRID) &&
+			!contextContains(ONLY_ON_FORM) &&
+			!contextContains(ONLY_ON_CREATE) &&
+			!contextContains(ONLY_ON_UPDATE)
 	default:
 		return true
 	}

@@ -295,24 +295,31 @@ func HandleLensIndex(h *FieldHandler, c *context.Context) error {
 // - 🔒 SQL injection'a karşı parameterized query kullanılmalıdır
 // - 🔒 Hassas veriler lens query'sinde filtrelenmelidir
 func HandleLens(h *FieldHandler, c *context.Context) error {
-	ctx := c.Resource()
-	if ctx != nil {
-		ctx.VisibilityCtx = fields.ContextIndex
+	resourceName := c.Params("resource")
+	queryParams := query.ParseResourceQuery(c.Ctx, resourceName)
+	if h.Resource != nil {
+		h.IndexGridEnabled = resolveIndexGridEnabled(h.Resource)
 	}
+
+	visibilityCtx := resolveIndexVisibilityContext(queryParams.View, h.IndexGridEnabled)
+	ctx := ensureResourceContext(c, h.Resource, h.Lens, visibilityCtx)
 
 	if h.Policy != nil && !h.Policy.ViewAny(c) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	elements := h.getElements(c)
+	var elements []fields.Element
+	if ctx != nil && len(ctx.Elements) > 0 {
+		elements = ctx.Elements
+	} else {
+		elements = h.getElements(c)
+	}
+
 	if len(elements) == 0 {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "No fields defined for this lens",
 		})
 	}
-
-	resourceName := c.Params("resource")
-	queryParams := query.ParseResourceQuery(c.Ctx, resourceName)
 
 	var sorts []data.Sort
 	for _, s := range queryParams.Sorts {
@@ -376,23 +383,25 @@ func HandleLens(h *FieldHandler, c *context.Context) error {
 		})
 	}
 
+	// HideOnGrid should affect card listing (headers) only, not row payload.
+	if visibilityCtx == fields.ContextGrid {
+		extraElements := gridHiddenDataElements(elements, c.Resource())
+		if err := mergeGridHiddenDataIntoRows(h, c, result.Items, resources, extraElements); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+	}
+
 	headers := make([]map[string]interface{}, 0)
 	for _, element := range elements {
 		if !element.IsVisible(c.Resource()) {
 			continue
 		}
 
-		ctxStr := element.GetContext()
 		serialized := element.JsonSerialize()
-		normalizeRelationshipCollectionData(element.GetView(), serialized)
-
-		if ctxStr != fields.HIDE_ON_LIST &&
-			ctxStr != fields.ONLY_ON_CREATE &&
-			ctxStr != fields.ONLY_ON_UPDATE &&
-			ctxStr != fields.ONLY_ON_FORM &&
-			ctxStr != fields.ONLY_ON_DETAIL {
-			headers = append(headers, serialized)
-		}
+		normalizeHeaderFieldData(element.GetView(), serialized)
+		headers = append(headers, serialized)
 	}
 
 	prevPageURL, nextPageURL := buildLensPageURLs(c, result.Page, result.PerPage, result.Total)
@@ -419,16 +428,25 @@ func HandleLens(h *FieldHandler, c *context.Context) error {
 		name = h.Lens.Name()
 	}
 
+	recordTitleKey := "id"
+	if h.Resource != nil {
+		if key := h.Resource.GetRecordTitleKey(); key != "" {
+			recordTitleKey = key
+		}
+	}
+
 	return c.JSON(fiber.Map{
-		"name":        name,
-		"resources":   resources,
-		"data":        resources, // Backward compatibility for older clients/tests.
-		"prevPageUrl": prevPageURL,
-		"nextPageUrl": nextPageURL,
-		"perPage":     result.PerPage,
-		"softDeletes": false,
-		"hasId":       hasID,
-		"headers":     headers,
+		"name":             name,
+		"resources":        resources,
+		"data":             resources, // Backward compatibility for older clients/tests.
+		"prevPageUrl":      prevPageURL,
+		"nextPageUrl":      nextPageURL,
+		"perPage":          result.PerPage,
+		"softDeletes":      false,
+		"hasId":            hasID,
+		"grid_enabled":     h.IndexGridEnabled,
+		"record_title_key": recordTitleKey,
+		"headers":          headers,
 	})
 }
 

@@ -5,6 +5,7 @@
   - [Resource Template](RESOURCE_TEMPLATE)
   - [Domain Resource Colocations](DOMAIN_RESOURCE_COLOCATIONS)
 - [Alanlar (Fields)](Fields)
+  - [Grid View](Grid-View)
   - [Doğrulama (Validation)](Validation)
   - [Bağımlı Alanlar](Dependent-Fields)
   - [Bağımlı Alanlar Playbook](Dependent-Fields-Playbook)

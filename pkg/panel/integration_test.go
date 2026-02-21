@@ -698,9 +698,15 @@ func TestIntegration_Navigation(t *testing.T) {
 	if userNav["title"] != "Users" || userNav["icon"] != "users" || userNav["group"] != "System" {
 		t.Errorf("Users nav metadata incorrect: %v", userNav)
 	}
+	if _, ok := userNav["description"]; !ok {
+		t.Errorf("Users nav description missing: %v", userNav)
+	}
 
 	blogNav := findItem("blogs")
 	if blogNav["title"] != "Blogs" || blogNav["group"] != "Content" {
 		t.Errorf("Blogs nav metadata incorrect: %v", blogNav)
+	}
+	if _, ok := blogNav["description"]; !ok {
+		t.Errorf("Blogs nav description missing: %v", blogNav)
 	}
 }

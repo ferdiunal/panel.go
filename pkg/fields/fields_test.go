@@ -167,3 +167,91 @@ func TestHideOnApiSetsContext(t *testing.T) {
 		t.Fatalf("expected context %q, got %q", HIDE_ON_API, f.GetContext())
 	}
 }
+
+func TestFieldSpan(t *testing.T) {
+	field, ok := Text("First Name", "first_name").Span(6).(*Schema)
+	if !ok {
+		t.Fatal("expected span result to be *Schema")
+	}
+	if got := field.Props["span"]; got != 6 {
+		t.Fatalf("expected span to be 6, got %v", got)
+	}
+
+	minClamped, ok := Text("Min", "min").Span(0).(*Schema)
+	if !ok {
+		t.Fatal("expected min span result to be *Schema")
+	}
+	if got := minClamped.Props["span"]; got != 1 {
+		t.Fatalf("expected min-clamped span to be 1, got %v", got)
+	}
+
+	maxClamped, ok := Text("Max", "max").Span(99).(*Schema)
+	if !ok {
+		t.Fatal("expected max span result to be *Schema")
+	}
+	if got := maxClamped.Props["span"]; got != 12 {
+		t.Fatalf("expected max-clamped span to be 12, got %v", got)
+	}
+}
+
+func TestNumberControlVisibility(t *testing.T) {
+	hidden, ok := Number("Price", "price").HideNumberControls().(*Schema)
+	if !ok {
+		t.Fatal("expected hidden controls result to be *Schema")
+	}
+	if got := hidden.Props["showControls"]; got != false {
+		t.Fatalf("expected showControls to be false, got %v", got)
+	}
+
+	shown, ok := Number("Quantity", "quantity").ShowNumberControls(true).(*Schema)
+	if !ok {
+		t.Fatal("expected shown controls result to be *Schema")
+	}
+	if got := shown.Props["showControls"]; got != true {
+		t.Fatalf("expected showControls to be true, got %v", got)
+	}
+}
+
+func TestGridVisibilityRules(t *testing.T) {
+	hideOnGrid, ok := Text("Image", "image").HideOnGrid().(*Schema)
+	if !ok {
+		t.Fatal("expected HideOnGrid chain to return *Schema")
+	}
+	if !hideOnGrid.IsVisibleInContext(ContextIndex) {
+		t.Fatal("HideOnGrid field should remain visible in index/table")
+	}
+	if hideOnGrid.IsVisibleInContext(ContextGrid) {
+		t.Fatal("HideOnGrid field should be hidden in grid")
+	}
+
+	showOnGrid, ok := Text("Secret", "secret").HideOnList().ShowOnGrid().(*Schema)
+	if !ok {
+		t.Fatal("expected ShowOnGrid chain to return *Schema")
+	}
+	if showOnGrid.IsVisibleInContext(ContextIndex) {
+		t.Fatal("HideOnList+ShowOnGrid field should remain hidden in index/table")
+	}
+	if !showOnGrid.IsVisibleInContext(ContextGrid) {
+		t.Fatal("HideOnList+ShowOnGrid field should be visible in grid")
+	}
+
+	showOnlyGrid, ok := Text("Grid", "grid_only").ShowOnlyGrid().(*Schema)
+	if !ok {
+		t.Fatal("expected ShowOnlyGrid chain to return *Schema")
+	}
+	if !showOnlyGrid.IsVisibleInContext(ContextIndex) {
+		t.Fatal("ShowOnlyGrid field should be visible in index/table")
+	}
+	if !showOnlyGrid.IsVisibleInContext(ContextGrid) {
+		t.Fatal("ShowOnlyGrid field should be visible in grid")
+	}
+	if showOnlyGrid.IsVisibleInContext(ContextDetail) {
+		t.Fatal("ShowOnlyGrid field should be hidden in detail")
+	}
+	if showOnlyGrid.IsVisibleInContext(ContextCreate) {
+		t.Fatal("ShowOnlyGrid field should be hidden in create")
+	}
+	if showOnlyGrid.IsVisibleInContext(ContextUpdate) {
+		t.Fatal("ShowOnlyGrid field should be hidden in update")
+	}
+}

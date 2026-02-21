@@ -323,7 +323,7 @@ func New(config Config) *Panel {
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token,X-API-Key",
 		AllowCredentials: true,
-		ExposeHeaders:    "Content-Length",
+		ExposeHeaders:    "Content-Length,X-CSRF-Token",
 		MaxAge:           3600,
 	}))
 
@@ -333,11 +333,12 @@ func New(config Config) *Panel {
 	if config.Environment != "test" {
 		app.Use(csrf.New(csrf.Config{
 			KeyLookup:      "header:X-CSRF-Token",              // Extract token from header
-			CookieName:     "csrf_token",                       // Must match frontend axios xsrfCookieName
+			CookieName:     "csrf_token",                       // CSRF middleware token cookie
 			CookieSecure:   config.Environment == "production", // HTTPS only in production
-			CookieHTTPOnly: false,                              // CRITICAL: Must be false for SPA (JavaScript needs to read cookie)
+			CookieHTTPOnly: true,                               // Keep token cookie inaccessible to JavaScript
 			CookieSameSite: "Lax",                              // Lax allows GET requests from external sites (better UX than Strict)
 			Expiration:     24 * time.Hour,
+			ContextKey:     "csrf", // Expose token for /init response header
 		}))
 	}
 
@@ -1987,13 +1988,14 @@ func (p *Panel) handleResourceActionExecute(c *context.Context) error {
 // / ```
 func (p *Panel) handleNavigation(c *context.Context) error {
 	type NavItem struct {
-		Slug  string `json:"slug"`
-		Title string `json:"title"`
-		Icon  string `json:"icon"`
-		Group string `json:"group"`
-		Type  string `json:"type"`  // "resource" or "page"
-		Order int    `json:"order"` // Internal use for sorting
-		URL   string `json:"url"`   // Full URL with language prefix
+		Slug        string `json:"slug"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Icon        string `json:"icon"`
+		Group       string `json:"group"`
+		Type        string `json:"type"`  // "resource" or "page"
+		Order       int    `json:"order"` // Internal use for sorting
+		URL         string `json:"url"`   // Full URL with language prefix
 	}
 
 	// Dil bilgisini al
@@ -2024,13 +2026,14 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 			continue
 		}
 		items = append(items, NavItem{
-			Slug:  slug,
-			Title: res.TitleWithContext(c.Ctx),
-			Icon:  res.Icon(),
-			Group: res.GroupWithContext(c.Ctx),
-			Type:  "resource",
-			Order: res.NavigationOrder(),
-			URL:   urlPrefix + "/resource/" + slug,
+			Slug:        slug,
+			Title:       res.TitleWithContext(c.Ctx),
+			Description: resource.DescriptionWithContext(res, c.Ctx, slug),
+			Icon:        res.Icon(),
+			Group:       res.GroupWithContext(c.Ctx),
+			Type:        "resource",
+			Order:       res.NavigationOrder(),
+			URL:         urlPrefix + "/resource/" + slug,
 		})
 	}
 
@@ -2039,13 +2042,14 @@ func (p *Panel) handleNavigation(c *context.Context) error {
 			continue
 		}
 		items = append(items, NavItem{
-			Slug:  slug,
-			Title: i18n.Trans(c.Ctx, pg.Title()),
-			Icon:  pg.Icon(),
-			Group: pg.Group(),
-			Type:  "page",
-			Order: pg.NavigationOrder(),
-			URL:   urlPrefix + "/page/" + slug,
+			Slug:        slug,
+			Title:       i18n.Trans(c.Ctx, pg.Title()),
+			Description: i18n.Trans(c.Ctx, pg.Description()),
+			Icon:        pg.Icon(),
+			Group:       pg.Group(),
+			Type:        "page",
+			Order:       pg.NavigationOrder(),
+			URL:         urlPrefix + "/page/" + slug,
 		})
 	}
 
@@ -2241,9 +2245,10 @@ func (p *Panel) handleResolve(c *context.Context) error {
 			"type": "resource",
 			"slug": path,
 			"meta": fiber.Map{
-				"title": res.TitleWithContext(c.Ctx),
-				"icon":  res.Icon(),
-				"group": res.GroupWithContext(c.Ctx),
+				"title":       res.TitleWithContext(c.Ctx),
+				"description": resource.DescriptionWithContext(res, c.Ctx, path),
+				"icon":        res.Icon(),
+				"group":       res.GroupWithContext(c.Ctx),
 			},
 		})
 	}

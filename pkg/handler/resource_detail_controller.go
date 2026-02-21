@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
 	"github.com/gofiber/fiber/v2"
@@ -135,6 +137,8 @@ import (
 // - ID parametresi SQL injection'a karşı Provider tarafından korunmalıdır
 // - Hassas alanlar için IsVisible() metodunda ek kontroller yapılabilir
 func HandleResourceDetail(h *FieldHandler, c *context.Context) error {
+	resourceCtx := ensureResourceContext(c, h.Resource, nil, fields.ContextDetail)
+
 	id := c.Params("id")
 	item, err := h.Provider.Show(c, id)
 	if err != nil {
@@ -149,24 +153,37 @@ func HandleResourceDetail(h *FieldHandler, c *context.Context) error {
 	var detailElements []fields.Element
 	elements := h.getElements(c)
 	for _, element := range elements {
-		if !element.IsVisible(c.Resource()) {
+		if !element.IsVisible(resourceCtx) {
 			continue
 		}
 
 		ctxStr := element.GetContext()
 
 		// Skip if explicitly hidden on detail or restricted to other contexts
-		if ctxStr == fields.HIDE_ON_DETAIL ||
-			ctxStr == fields.ONLY_ON_LIST ||
-			ctxStr == fields.ONLY_ON_FORM ||
-			ctxStr == fields.HIDE_ON_UPDATE {
-			continue
+		if ctxStr != "" {
+			contexts := strings.Fields(string(ctxStr))
+			shouldSkip := false
+
+			for _, ctx := range contexts {
+				if ctx == string(fields.HIDE_ON_DETAIL) ||
+					ctx == string(fields.ONLY_ON_LIST) ||
+					ctx == string(fields.ONLY_ON_FORM) ||
+					ctx == string(fields.HIDE_ON_UPDATE) {
+					shouldSkip = true
+					break
+				}
+			}
+
+			if shouldSkip {
+				continue
+			}
 		}
+
 		detailElements = append(detailElements, element)
 	}
 
 	// Resolve fields with values
-	resolvedMap, err := h.resolveResourceFields(c.Ctx, c.Resource(), item, detailElements)
+	resolvedMap, err := h.resolveResourceFields(c.Ctx, resourceCtx, item, detailElements)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -184,10 +201,14 @@ func HandleResourceDetail(h *FieldHandler, c *context.Context) error {
 		}
 	}
 
+	dialogType, dialogSize := resolveDialogMeta(h)
+
 	return c.JSON(fiber.Map{
 		"fields": orderedFields,
 		"meta": fiber.Map{
-			"title": h.Resource.TitleWithContext(c.Ctx),
+			"title":       h.Resource.TitleWithContext(c.Ctx),
+			"dialog_type": dialogType,
+			"dialog_size": dialogSize,
 		},
 	})
 }

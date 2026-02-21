@@ -13,6 +13,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type mockResourceGridDisabled struct {
+	MockResource
+}
+
+func (m *mockResourceGridDisabled) IsGridEnabled() bool {
+	return false
+}
+
 func TestHandleResourceIndex_Success(t *testing.T) {
 	app := fiber.New()
 
@@ -61,6 +69,28 @@ func TestHandleResourceIndex_Success(t *testing.T) {
 	}
 
 	meta := response["meta"].(map[string]interface{})
+	if _, ok := meta["description"]; !ok {
+		t.Errorf("Expected meta.description to be present")
+	}
+	if meta["record_title_key"] != "full_name" {
+		t.Errorf("Expected record_title_key=full_name, got %v", meta["record_title_key"])
+	}
+	if meta["grid_enabled"] != true {
+		t.Errorf("Expected grid_enabled=true, got %v", meta["grid_enabled"])
+	}
+	headers, ok := meta["headers"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected meta.headers to be an array")
+	}
+	for _, headerRaw := range headers {
+		header, ok := headerRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if header["data"] != nil {
+			t.Errorf("Expected header data to be nil for key %v, got %v", header["key"], header["data"])
+		}
+	}
 	if meta["row_click_action"] != string(resource.IndexRowClickActionEdit) {
 		t.Errorf("Expected default row_click_action=edit, got %v", meta["row_click_action"])
 	}
@@ -73,6 +103,333 @@ func TestHandleResourceIndex_Success(t *testing.T) {
 	reorderMeta := meta["reorder"].(map[string]interface{})
 	if reorderMeta["enabled"] != false {
 		t.Errorf("Expected reorder.enabled=false, got %v", reorderMeta["enabled"])
+	}
+}
+
+func TestHandleResourceIndex_GridViewVisibility(t *testing.T) {
+	app := fiber.New()
+
+	users := []interface{}{
+		User{ID: 1, FullName: "John Doe", Email: "john@example.com"},
+	}
+
+	mockProvider := &MockDataProvider{
+		Items: users,
+		Total: 1,
+	}
+
+	fieldDefs := []fields.Element{
+		fields.ID(),
+		fields.Text("Full Name", "full_name"),
+		fields.Text("Email", "email").HideOnList().ShowOnGrid(),
+		fields.Text("Avatar", "avatar").HideOnGrid(),
+		fields.Text("Grid Label", "grid_label").ShowOnlyGrid(),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+	h.Elements = fieldDefs
+
+	app.Get("/users", FieldContextMiddleware(nil, nil, core.ContextIndex, fieldDefs), appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceIndex(h, c)
+	}))
+
+	req := httptest.NewRequest("GET", "/users?users[view]=grid", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	meta := response["meta"].(map[string]interface{})
+	headers := meta["headers"].([]interface{})
+	headerKeys := map[string]bool{}
+	for _, raw := range headers {
+		if item, ok := raw.(map[string]interface{}); ok {
+			if key, ok := item["key"].(string); ok {
+				headerKeys[key] = true
+			}
+		}
+	}
+
+	if !headerKeys["email"] {
+		t.Fatal("expected email to be visible on grid when HideOnList+ShowOnGrid is set")
+	}
+	if headerKeys["avatar"] {
+		t.Fatal("expected avatar to be hidden on grid when HideOnGrid is set")
+	}
+	if !headerKeys["grid_label"] {
+		t.Fatal("expected grid_label to be visible on grid when ShowOnlyGrid is set")
+	}
+
+	dataList := response["data"].([]interface{})
+	if len(dataList) != 1 {
+		t.Fatalf("expected 1 data item, got %d", len(dataList))
+	}
+	row := dataList[0].(map[string]interface{})
+	if _, ok := row["email"]; !ok {
+		t.Fatal("expected email field in grid row payload")
+	}
+	if _, ok := row["avatar"]; !ok {
+		t.Fatal("expected avatar field in grid row payload (HideOnGrid should hide card listing only)")
+	}
+}
+
+func TestHandleResourceIndex_IncludesStackFieldWithChildrenOnListAndGrid(t *testing.T) {
+	app := fiber.New()
+
+	users := []interface{}{
+		User{ID: 1, FullName: "John Doe", Email: "john@example.com"},
+	}
+
+	mockProvider := &MockDataProvider{
+		Items: users,
+		Total: 1,
+	}
+
+	fieldDefs := []fields.Element{
+		fields.ID(),
+		fields.Stack([]core.Element{
+			fields.Text("Full Name", "full_name"),
+			fields.Text("Email", "email"),
+		}),
+		fields.Text("Full Name", "full_name"),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+	h.Elements = fieldDefs
+
+	app.Get("/users", FieldContextMiddleware(nil, nil, core.ContextIndex, fieldDefs), appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceIndex(h, c)
+	}))
+
+	for _, rawURL := range []string{
+		"/users?page=1&per_page=10",
+		"/users?users[view]=grid&page=1&per_page=10",
+	} {
+		req := httptest.NewRequest("GET", rawURL, nil)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Failed to perform request %s: %v", rawURL, err)
+		}
+		if resp.StatusCode != 200 {
+			t.Fatalf("Expected status 200 for %s, got %d", rawURL, resp.StatusCode)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		var response map[string]interface{}
+		if err := json.Unmarshal(body, &response); err != nil {
+			t.Fatalf("Failed to unmarshal response for %s: %v", rawURL, err)
+		}
+
+			meta := response["meta"].(map[string]interface{})
+			headers := meta["headers"].([]interface{})
+			stackHeaderFound := false
+			for _, raw := range headers {
+				header, ok := raw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if key, _ := header["key"].(string); key == "stack" {
+					stackHeaderFound = true
+					break
+				}
+			}
+			if !stackHeaderFound {
+				t.Fatalf("expected stack header to be present for %s", rawURL)
+			}
+
+		dataList := response["data"].([]interface{})
+		if len(dataList) != 1 {
+			t.Fatalf("expected 1 data item for %s, got %d", rawURL, len(dataList))
+		}
+
+			row := dataList[0].(map[string]interface{})
+			stackRaw, ok := row["stack"]
+			if !ok {
+				t.Fatalf("expected stack row field to be present for %s", rawURL)
+			}
+			stackField, ok := stackRaw.(map[string]interface{})
+			if !ok {
+				t.Fatalf("expected stack row field to be a map for %s, got %T", rawURL, stackRaw)
+			}
+			props, ok := stackField["props"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("expected stack props to be map for %s", rawURL)
+			}
+			children, ok := props["fields"].([]interface{})
+			if !ok || len(children) < 2 {
+				t.Fatalf("expected stack children to be present for %s, got %T len=%d", rawURL, props["fields"], len(children))
+			}
+
+			childByKey := map[string]map[string]interface{}{}
+			for _, rawChild := range children {
+				child, ok := rawChild.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if key, _ := child["key"].(string); key != "" {
+					childByKey[key] = child
+				}
+			}
+
+			if got := childByKey["full_name"]["data"]; got != "John Doe" {
+				t.Fatalf("expected stack full_name child data to be John Doe for %s, got %v", rawURL, got)
+			}
+			if got := childByKey["email"]["data"]; got != "john@example.com" {
+				t.Fatalf("expected stack email child data to be john@example.com for %s, got %v", rawURL, got)
+			}
+
+			if _, ok := row["full_name"]; !ok {
+				t.Fatalf("expected regular fields to remain in row payload for %s", rawURL)
+			}
+		}
+	}
+
+func TestHandleResourceIndex_GridViewVisibilityWithoutContextMiddleware(t *testing.T) {
+	app := fiber.New()
+
+	users := []interface{}{
+		User{ID: 1, FullName: "John Doe", Email: "john@example.com"},
+	}
+
+	mockProvider := &MockDataProvider{
+		Items: users,
+		Total: 1,
+	}
+
+	fieldDefs := []fields.Element{
+		fields.ID().HideOnGrid(),
+		fields.Text("Full Name", "full_name"),
+		fields.Text("Email", "email").HideOnList().ShowOnGrid(),
+		fields.Text("Created At", "created_at").OnlyOnDetail(),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &MockResource{}
+	h.Elements = fieldDefs
+
+	// Intentionally no FieldContextMiddleware. Handler should bootstrap ResourceContext.
+	app.Get("/users", appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceIndex(h, c)
+	}))
+
+	req := httptest.NewRequest("GET", "/users?users[view]=grid", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	meta := response["meta"].(map[string]interface{})
+	headers := meta["headers"].([]interface{})
+	headerKeys := map[string]bool{}
+	for _, raw := range headers {
+		if item, ok := raw.(map[string]interface{}); ok {
+			if key, ok := item["key"].(string); ok {
+				headerKeys[key] = true
+			}
+		}
+	}
+
+	if headerKeys["id"] {
+		t.Fatal("expected id to be hidden in grid context")
+	}
+	if headerKeys["created_at"] {
+		t.Fatal("expected only_on_detail field to stay hidden in grid context")
+	}
+	if !headerKeys["email"] {
+		t.Fatal("expected hide_on_list + show_on_grid field to be visible in grid context")
+	}
+
+	dataList := response["data"].([]interface{})
+	if len(dataList) != 1 {
+		t.Fatalf("expected 1 data item, got %d", len(dataList))
+	}
+	row := dataList[0].(map[string]interface{})
+	if _, ok := row["id"]; !ok {
+		t.Fatal("expected id field in grid row payload (HideOnGrid should hide card listing only)")
+	}
+}
+
+func TestHandleResourceIndex_GridViewDisabledByResource(t *testing.T) {
+	app := fiber.New()
+
+	users := []interface{}{
+		User{ID: 1, FullName: "John Doe", Email: "john@example.com"},
+	}
+
+	mockProvider := &MockDataProvider{
+		Items: users,
+		Total: 1,
+	}
+
+	fieldDefs := []fields.Element{
+		fields.ID(),
+		fields.Text("Full Name", "full_name"),
+		fields.Text("Email", "email").HideOnList().ShowOnGrid(),
+	}
+
+	h := NewFieldHandler(mockProvider)
+	h.Resource = &mockResourceGridDisabled{}
+	h.Elements = fieldDefs
+
+	app.Get("/users", FieldContextMiddleware(nil, nil, core.ContextIndex, fieldDefs), appContext.Wrap(func(c *appContext.Context) error {
+		return HandleResourceIndex(h, c)
+	}))
+
+	req := httptest.NewRequest("GET", "/users?users[view]=grid", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to perform request: %v", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	meta := response["meta"].(map[string]interface{})
+	if meta["grid_enabled"] != false {
+		t.Fatalf("expected meta.grid_enabled=false, got %v", meta["grid_enabled"])
+	}
+
+	headers := meta["headers"].([]interface{})
+	headerKeys := map[string]bool{}
+	for _, raw := range headers {
+		if item, ok := raw.(map[string]interface{}); ok {
+			if key, ok := item["key"].(string); ok {
+				headerKeys[key] = true
+			}
+		}
+	}
+
+	if headerKeys["email"] {
+		t.Fatal("expected email to remain hidden when grid is disabled at resource level")
 	}
 }
 

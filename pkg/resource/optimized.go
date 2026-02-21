@@ -1015,6 +1015,8 @@ type Navigable struct {
 	paginationType  IndexPaginationType
 	reorderEnabled  bool
 	reorderColumn   string
+	gridEnabled     bool
+	gridConfigured  bool
 }
 
 // / SetIcon, menüde gösterilecek ikon adını ayarlar.
@@ -1238,6 +1240,22 @@ func (n *Navigable) GetIndexReorderConfig() IndexReorderConfig {
 		Enabled: n.reorderEnabled && column != "",
 		Column:  column,
 	}
+}
+
+// SetGridEnabled, resource için index grid görünümünü açar/kapatır.
+func (n *Navigable) SetGridEnabled(enabled bool) {
+	n.gridEnabled = enabled
+	n.gridConfigured = true
+}
+
+// IsGridEnabled, resource için index grid görünümünün açık olup olmadığını döner.
+// Varsayılan değer true'dur.
+func (n *Navigable) IsGridEnabled() bool {
+	if !n.gridConfigured {
+		return true
+	}
+
+	return n.gridEnabled
 }
 
 // / SetSortable, varsayılan sıralama ayarlarını belirler.
@@ -1844,6 +1862,17 @@ func (b *OptimizedBase) EnableIndexReorder(column string) Resource {
 func (b *OptimizedBase) DisableIndexReorder() Resource {
 	b.Navigable.DisableIndexReorder()
 	return b
+}
+
+// SetGridEnabled, resource için index grid görünümünü açar/kapatır.
+func (b *OptimizedBase) SetGridEnabled(enabled bool) Resource {
+	b.Navigable.SetGridEnabled(enabled)
+	return b
+}
+
+// IsGridEnabled, resource için index grid görünümünün açık olup olmadığını döner.
+func (b *OptimizedBase) IsGridEnabled() bool {
+	return b.Navigable.IsGridEnabled()
 }
 
 // / GetFields, belirli bir context'e göre alanları döner.

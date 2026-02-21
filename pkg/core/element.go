@@ -503,6 +503,9 @@ type Element interface {
 	//       OnForm().HideOnUpdate() // Şifre sadece create'te ayarlanabilir
 	HideOnUpdate() Element
 
+	// HideOnGrid, element'i grid görünümünde gizler.
+	HideOnGrid() Element
+
 	// HideOnApi, element'i external API yanıtlarında gizler.
 	//
 	// Bu metod, internal panel davranışını bozmadan sadece external API
@@ -523,6 +526,10 @@ type Element interface {
 	// Örnek:
 	//   field := fields.Text("Status Badge", "status").OnlyOnList()
 	OnlyOnList() Element
+
+	// ShowOnlyGrid, element'i index kapsamlarında (table/grid) görünür yapar.
+	// Form ve detay görünümlerinde gizler.
+	ShowOnlyGrid() Element
 
 	// OnlyOnDetail, element'i sadece detay görünümünde gösterir.
 	//
@@ -574,6 +581,9 @@ type Element interface {
 	// Örnek:
 	//   field := fields.Text("Name", "name").OnlyOnForm().Required()
 	OnlyOnForm() Element
+
+	// ShowOnGrid, element'i grid görünümünde görünür yapar.
+	ShowOnGrid() Element
 
 	// ============================================================================
 	// Fluent Setter'lar - Özellikler (Properties)

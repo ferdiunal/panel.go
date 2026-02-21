@@ -139,6 +139,13 @@ type Base struct {
 	/// Reorder sırasında güncellenecek kolon adı (örn: order_column)
 	IndexReorderColumn string
 
+	/// Index grid görünümü resource bazında açık mı?
+	/// Varsayılan: true (indexGridConfigured=false iken)
+	IndexGridEnabled bool
+
+	/// Grid ayarının bu resource için explicit olarak set edilip edilmediğini izler.
+	indexGridConfigured bool
+
 	/// Dosya yükleme işleyicisi - Özel dosya yükleme mantığı için
 	/// nil ise varsayılan yükleme mantığı kullanılır
 	UploadHandler func(c *appContext.Context, file *multipart.FileHeader) (string, error)
@@ -882,6 +889,28 @@ func (r *Base) EnableIndexReorder(column string) Resource {
 func (r *Base) DisableIndexReorder() Resource {
 	r.IndexReorderEnabled = false
 	return r
+}
+
+// SetGridEnabled, resource için index grid görünümünü açar/kapatır.
+//
+// Varsayılan davranış backward-compatible şekilde açıktır (true).
+// Bu metod çağrıldığında explicit konfigürasyon aktif olur.
+func (r *Base) SetGridEnabled(enabled bool) Resource {
+	r.IndexGridEnabled = enabled
+	r.indexGridConfigured = true
+	return r
+}
+
+// IsGridEnabled, resource için index grid görünümünün açık olup olmadığını döner.
+//
+// Varsayılan değer true'dur. Resource üzerinde SetGridEnabled hiç çağrılmadıysa
+// grid özelliği açık kabul edilir.
+func (r Base) IsGridEnabled() bool {
+	if !r.indexGridConfigured {
+		return true
+	}
+
+	return r.IndexGridEnabled
 }
 
 // / # OpenAPIEnabled Metodu

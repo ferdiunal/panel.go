@@ -62,6 +62,7 @@ type ResourceQueryParams struct {
 	Filters []Filter // Filtreleme koşulları (alan, operatör ve değer kombinasyonları)
 	Page    int      // Sayfa numarası (1'den başlar, varsayılan: 1)
 	PerPage int      // Sayfa başına kayıt sayısı (varsayılan: 10, maksimum: 100)
+	View    string   // Index görünümü: "table" (varsayılan) veya "grid"
 
 	// Relationship parametreleri
 	ViaResource     string // İlişkili olduğu ana kaynak (örn: "organizations")
@@ -98,6 +99,7 @@ func DefaultParams() *ResourceQueryParams {
 	return &ResourceQueryParams{
 		Page:    1,
 		PerPage: 10,
+		View:    "table",
 		Filters: make([]Filter, 0),
 		Sorts:   make([]Sort, 0),
 	}
@@ -232,8 +234,11 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 	fmt.Printf("[NESTED] Parsed values: %+v\n", values)
 
 	found := false
-	prefix := resource + "["
-	fmt.Printf("[NESTED] Looking for prefix: %s\n", prefix)
+	if resource != "" {
+		fmt.Printf("[NESTED] Looking for prefix: %s\n", resource+"[")
+	} else {
+		fmt.Printf("[NESTED] Resource prefix missing, accepting any nested resource key\n")
+	}
 
 	for key, vals := range values {
 		fmt.Printf("[NESTED] Key: %s, Vals: %v\n", key, vals)
@@ -242,17 +247,11 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 		}
 		value := vals[0] // İlk değeri al
 
-		if !strings.HasPrefix(key, prefix) {
+		inner, ok := nestedInnerKeyForResource(key, resource)
+		if !ok {
 			continue
 		}
 		found = true
-
-		// Kaynak prefix'ini ve sondaki bracket'ı kaldır
-		// users[search] -> search
-		// users[sort][id] -> sort][id
-		// users[filters][status][eq] -> filters][status][eq
-		inner := strings.TrimPrefix(key, prefix)
-		inner = strings.TrimSuffix(inner, "]")
 
 		switch {
 		case inner == "search":
@@ -267,6 +266,9 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 			if pp, err := strconv.Atoi(value); err == nil && pp > 0 && pp <= 100 {
 				params.PerPage = pp
 			}
+
+		case inner == "view":
+			params.View = normalizeIndexView(value)
 
 		case strings.HasPrefix(inner, "sort]["):
 			// sort][name -> name
@@ -307,8 +309,41 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 	if val := values.Get("viaRelationship"); val != "" {
 		params.ViaRelationship = val
 	}
+	if val := values.Get("view"); val != "" {
+		params.View = normalizeIndexView(val)
+	}
 
 	return found
+}
+
+func nestedInnerKeyForResource(key, resource string) (string, bool) {
+	if resource != "" {
+		prefix := resource + "["
+		if !strings.HasPrefix(key, prefix) {
+			return "", false
+		}
+
+		inner := strings.TrimPrefix(key, prefix)
+		inner = strings.TrimSuffix(inner, "]")
+		if inner == "" {
+			return "", false
+		}
+
+		return inner, true
+	}
+
+	openBracket := strings.IndexByte(key, '[')
+	if openBracket <= 0 || !strings.HasSuffix(key, "]") {
+		return "", false
+	}
+
+	inner := key[openBracket+1:]
+	inner = strings.TrimSuffix(inner, "]")
+	if inner == "" {
+		return "", false
+	}
+
+	return inner, true
 }
 
 // Bu fonksiyon, basit ve gelişmiş filtreleme formatlarını işler.
@@ -508,6 +543,19 @@ func parseLegacyFormat(c *fiber.Ctx, params *ResourceQueryParams) {
 	if viaRelationship := c.Query("viaRelationship"); viaRelationship != "" {
 		params.ViaRelationship = viaRelationship
 	}
+
+	// Görünüm modu
+	if view := c.Query("view"); view != "" {
+		params.View = normalizeIndexView(view)
+	}
+}
+
+func normalizeIndexView(raw string) string {
+	view := strings.ToLower(strings.TrimSpace(raw))
+	if view == "grid" {
+		return "grid"
+	}
+	return "table"
 }
 
 // Bu metod, arama sorgusu ayarlanıp ayarlanmadığını kontrol eder.
