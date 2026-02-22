@@ -80,6 +80,51 @@ func TestGormDataProvider_Index(t *testing.T) {
 	}
 }
 
+func TestGormDataProvider_Index_RequestSortOverridesBaseQueryOrder(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to db: %v", err)
+	}
+
+	db.Migrator().DropTable(&TestUser{})
+	db.AutoMigrate(&TestUser{})
+
+	users := []TestUser{
+		{Name: "Alice", Email: "alice@example.com"},
+		{Name: "Bob", Email: "bob@example.com"},
+		{Name: "Charlie", Email: "charlie@example.com"},
+	}
+	db.Create(&users)
+
+	provider := NewGormDataProvider(db, &TestUser{})
+	provider.SetBaseQuery(func(tx *gorm.DB) *gorm.DB {
+		return tx.Order("id DESC")
+	})
+
+	ctx := (*context.Context)(nil)
+	req := QueryRequest{
+		Page:    1,
+		PerPage: 10,
+		Sorts: []Sort{
+			{Column: "id", Direction: "asc"},
+		},
+	}
+
+	resp, err := provider.Index(ctx, req)
+	if err != nil {
+		t.Fatalf("Index failed: %v", err)
+	}
+
+	if len(resp.Items) != 3 {
+		t.Fatalf("Expected 3 items, got %d", len(resp.Items))
+	}
+
+	first := resp.Items[0].(*TestUser)
+	if first.ID != users[0].ID {
+		t.Fatalf("Expected first ID to be %d (ASC), got %d", users[0].ID, first.ID)
+	}
+}
+
 func TestGormDataProvider_Search(t *testing.T) {
 	// Setup In-Memory DB
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})

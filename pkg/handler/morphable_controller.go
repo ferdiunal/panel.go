@@ -19,6 +19,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ferdiunal/panel.go/pkg/context"
 	"github.com/ferdiunal/panel.go/pkg/fields"
@@ -434,17 +435,30 @@ func queryMorphableResources(db *gorm.DB, tableName, search string, limit int, c
 		return []MorphableOption{}, nil
 	}
 
+	selectedColumns, searchableColumns, err := resolveMorphableColumns(db, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	selectClause := strings.Join(selectedColumns, ", ")
+
 	var results []map[string]interface{}
 
 	// Build query
-	query := db.Table(tableName).Select("id, name, title, email, username")
+	query := db.Table(tableName).Select(selectClause)
 
 	// Apply search filter
-	if search != "" {
-		query = query.Where(
-			"name LIKE ? OR title LIKE ? OR email LIKE ? OR username LIKE ?",
-			"%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%",
+	if search != "" && len(searchableColumns) > 0 {
+		var (
+			conditions []string
+			args       []interface{}
 		)
+		likeValue := "%" + search + "%"
+		for _, column := range searchableColumns {
+			conditions = append(conditions, fmt.Sprintf("%s LIKE ?", column))
+			args = append(args, likeValue)
+		}
+		query = query.Where(strings.Join(conditions, " OR "), args...)
 	}
 
 	// Apply limit
@@ -480,9 +494,9 @@ func queryMorphableResources(db *gorm.DB, tableName, search string, limit int, c
 		if !found {
 			var currentResult map[string]interface{}
 			if err := db.Table(tableName).
-				Select("id, name, title, email, username").
+				Select(selectClause).
 				Where("id = ?", currentID).
-				First(&currentResult).Error; err == nil {
+				Take(&currentResult).Error; err == nil {
 				display := getDisplayValue(currentResult)
 				options = append([]MorphableOption{{
 					Value:   currentResult["id"],
@@ -493,6 +507,54 @@ func queryMorphableResources(db *gorm.DB, tableName, search string, limit int, c
 	}
 
 	return options, nil
+}
+
+func resolveMorphableColumns(db *gorm.DB, tableName string) ([]string, []string, error) {
+	rows, err := db.Table(tableName).Select("*").Limit(1).Rows()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	rawColumns, err := rows.Columns()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	availableColumns := make(map[string]struct{}, len(rawColumns))
+	for _, column := range rawColumns {
+		availableColumns[strings.ToLower(strings.TrimSpace(column))] = struct{}{}
+	}
+
+	candidateColumns := []string{"id", "name", "title", "email", "username"}
+	searchCandidates := []string{"name", "title", "email", "username"}
+
+	selectedColumns := make([]string, 0, len(candidateColumns))
+	for _, column := range candidateColumns {
+		if _, ok := availableColumns[column]; ok {
+			selectedColumns = append(selectedColumns, column)
+		}
+	}
+
+	hasIDColumn := false
+	for _, column := range selectedColumns {
+		if column == "id" {
+			hasIDColumn = true
+			break
+		}
+	}
+	if !hasIDColumn {
+		return nil, nil, fmt.Errorf("table %s does not contain an id column", tableName)
+	}
+
+	searchableColumns := make([]string, 0, len(searchCandidates))
+	for _, column := range searchCandidates {
+		if _, ok := availableColumns[column]; ok {
+			searchableColumns = append(searchableColumns, column)
+		}
+	}
+
+	return selectedColumns, searchableColumns, nil
 }
 
 // getDisplayValue, bir kaynak kaydından en uygun görüntüleme değerini çıkarır.

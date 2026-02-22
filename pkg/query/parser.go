@@ -245,7 +245,9 @@ func parseNestedFormat(rawQuery string, resource string, params *ResourceQueryPa
 		if len(vals) == 0 {
 			continue
 		}
-		value := vals[0] // İlk değeri al
+		// Duplicate key durumunda en son gönderilen değeri kullan.
+		// Frontend (qs) "last wins" semantiği ile çalışır.
+		value := vals[len(vals)-1]
 
 		inner, ok := nestedInnerKeyForResource(key, resource)
 		if !ok {

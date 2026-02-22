@@ -791,6 +791,12 @@ func (p *GormDataProvider) Index(ctx *context.Context, req QueryRequest) (*Query
 
 	// Sorting with column validation
 	if len(req.Sorts) > 0 {
+		// If request explicitly defines sorting, it should override any prior ORDER BY
+		// (for example from BaseQuery/lens defaults).
+		if db.Statement != nil {
+			delete(db.Statement.Clauses, "ORDER BY")
+		}
+
 		for _, sort := range req.Sorts {
 			if sort.Column != "" {
 				// SECURITY: Validate sort column names

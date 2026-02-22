@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/ferdiunal/panel.go/pkg/fields"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 // TestGetDisplayValue tests the getDisplayValue function
@@ -167,5 +169,75 @@ func TestMorphToFieldIntegration(t *testing.T) {
 	_, err = field.GetResourceForType("unknown")
 	if err == nil {
 		t.Error("Expected error for unknown type")
+	}
+}
+
+func TestQueryMorphableResourcesWithSparseColumns(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:morphable_sparse_columns?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open sqlite database: %v", err)
+	}
+
+	if err := db.Exec(`
+		CREATE TABLE hero_sections (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL
+		)
+	`).Error; err != nil {
+		t.Fatalf("failed to create hero_sections table: %v", err)
+	}
+
+	if err := db.Exec(`INSERT INTO hero_sections (name) VALUES (?)`, "Ana Banner").Error; err != nil {
+		t.Fatalf("failed to seed hero_sections table: %v", err)
+	}
+
+	results, err := queryMorphableResources(db, "hero_sections", "Banner", 10, "")
+	if err != nil {
+		t.Fatalf("queryMorphableResources returned error: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	if results[0].Display != "Ana Banner" {
+		t.Fatalf("expected display 'Ana Banner', got %q", results[0].Display)
+	}
+}
+
+func TestQueryMorphableResourcesCurrentIDFallbackWithTitleColumn(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:morphable_title_column?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open sqlite database: %v", err)
+	}
+
+	if err := db.Exec(`
+		CREATE TABLE collections (
+			id INTEGER PRIMARY KEY,
+			title TEXT NOT NULL
+		)
+	`).Error; err != nil {
+		t.Fatalf("failed to create collections table: %v", err)
+	}
+
+	if err := db.Exec(`
+		INSERT INTO collections (id, title) VALUES
+			(1, 'Kis Koleksiyonu'),
+			(2, 'Yaz Koleksiyonu')
+	`).Error; err != nil {
+		t.Fatalf("failed to seed collections table: %v", err)
+	}
+
+	results, err := queryMorphableResources(db, "collections", "Yaz", 1, "1")
+	if err != nil {
+		t.Fatalf("queryMorphableResources returned error: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	if results[0].Display != "Kis Koleksiyonu" {
+		t.Fatalf("expected current value to be prepended, got %q", results[0].Display)
 	}
 }

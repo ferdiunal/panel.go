@@ -3238,7 +3238,7 @@ tooltip="Girin" // Belirsiz
 
 ## InputGroup Addon Desteği
 
-Form field'larında `shadcn/ui` `InputGroup` pattern'i ile alanın başına/sonuna bileşen veya metin ekleyebilirsiniz.
+Form, Detail ve Index görünümlerinde `shadcn/ui` `InputGroup` pattern'i ile alanın başına/sonuna bileşen veya metin ekleyebilirsiniz.
 
 Referans: [shadcn Input Group](https://ui.shadcn.com/docs/components/base/input-group.md)
 
@@ -3286,10 +3286,11 @@ fields.BelongsTo("Kategori", "category_id", "categories").
 
 ### Kapsam
 
-Addon çözümleyici (`resolveFieldInputAddons`) tüm form field component'lerinde uygulanır.
+Addon çözümleyici (`resolveFieldInputAddons`) tüm görünümlerde uygulanır.
 
-- Input/textarea/select/combobox tabanlı field'larda doğrudan `InputGroup` render edilir.
-- Relationship chips, file, tabs, dialog gibi kompleks field'larda container-level addon uygulanır.
+- Form view: Input/textarea/select/combobox tabanlı field'larda doğrudan `InputGroup` render edilir.
+- Form view (kompleks field'lar): Relationship chips, file, tabs, dialog gibi alanlarda container-level addon uygulanır.
+- Detail/Index view: Field value render katmanında addon ile birlikte gösterilir.
 
 Uygulama dosyaları:
 - `/Users/ferdiunal/Web/panel.go/web/src/components/fields/form/input-group-addon.tsx`

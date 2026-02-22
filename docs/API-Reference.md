@@ -344,8 +344,8 @@ func (f *TextField) Validate(value interface{}) error {
 Field UI davranışı için `WithProps(key, value)` ile frontend'e ek metadata geçebilirsiniz.
 
 Addon destekli anahtarlar:
-- `startAddon`: Alanın başında render edilir
-- `endAddon`: Alanın sonunda render edilir
+- `startAddon`: Alanın başında render edilir (Form/Detail/Index)
+- `endAddon`: Alanın sonunda render edilir (Form/Detail/Index)
 
 Uyumluluk alias'ları:
 - Baş addon: `start_component`, `prefix`, `prepend`
