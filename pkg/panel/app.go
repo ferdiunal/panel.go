@@ -30,10 +30,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -232,6 +235,140 @@ func langMiddleware(config Config) fiber.Handler {
 	}
 }
 
+func buildContentSecurityPolicy(environment string) string {
+	connectSources := []string{"'self'"}
+	connectSources = append(connectSources, resolveRealtimeConnectSources(environment)...)
+
+	return fmt.Sprintf(
+		"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src %s; frame-ancestors 'none';",
+		strings.Join(connectSources, " "),
+	)
+}
+
+func resolveRealtimeConnectSources(environment string) []string {
+	origins := make(map[string]struct{})
+
+	addOrigins := func(host, port string) {
+		normalizedHost, normalizedPort, ok := parseCSPHostPort(host, port)
+		if !ok {
+			return
+		}
+
+		origins[buildWebSocketOrigin("ws", normalizedHost, normalizedPort)] = struct{}{}
+		origins[buildWebSocketOrigin("wss", normalizedHost, normalizedPort)] = struct{}{}
+	}
+
+	echoHost := firstNonEmptyEnv("POS_ECHO_HOST", "SOKETI_HOST", "VITE_POS_ECHO_HOST", "VITE_SOKETI_HOST")
+	echoPort := firstNonEmptyEnv("POS_ECHO_PORT", "SOKETI_PORT", "VITE_POS_ECHO_PORT", "VITE_SOKETI_PORT")
+	if echoHost != "" && echoPort == "" {
+		echoPort = "6001"
+	}
+	addOrigins(echoHost, echoPort)
+
+	env := strings.ToLower(strings.TrimSpace(environment))
+	if env == "development" || env == "dev" || env == "local" {
+		addOrigins("localhost", "6001")
+		addOrigins("127.0.0.1", "6001")
+	}
+
+	if len(origins) == 0 {
+		return nil
+	}
+
+	sources := make([]string, 0, len(origins))
+	for origin := range origins {
+		sources = append(sources, origin)
+	}
+	sort.Strings(sources)
+
+	return sources
+}
+
+func parseCSPHostPort(rawHost, rawPort string) (string, string, bool) {
+	host := strings.TrimSpace(rawHost)
+	if host == "" {
+		return "", "", false
+	}
+
+	port, ok := normalizeCSPPort(rawPort)
+	if !ok {
+		return "", "", false
+	}
+
+	normalizedHost := host
+	if strings.Contains(host, "://") || strings.HasPrefix(host, "//") {
+		parsed, err := url.Parse(host)
+		if err != nil || parsed.Host == "" {
+			return "", "", false
+		}
+		normalizedHost = parsed.Hostname()
+		if port == "" {
+			parsedPort, valid := normalizeCSPPort(parsed.Port())
+			if !valid {
+				return "", "", false
+			}
+			port = parsedPort
+		}
+	} else {
+		parsed, err := url.Parse("http://" + host)
+		if err != nil || parsed.Hostname() == "" {
+			return "", "", false
+		}
+		normalizedHost = parsed.Hostname()
+		if port == "" {
+			parsedPort, valid := normalizeCSPPort(parsed.Port())
+			if !valid {
+				return "", "", false
+			}
+			port = parsedPort
+		}
+	}
+
+	if normalizedHost == "" || strings.ContainsAny(normalizedHost, " \t\r\n/") {
+		return "", "", false
+	}
+
+	return normalizedHost, port, true
+}
+
+func normalizeCSPPort(rawPort string) (string, bool) {
+	port := strings.TrimSpace(rawPort)
+	if port == "" {
+		return "", true
+	}
+
+	value, err := strconv.Atoi(port)
+	if err != nil || value < 1 || value > 65535 {
+		return "", false
+	}
+
+	return strconv.Itoa(value), true
+}
+
+func buildWebSocketOrigin(scheme, host, port string) string {
+	if port == "" {
+		if ip := net.ParseIP(host); ip != nil && strings.Contains(host, ":") {
+			return (&url.URL{Scheme: scheme, Host: "[" + host + "]"}).String()
+		}
+		return (&url.URL{Scheme: scheme, Host: host}).String()
+	}
+
+	return (&url.URL{
+		Scheme: scheme,
+		Host:   net.JoinHostPort(host, port),
+	}).String()
+}
+
+func firstNonEmptyEnv(keys ...string) string {
+	for _, key := range keys {
+		value := strings.TrimSpace(os.Getenv(key))
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func New(config Config) *Panel {
 	// Preserve default fail-fast=true for legacy/zero config while still allowing
 	// explicit FailFast=false when pipeline v2 is enabled.
@@ -363,8 +500,9 @@ func New(config Config) *Panel {
 	}))
 
 	// SECURITY: Additional security headers (helmet doesn't support all of these)
+	cspValue := buildContentSecurityPolicy(config.Environment)
 	app.Use(func(c *fiber.Ctx) error {
-		c.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';")
+		c.Set("Content-Security-Policy", cspValue)
 		c.Set("X-Frame-Options", "DENY")
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("Referrer-Policy", "no-referrer")
